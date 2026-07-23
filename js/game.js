@@ -124,12 +124,12 @@
       this.spawnQueue.sort((a, b) => a.at - b.at); this.started = true; this.emit();
     }
     /* ---------- phép PvP tác động lên chính sân này (do đối thủ thi triển) ---------- */
-    // Ô LAND ngẫu nhiên còn tới được đích (để thả quái triệu hồi giữa bản đồ)
+    // Ô LAND ngẫu nhiên CHƯA xây tháp/bẫy — KỂ CẢ ô bị quây kín không còn đường về đích
+    // (quái rơi vào đó sẽ đứng im, buộc đối thủ phải tự dọn bằng tháp/phép)
     randomSpawnableCell() {
       const cand = [];
       for (let r = 0; r < CFG.ROWS; r++) for (let c = 0; c < CFG.COLS; c++) {
         if (this.grid[r][c] !== CELL.LAND || this.occupied.has(c + "," + r)) continue;
-        if (this.distAt(c, r) === INF) continue;   // phải có đường về đích
         cand.push({ c, r });
       }
       return cand.length ? cand[(Math.random() * cand.length) | 0] : this.enemySpawnCell();

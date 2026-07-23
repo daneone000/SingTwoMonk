@@ -39,7 +39,7 @@
       game.reset("endless"); game.versus = true; game.netMatch = this; game.name = myName;
     }
     join() { this.client.send({ t: "join", name: this.myName }); }
-    startMatch() { if (this.isHost) this.client.send({ t: "start" }); }
+    startMatch() { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId() }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }
     sendSpell(key, data) { this.client.send({ t: "spell", key, data }); }
 
@@ -55,6 +55,9 @@
           break;
         case "start":
           this.started = true; this.players = o.players;
+          // bản đồ chủ phòng chọn -> dựng lại sân sạch cho mọi máy trước khi vào trận
+          if (o.map) STM.CFG.setMap(o.map);
+          g.reset("endless"); g.versus = true; g.netMatch = this; g.name = this.myName;
           for (const p of o.players) this.names[p.pid] = p.name;
           this._beginPush();
           if (this.onStart) this.onStart(this);

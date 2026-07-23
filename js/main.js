@@ -207,7 +207,7 @@
   $("btnSpeed").onclick = () => { game.speed = game.speed === 1 ? 2 : game.speed === 2 ? 3 : 1; game.emit(); };
   function syncAuto() { $("btnAuto").classList.toggle("on", game.autoNext); $("btnAuto").textContent = "Tự động: " + (game.autoNext ? "BẬT" : "TẮT"); }
   $("btnAuto").onclick = () => { game.autoNext = !game.autoNext; syncAuto(); };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = ""; log("Ván mới: " + (mode === "campaign" ? "Chiến Dịch" : "Hố Tử Thần"), "good"); }
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = ""; log("Ván mới: " + (mode === "campaign" ? "Chiến Dịch" : "Hố Tử Thần") + " — bản đồ " + CFG.curMap().name, "good"); }
   $("modeEndless").onclick = () => newGame("endless");
   $("modeCampaign").onclick = () => newGame("campaign");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame("endless"); };
@@ -264,6 +264,8 @@
     $("vsLanJoin").classList.toggle("hidden", !lan || conn);
     $("vsLanStart").classList.toggle("hidden", !lan || !conn || !(net && net.isHost));
     $("vsLanLeave").classList.toggle("hidden", !lan || !conn);
+    // trong phòng LAN: chỉ CHỦ PHÒNG được chọn bản đồ (bản đồ theo chủ phòng)
+    $("vsMaps").classList.toggle("locked", lan && conn && !(net && net.isHost));
   }
   $("vsTabAI").onclick = () => showTab("AI");
   $("vsTabLAN").onclick = () => showTab("LAN");
@@ -387,6 +389,33 @@
     $("vsAgain").style.display = (m.net && !m.isHost) ? "none" : "";
     vsResult.classList.remove("hidden");
   }
+
+  /* ---------- chọn BẢN ĐỒ (dùng chung menu chính & hộp đối kháng) ---------- */
+  function drawMapPreview(cv, m) {
+    const n = CFG.COLS, px = 3; cv.width = n * px; cv.height = n * px;
+    const grid = CFG.buildMap(m.id).grid, x = cv.getContext("2d");
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { x.fillStyle = grid[r][c] === CFG.CELL.WATER ? "#c9451f" : "#5b6b3e"; x.fillRect(c * px, r * px, px, px); }
+    x.fillStyle = "#8effb0"; x.fillRect(0, 0, px * 2, px);                    // cửa Sinh
+    x.fillStyle = "#ff9b9b"; x.fillRect((n - 2) * px, (n - 1) * px, px * 2, px); // cửa Tử
+  }
+  const mapPickers = [$("menuMaps"), $("vsMaps")];
+  function renderMapPick() {
+    for (const wrap of mapPickers) {
+      wrap.innerHTML = "";
+      for (const m of CFG.MAPS) {
+        const b = document.createElement("button");
+        b.className = "map-btn" + (CFG.getMapId() === m.id ? " on" : ""); b.title = m.desc;
+        const cv = document.createElement("canvas"); drawMapPreview(cv, m);
+        const tx = document.createElement("span"); tx.className = "map-tx";
+        tx.innerHTML = `<span class="map-nm">${m.icon} ${m.name}</span><span class="map-ds">${m.desc}</span>`;
+        b.appendChild(cv); b.appendChild(tx);
+        // đổi bản đồ chỉ dựng lại sân khi ván CHƯA bắt đầu — không xoá tiến độ đang chơi
+        b.onclick = () => { CFG.setMap(m.id); renderMapPick(); if (!match && !net && !game.started) newGame(game.mode); };
+        wrap.appendChild(b);
+      }
+    }
+  }
+  renderMapPick();
 
   /* ==================== MENU CHÍNH (bật lên khi mới vào game) ==================== */
   const mainMenu = $("mainMenu");

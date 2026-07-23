@@ -86,11 +86,12 @@ function hostPid() { const h = clients.get(room.hostId); return h ? h.pid : null
 function aliveClients() { return [...clients.values()].filter((c) => c.joined && c.alive); }
 function interval() { return room.wave >= room.LATE_WAVE ? room.WAVE_INTERVAL_LATE : room.WAVE_INTERVAL; }
 
-function startMatch() {
+function startMatch(mapId) {
   if (room.started) return;
   room.started = true; room.over = false; room.wave = 0; room.deathOrder = [];
+  room.map = mapId || room.map || null;          // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
   for (const c of clients.values()) if (c.joined) c.alive = true;
-  broadcast({ t: "start", players: joinedList() });
+  broadcast({ t: "start", players: joinedList(), map: room.map });
   room.waveTimer = room.VS_START_DELAY;
   room.tickTimer = setInterval(serverTick, 250);
 }
@@ -136,7 +137,7 @@ function handleMsg(c, msg) {
       lobbyUpdate();
       break;
     }
-    case "start": if (c.id === room.hostId && !room.started && joinedList().length >= 2) startMatch(); break;
+    case "start": if (c.id === room.hostId && !room.started && joinedList().length >= 2) startMatch(o.map); break;
     case "snap": broadcast({ t: "snap", pid: c.pid, s: o.s }, c.id); break;      // minimap của người khác
     case "spell": broadcast({ t: "spell", from: c.pid, key: o.key, data: o.data }, c.id); break; // phép PvP tác động người khác (kèm data, vd chủng Triệu Hồi)
     case "dead": playerDead(c); break;

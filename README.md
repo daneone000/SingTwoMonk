@@ -53,14 +53,31 @@ Bấm nút phép rồi chọn mục tiêu trên bản đồ:
 
 🌋 Mưa Lửa (ST nhóm quái bộ) · 🌩 Bão Sét (ST nhóm quái bay) · ☝ Nhất Dương Chỉ
 (giết ngay 1 quái / -25% máu Boss) · 🟣 Khói Độc (đám khói DoT) · 🗡 Kiếm Thần (ST
-toàn sân, trừ Boss) · 💪 Tăng Lực (buff 1 tháp) · 🌫 Mê Trận (chậm toàn bộ) · 🧊
+toàn sân, **kể cả Boss**) · 💪 Tăng Lực (buff 1 tháp) · 🌫 Mê Trận (chậm toàn bộ) · 🧊
 Phong Ấn (đóng băng nhóm) · 🌀 Dịch Chuyển (đưa mọi quái về xuất phát).
+
+Mưa Lửa / Bão Sét gây thêm **10% máu ĐÃ MẤT** của mục tiêu (càng đánh lâu càng đau).
+
+### Bản đồ (chọn ở menu chính)
+
+| | Bản đồ | Đặc điểm |
+|--|--------|----------|
+| 🌋 | **Cổ Trận Nham Hà** | Đúng bản gốc: 3 sông dung nham chia cắt sân, mê cung ngắn hơn nhưng dễ chặn |
+| 🏜 | **Miền Đất Chết** | 13×13 trống trải, không một dòng nham — tự do dựng mê cung dài nhất có thể |
 
 ### Chế độ & phím tắt
 
+Vào game hiện **menu chính** để chọn bản đồ + chế độ (mở lại bằng nút **☰** góc trên phải):
+
 - **☠ Hố Tử Thần** — sinh tồn vô tận, khó dần (cày kỷ lục số đợt).
-- **🗺 Chiến Dịch** — chơi qua các đợt liên tục.
-- Phím: `1–7` chọn tháp/bẫy · `Space` dừng · `Enter` vào đợt · `Esc`/chuột phải hủy.
+- **🗺 Chiến Dịch** — chơi qua các đợt liên tục, trụ hết 30 đợt là thắng.
+- **⚔ Đối kháng** — tối đa **5 sân**, cùng chuỗi đợt quái đồng bộ, ai để 10 quái lọt
+  trước thì thất thủ. Đấu với **AI** hoặc **người thật qua LAN** (`node server.js`).
+  Bạn ở xa vẫn chơi được qua **LAN ảo ZeroTier** — xem `HUONGDAN-LAN-AO.md`.
+  Phép nhánh đối kháng đánh thẳng sang sân đối thủ: 👹 Triệu Hồi thả 1 quái vào **ô
+  ngẫu nhiên bất kỳ chưa xây** (kể cả ô đã bị quây kín), 🩸 Huyết Quỷ tăng tốc quái,
+  🛡 Ma Giáp cộng máu, 🌎 Địa Chấn phá 1 tháp.
+- Phím: `1–7` chọn tháp/bẫy · `Space` dừng · `Enter` vào đợt · `F2` cây phép · `Esc`/chuột phải hủy.
 
 ## Cấu trúc mã nguồn
 

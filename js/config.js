@@ -10,20 +10,40 @@
   const MARGIN = TILE;                 // lề để vẽ cổng Sinh/Tử NGOÀI lưới
   const CELL = { LAND: 0, WATER: 1, WALL: 2, SPAWN: 3, EXIT: 4 };
 
-  function buildMap() {
+  // ----- BẢN ĐỒ -----
+  // lava: danh sách hình chữ nhật [cột đầu, hàng đầu, cột cuối, hàng cuối] là SÔNG DUNG NHAM (cấm xây, cấm đi)
+  const MAPS = [
+    {
+      id: "nham_ha", name: "Cổ Trận Nham Hà", icon: "🌋",
+      desc: "Bản gốc: 3 sông dung nham chia cắt sân, mê cung ngắn hơn nhưng dễ chặn",
+      // theo tọa độ Excel bản gốc (grid 0-index):
+      //   F1:M3 -> cột 5-12, hàng 0-2 | A7:H7 -> cột 0-7, hàng 6 | F11:M11 -> cột 5-12, hàng 10
+      lava: [[5, 0, 12, 2], [0, 6, 7, 6], [5, 10, 12, 10]],
+    },
+    {
+      id: "dat_chet", name: "Miền Đất Chết", icon: "🏜",
+      desc: "13×13 trống trải, không một dòng nham — tự do dựng mê cung dài nhất có thể",
+      lava: [],
+    },
+  ];
+  let mapId = MAPS[0].id;
+  const curMap = () => MAPS.find((m) => m.id === mapId) || MAPS[0];
+  const setMap = (id) => { if (MAPS.some((m) => m.id === id)) mapId = id; return mapId; };
+  const getMapId = () => mapId;
+
+  function buildMap(id) {
+    const def = MAPS.find((m) => m.id === (id || mapId)) || MAPS[0];
     const g = [];
-    // Cả lưới 13×13 đều XÂY ĐƯỢC. Cổng Sinh/Tử nằm NGOÀI lưới; mỗi cổng nối vào
+    // Cả lưới 13×13 đều XÂY ĐƯỢC (trừ ô nham). Cổng Sinh/Tử nằm NGOÀI lưới; mỗi cổng nối vào
     // 2 ô rìa — người chơi có thể xây bịt 1 trong 2 (không bịt được cả 2).
     const entries = [{ c: 0, r: 0 }, { c: 1, r: 0 }];                          // Sinh: góc trên-trái
     const exits = [{ c: COLS - 1, r: ROWS - 1 }, { c: COLS - 2, r: ROWS - 1 }]; // Tử: góc dưới-phải
-    // 3 SÔNG DUNG NHAM theo tọa độ Excel bản gốc (grid 0-index):
-    //   F1:M3 -> cột 5-12, hàng 0-2 | A7:H7 -> cột 0-7, hàng 6 | F11:M11 -> cột 5-12, hàng 10
     const lava = new Set();
     const addRect = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) lava.add(c + "," + r); };
-    addRect(5, 0, 12, 2); addRect(0, 6, 7, 6); addRect(5, 10, 12, 10);
+    for (const rect of def.lava) addRect(rect[0], rect[1], rect[2], rect[3]);
     for (let r = 0; r < ROWS; r++) { const row = []; for (let c = 0; c < COLS; c++) row.push(lava.has(c + "," + r) ? CELL.WATER : CELL.LAND); g.push(row); }
     return {
-      grid: g, entries, exits,
+      id: def.id, name: def.name, grid: g, entries, exits,
       // toạ độ pixel (grid-local) của 2 cổng NGOÀI lưới
       sinhPix: { x: 1.0 * TILE, y: -0.55 * TILE },
       tuPix: { x: (COLS - 1.0) * TILE, y: (ROWS + 0.55) * TILE },
@@ -158,7 +178,7 @@
   const SKILLS = {
     muaLua: { key: "muaLua", name: "Mưa Lửa", glyph: "🌋", learn: 1, tier: 0, col: 2, branch: "gold", parents: [], cd: 60, aim: "area", radius: 1.9, dmg: 70, pct: 0.10, hits: "ground", desc: "ST nhóm quái BỘ (70 + 10% máu ĐÃ MẤT)." },
     baoSet: { key: "baoSet", name: "Bão Sét", glyph: "🌩", learn: 10, tier: 1, col: 1, branch: "red", parents: ["muaLua"], cd: 60, aim: "area", radius: 1.9, dmg: 70, pct: 0.10, hits: "air", desc: "ST nhóm quái BAY (70 + 10% máu ĐÃ MẤT)." },
-    trieuHoi: { key: "trieuHoi", name: "Triệu Hồi", glyph: "👹", learn: 15, tier: 1, col: 2, branch: "blue", parents: ["muaLua"], cd: 120, aim: "pvp", desc: "[Đối kháng] Thả 1 quái (chủng ngẫu nhiên GIỐNG nhau mọi người, mạnh theo đợt hiện tại) tại vị trí ngẫu nhiên lên sân TẤT CẢ đối thủ." },
+    trieuHoi: { key: "trieuHoi", name: "Triệu Hồi", glyph: "👹", learn: 15, tier: 1, col: 2, branch: "blue", parents: ["muaLua"], cd: 120, aim: "pvp", desc: "[Đối kháng] Thả 1 quái (chủng ngẫu nhiên GIỐNG nhau mọi người, mạnh theo đợt hiện tại) lên sân TẤT CẢ đối thủ, tại ô ngẫu nhiên bất kỳ CHƯA xây — kể cả ô bị quây kín không còn đường về đích." },
     tangLuc: { key: "tangLuc", name: "Tăng Lực", glyph: "💪", learn: 15, tier: 1, col: 3, branch: "green", parents: ["muaLua"], cd: 40, aim: "tower", mult: 2, dur: 8, desc: "Tăng gấp đôi sức mạnh 1 tháp trong 8s." },
     khoiDoc: { key: "khoiDoc", name: "Khói Độc", glyph: "🟣", learn: 40, tier: 2, col: 0, branch: "red", parents: ["baoSet"], cd: 75, aim: "area", radius: 2.2, dps: 30, pctps: 0.05, dur: 5, desc: "Khói độc: mỗi giây trừ (30 + 5% máu tối đa), 5s." },
     nhatDuong: { key: "nhatDuong", name: "Nhất Dương Chỉ", glyph: "☝", learn: 30, tier: 2, col: 1, branch: "red", parents: ["baoSet", "trieuHoi"], cd: 100, aim: "enemy", desc: "Giết ngay 1 quái thường, hoặc -25% máu Boss." },
@@ -196,7 +216,7 @@
   for (const [f, t, , bidir] of SKILL_EDGES) { SKILLS[t].parents.push(f); if (bidir) SKILLS[f].parents.push(t); }
 
   STM.CFG = {
-    TILE, COLS, ROWS, CELL, MARGIN, buildMap,
+    TILE, COLS, ROWS, CELL, MARGIN, buildMap, MAPS, curMap, setMap, getMapId,
     GRID_W: TILE * COLS, GRID_H: TILE * ROWS,
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,
