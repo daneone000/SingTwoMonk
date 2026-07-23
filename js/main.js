@@ -32,15 +32,36 @@
   for (const k of CFG.TRAP_ORDER) addTower(k, CFG.TRAPS[k], true);
 
   /* ---------- PHÍM TẮT (người chơi cấu hình được, lưu localStorage) ---------- */
-  const KB_LS = "stm.keys";
+  //  • Tháp/bẫy: gán theo từng loại (KEYS)
+  //  • Phép: gán theo 6 Ô (SLOT_KEYS). Phép học được xếp vào ô theo thứ tự cây kỹ năng;
+  //    nhấn phím của ô -> thi triển phép đang nằm ở ô đó.
+  const KB_LS = "stm.keys", SLOT_LS = "stm.skillslots";
   const RESERVED = new Set(["escape", "enter", "f2", " ", "tab"]);   // phím dành riêng, không gán được
-  function loadKeys() { let s = {}; try { s = JSON.parse(localStorage.getItem(KB_LS) || "{}"); } catch (e) {} return Object.assign({}, CFG.DEFAULT_KEYS, s); }
-  let KEYS = loadKeys();
+  function loadKeys() {
+    let s = {}; try { s = JSON.parse(localStorage.getItem(KB_LS) || "{}"); } catch (e) {}
+    const out = {}; for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) out[k] = (s && s[k]) || CFG.DEFAULT_KEYS[k];
+    return out;
+  }
+  function loadSlotKeys() {
+    let a = null; try { a = JSON.parse(localStorage.getItem(SLOT_LS)); } catch (e) {}
+    if (!Array.isArray(a)) a = [];
+    const out = []; for (let i = 0; i < CFG.MAX_SKILLS; i++) out[i] = (a[i] != null ? a[i] : CFG.DEFAULT_SLOT_KEYS[i]);
+    return out;
+  }
+  let KEYS = loadKeys(), SLOT_KEYS = loadSlotKeys();
   const keyGlyph = (k) => !k ? "·" : k === " " ? "Space" : k.length === 1 ? k.toUpperCase() : k;
-  let keyMap = {};
-  function rebuildKeyMap() { keyMap = {}; for (const a in KEYS) if (KEYS[a]) keyMap[KEYS[a].toLowerCase()] = a; }
-  function saveKeys() { try { localStorage.setItem(KB_LS, JSON.stringify(KEYS)); } catch (e) {} rebuildKeyMap(); refreshHotkeyBadges(); }
-  function refreshHotkeyBadges() { document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); }); }
+  let keyMap = {}, slotKeyMap = {};
+  function rebuildKeyMap() {
+    keyMap = {}; for (const a in KEYS) if (KEYS[a]) keyMap[KEYS[a].toLowerCase()] = a;
+    slotKeyMap = {}; SLOT_KEYS.forEach((k, i) => { if (k) slotKeyMap[k.toLowerCase()] = i; });
+  }
+  function persistKeys() { try { localStorage.setItem(KB_LS, JSON.stringify(KEYS)); localStorage.setItem(SLOT_LS, JSON.stringify(SLOT_KEYS)); } catch (e) {} rebuildKeyMap(); refreshHotkeyBadges(); }
+  function refreshHotkeyBadges() {
+    document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); });
+    document.querySelectorAll(".hk[data-slot]").forEach((el) => { el.textContent = keyGlyph(SLOT_KEYS[+el.dataset.slot]); });
+  }
+  const learnedSkills = (g) => CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k)).slice(0, CFG.MAX_SKILLS);
+  const skillInSlot = (g, i) => learnedSkills(g)[i] || null;
   rebuildKeyMap(); refreshHotkeyBadges();
 
   /* ---------- CÂY KỸ NĂNG (modal) ---------- */
@@ -101,23 +122,31 @@
 
   /* ---------- Cấu hình PHÍM TẮT ---------- */
   const keysModal = $("keysModal");
-  let kbCapture = null;   // mã hành động đang chờ gán phím (null = không capture)
-  function keyRow(act, name, glyph) {
+  let kbCapture = null;   // {kind:'act'|'slot', id} đang chờ gán phím (null = không capture)
+  function keyRow(kind, id, name, glyph, cur) {
+    const attr = kind === "slot" ? `data-slot="${id}"` : `data-act="${id}"`;
     return `<div class="kb-row"><span class="kb-nm"><b class="kb-g">${glyph}</b>${name}</span>` +
-      `<button class="kb-key" data-act="${act}">${keyGlyph(KEYS[act])}</button></div>`;
+      `<button class="kb-key" ${attr}>${keyGlyph(cur)}</button></div>`;
   }
   function renderKeysModal() {
     let h = `<div class="kb-sec">Tháp &amp; Bẫy</div><div class="kb-grid">`;
-    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const d = CFG.TOWERS[k] || CFG.TRAPS[k]; h += keyRow(k, d.name, d.glyph); }
-    h += `</div><div class="kb-sec">Phép (cây kỹ năng)</div><div class="kb-grid">`;
-    for (const k of CFG.SKILL_TREE_ORDER) { const s = CFG.SKILLS[k]; h += keyRow(k, s.name, s.glyph); }
+    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const d = CFG.TOWERS[k] || CFG.TRAPS[k]; h += keyRow("act", k, d.name, d.glyph, KEYS[k]); }
+    h += `</div><div class="kb-sec">Phép — ${CFG.MAX_SKILLS} ô (phép học được xếp vào ô theo thứ tự)</div><div class="kb-grid">`;
+    const learned = learnedSkills(game);
+    for (let i = 0; i < CFG.MAX_SKILLS; i++) {
+      const k = learned[i], nm = k ? CFG.SKILLS[k].name : "<i>Ô trống</i>", gl = k ? CFG.SKILLS[k].glyph : "◦";
+      h += keyRow("slot", i, `Ô ${i + 1} · ${nm}`, gl, SLOT_KEYS[i]);
+    }
     h += `</div>`;
     $("keysBody").innerHTML = h;
     $("keysBody").querySelectorAll(".kb-key").forEach((btn) => {
       btn.onclick = () => {
-        if (kbCapture) { const p = $("keysBody").querySelector(`.kb-key[data-act="${kbCapture}"]`); if (p) { p.classList.remove("capturing"); p.textContent = keyGlyph(KEYS[kbCapture]); } }
-        kbCapture = btn.dataset.act; btn.classList.add("capturing"); btn.textContent = "Nhấn phím…";
-        $("keysTip").textContent = "Đang chờ… nhấn phím muốn gán (Esc để hủy). Trùng phím sẽ tự đổi cho phím kia.";
+        renderKeysModal();   // dọn trạng thái "đang chờ" cũ
+        const cur = btn.dataset.slot != null ? { kind: "slot", id: +btn.dataset.slot } : { kind: "act", id: btn.dataset.act };
+        kbCapture = cur;
+        const sel = cur.kind === "slot" ? `.kb-key[data-slot="${cur.id}"]` : `.kb-key[data-act="${cur.id}"]`;
+        const el = $("keysBody").querySelector(sel); if (el) { el.classList.add("capturing"); el.textContent = "Nhấn phím…"; }
+        $("keysTip").textContent = "Đang chờ… nhấn phím muốn gán (Esc để hủy). Trùng phím sẽ tự gỡ khỏi nơi cũ.";
       };
     });
   }
@@ -125,20 +154,21 @@
   window.addEventListener("keydown", (e) => {
     if (!kbCapture) return;
     e.preventDefault(); e.stopPropagation();
-    const act = kbCapture, key = e.key;
-    const btn = $("keysBody").querySelector(`.kb-key[data-act="${act}"]`);
-    if (key === "Escape") { kbCapture = null; if (btn) { btn.classList.remove("capturing"); btn.textContent = keyGlyph(KEYS[act]); } $("keysTip").textContent = "Đã hủy."; return; }
+    const cap = kbCapture, key = e.key;
+    if (key === "Escape") { kbCapture = null; renderKeysModal(); $("keysTip").textContent = "Đã hủy."; return; }
     const norm = key.toLowerCase();
     if (RESERVED.has(norm)) { $("keysTip").textContent = `Phím "${keyGlyph(key)}" dành riêng (Space/Enter/Esc/F2/Tab) — chọn phím khác.`; return; }
-    // nếu phím này đang gán cho hành động khác -> gỡ khỏi hành động đó (tránh trùng)
-    for (const a in KEYS) if (a !== act && (KEYS[a] || "").toLowerCase() === norm) KEYS[a] = "";
-    KEYS[act] = key.length === 1 ? key.toLowerCase() : key;
-    kbCapture = null; saveKeys(); renderKeysModal();
-    $("keysTip").textContent = "Đã lưu. Bấm phím khác để đổi tiếp, hoặc Đóng.";
+    const val = key.length === 1 ? norm : key;
+    // gỡ phím này khỏi mọi nơi khác (tháp/bẫy & ô phép) để không trùng
+    for (const a in KEYS) if ((KEYS[a] || "").toLowerCase() === norm) KEYS[a] = "";
+    SLOT_KEYS.forEach((sk, i) => { if ((sk || "").toLowerCase() === norm) SLOT_KEYS[i] = ""; });
+    if (cap.kind === "slot") SLOT_KEYS[cap.id] = val; else KEYS[cap.id] = val;
+    kbCapture = null; persistKeys(); renderKeysModal();
+    $("keysTip").textContent = "Đã lưu. Bấm ô khác để đổi tiếp, hoặc Xong.";
   }, true);
-  $("btnCfg").onclick = () => { renderKeysModal(); $("keysTip").textContent = "Bấm ô phím của một tháp/phép rồi nhấn phím mới để gán."; keysModal.classList.remove("hidden"); };
+  $("btnCfg").onclick = () => { renderKeysModal(); $("keysTip").textContent = "Bấm ô phím của một tháp hoặc một Ô phép rồi nhấn phím mới để gán."; keysModal.classList.remove("hidden"); };
   $("keysClose").onclick = () => { kbCapture = null; keysModal.classList.add("hidden"); };
-  $("keysReset").onclick = () => { KEYS = Object.assign({}, CFG.DEFAULT_KEYS); saveKeys(); renderKeysModal(); $("keysTip").textContent = "Đã khôi phục phím mặc định."; };
+  $("keysReset").onclick = () => { KEYS = Object.assign({}, CFG.DEFAULT_KEYS); SLOT_KEYS = CFG.DEFAULT_SLOT_KEYS.slice(); persistKeys(); renderKeysModal(); $("keysTip").textContent = "Đã khôi phục phím mặc định (tháp 1–8, phép Q W E A S D)."; };
   keysModal.onclick = (e) => { if (e.target === keysModal) { kbCapture = null; keysModal.classList.add("hidden"); } };
 
   /* ---------- thanh Phép (đã học) ---------- */
@@ -147,12 +177,12 @@
     const learned = CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k));
     if (!learned.length) { skillGrid.innerHTML = `<div class="empty">Chưa học phép.<br>Mở cây kỹ năng (F2).</div>`; return; }
     skillGrid.innerHTML = "";
-    for (const k of learned) {
+    learned.forEach((k, i) => {
       const s = CFG.SKILLS[k], b = document.createElement("button"); b.className = "sk-btn"; b.dataset.key = k;
       const pvpLock = s.aim === "pvp" && !g.versus; b.title = s.name + " — " + s.desc + (pvpLock ? " (chỉ Đối kháng)" : "");
-      b.innerHTML = `<span class="hk" data-act="${k}">${keyGlyph(KEYS[k])}</span><span class="g">${s.glyph}</span><span class="n">${s.name}</span><span class="cd"></span>`;
+      b.innerHTML = `<span class="hk" data-slot="${i}">${keyGlyph(SLOT_KEYS[i])}</span><span class="g">${s.glyph}</span><span class="n">${s.name}</span><span class="cd"></span>`;
       b.onclick = () => game.armSkill(k); skillGrid.appendChild(b);
-    }
+    });
   }
   let lastLearned = -1;
 
@@ -273,9 +303,11 @@
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
     else if (e.key === "Enter") game.startWave();
     else {
-      const a = keyMap[e.key.toLowerCase()]; if (!a) return;
-      if (CFG.TOWERS[a] || CFG.TRAPS[a]) game.setBuild(a);
-      else if (CFG.SKILLS[a] && game.learned.has(a)) game.armSkill(a);
+      const kk = e.key.toLowerCase();
+      const a = keyMap[kk];
+      if (a) { game.setBuild(a); return; }                  // phím tháp/bẫy
+      const si = slotKeyMap[kk];
+      if (si != null) { const k = skillInSlot(game, si); if (k) game.armSkill(k); }   // phím ô phép
     }
   });
 
