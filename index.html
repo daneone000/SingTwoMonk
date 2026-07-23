@@ -184,6 +184,19 @@
     </div>
   </div>
 
+  <!-- BĂNG BÁO KẾT NỐI LẠI (đối kháng LAN) -->
+  <div id="netReconnect" class="net-reconnect hidden"><span>🔌 Mất kết nối — đang thử vào lại trận…</span></div>
+
+  <!-- MODAL CẤU HÌNH PHÍM TẮT -->
+  <div id="keysModal" class="tree-modal hidden">
+    <div class="tree-box ornate keys-box">
+      <div class="tree-head">⌨ Cấu hình phím tắt</div>
+      <div id="keysBody" class="keys-body"></div>
+      <div id="keysTip" class="tree-tip">Bấm ô phím của một tháp/phép rồi nhấn phím mới để gán.</div>
+      <div class="tree-foot"><button id="keysReset" class="tree-btn">Mặc định</button><button id="keysClose" class="tree-btn choose">Xong</button></div>
+    </div>
+  </div>
+
   <!-- MODAL LUẬT CHƠI -->
   <div id="rulesModal" class="tree-modal hidden">
     <div class="tree-box ornate rules-box">
@@ -193,7 +206,8 @@
         <p>🏰 Xây tháp ở ô đá để <b>tạo mê cung</b> ép quái đi vòng. <b>Không được bịt kín</b> đường (ô chặn kín báo đỏ).</p>
         <p>✈️ Quái <b>Bay</b> đi thẳng, chỉ tháp <b>Tên/Băng/Sét</b> mới bắn được (Sét chỉ đánh Bay). 🔥 Lửa/☠ Độc chỉ đánh <b>Bộ</b>. ✦ Năng Lượng <b>không bắn</b> — buff tháp lân cận.</p>
         <p>💰 Giết quái nhận <b>Vàng</b> (xây/nâng, tối đa cấp 5, bán hoàn ½) &amp; <b>Điểm KN</b> (học phép ở cây kỹ năng — F2).</p>
-        <p>⌨️ Phím: <b>1–8</b> chọn tháp/bẫy · <b>Space</b> dừng · <b>Enter</b> vào đợt · <b>F2</b> cây phép · <b>Esc</b>/chuột phải hủy.</p>
+        <p>⌨️ Phím: <b>1–8</b> chọn tháp/bẫy · <b>Q/W/E…</b> thi triển phép · <b>Space</b> dừng · <b>Enter</b> vào đợt · <b>F2</b> cây phép · <b>Esc</b>/chuột phải hủy. Đổi phím tùy ý ở nút <b>Cấu hình</b>.</p>
+        <p>🔌 <b>Đối kháng LAN:</b> lỡ <b>F5</b> hay <b>rớt mạng</b> vẫn quay lại trận được — máy chủ giữ chỗ 60 giây, mở lại đúng địa chỉ là tự kết nối lại, sân được khôi phục.</p>
       </div>
       <div class="tree-foot"><button id="rulesClose" class="tree-btn">Đóng</button></div>
     </div>

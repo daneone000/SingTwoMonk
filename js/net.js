@@ -8,6 +8,14 @@
   "use strict";
   const CFG = STM.CFG, TILE = CFG.TILE, CELL = CFG.CELL;
 
+  /* --------- LƯU PHIÊN (để F5/mất mạng vẫn vào lại được) --------- */
+  const LS = (typeof localStorage !== "undefined") ? localStorage : null;
+  STM.saveSession = (o) => { try { LS && LS.setItem("stm.session", JSON.stringify(o)); } catch (e) {} };
+  STM.loadSession = () => { try { return JSON.parse((LS && LS.getItem("stm.session")) || "null"); } catch (e) { return null; } };
+  STM.clearSession = () => { try { if (LS) { LS.removeItem("stm.session"); LS.removeItem("stm.board"); } } catch (e) {} };
+  STM.saveBoard = (b) => { try { LS && LS.setItem("stm.board", JSON.stringify(b)); } catch (e) {} };
+  STM.loadBoard = () => { try { return JSON.parse((LS && LS.getItem("stm.board")) || "null"); } catch (e) { return null; } };
+
   /* --------------------------- NetClient --------------------------- */
   class NetClient {
     constructor(url, onMsg, onOpen, onClose) {
@@ -34,11 +42,13 @@
       this.wave = 0; this.waveTimer = 0; this._alive = 1;
       this.started = false; this.over = false; this.winner = null; this.ranking = [];
       this.onLobby = null; this.onStart = null; this.onEnd = null; this.onChange = null;
+      this.onResume = null; this.onKick = null;
+      this.sid = null; this._saveT = 0;
       this._sentDead = false; this._pushT = null;
       // gắn vào game
       game.reset("endless"); game.versus = true; game.netMatch = this; game.name = myName;
     }
-    join() { this.client.send({ t: "join", name: this.myName }); }
+    join() { this.client.send({ t: "join", name: this.myName, sid: this.sid || undefined }); }
     startMatch() { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId() }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }
     sendSpell(key, data) { this.client.send({ t: "spell", key, data }); }
@@ -46,8 +56,25 @@
     handle(o) {
       const g = this.game, map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
       switch (o.t) {
-        case "welcome": this.myPid = o.pid; this.isHost = o.host; break;
+        case "welcome":
+          this.myPid = o.pid; this.isHost = o.host; if (o.sid) this.sid = o.sid;
+          STM.saveSession({ sid: this.sid, host: (typeof location !== "undefined" ? location.host : ""), name: this.myName, active: true });
+          break;
         case "reject": if (this.onReject) this.onReject(o.why); break;
+        case "kick": STM.clearSession(); if (this.onKick) this.onKick(o.why); break;
+        case "resume": {   // KẾT NỐI LẠI vào trận đang diễn ra -> khôi phục sân từ bản lưu cục bộ
+          this.started = true; this.over = !!o.over; this.myPid = o.pid; this.isHost = o.host;
+          this.players = o.players || []; for (const p of this.players) this.names[p.pid] = p.name;
+          if (o.map) STM.CFG.setMap(o.map);
+          const saved = STM.loadBoard();
+          if (saved) g.restore(saved); else { g.reset("endless"); g.started = o.wave > 0; }
+          g.versus = true; g.netMatch = this; g.name = this.myName; g.wave = o.wave;
+          this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; this._sentDead = false;
+          this._beginPush();
+          if (this.onResume) this.onResume(this);
+          if (this.onChange) this.onChange();
+          break;
+        }
         case "lobby":
           this.players = o.players; this.isHost = o.hostPid === this.myPid; this.canStart = o.canStart;
           for (const p of o.players) this.names[p.pid] = p.name;
@@ -59,6 +86,8 @@
           if (o.map) STM.CFG.setMap(o.map);
           g.reset("endless"); g.versus = true; g.netMatch = this; g.name = this.myName;
           for (const p of o.players) this.names[p.pid] = p.name;
+          STM.saveSession({ sid: this.sid, host: (typeof location !== "undefined" ? location.host : ""), name: this.myName, active: true });
+          STM.saveBoard(g.serialize());
           this._beginPush();
           if (this.onStart) this.onStart(this);
           break;
@@ -69,7 +98,7 @@
         case "eliminated": { const p = this.players.find((x) => x.pid === o.pid); if (p) p.alive = false; if (this.onChange) this.onChange(); break; }
         case "end":
           this.over = true; this.winner = o.winner; this.ranking = o.ranking; this.names = o.names || this.names; this.endWave = o.wave;
-          this._stopPush();
+          this._stopPush(); STM.clearSession();       // trận xong -> không còn phiên để nối lại
           if (this.onEnd) this.onEnd(this);
           break;
       }
@@ -81,11 +110,13 @@
         const g = this.game;
         if (!this._sentDead && g.gameOver) { this._sentDead = true; this.client.send({ t: "dead" }); }
         if (!g.gameOver) this.client.send({ t: "snap", s: g.snapshot() });
+        // lưu sân định kỳ (~2s) để F5/mất mạng còn khôi phục được
+        if (!g.gameOver && (this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
         if (this.onChange) this.onChange();       // làm mới minimap/đồng hồ dù local đã chết
       }, 200);
     }
     _stopPush() { if (this._pushT) { clearInterval(this._pushT); this._pushT = null; } }
-    leave() { this._stopPush(); this.client.close(); }
+    leave() { this._stopPush(); STM.clearSession(); this.client.close(); }
 
     aliveN() { return this._alive; }
     opponentViews() {

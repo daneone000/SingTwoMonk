@@ -25,11 +25,23 @@
   function addTower(key, def, isTrap) {
     const b = document.createElement("button"); b.className = "tw-btn"; b.dataset.key = key;
     const tag = isTrap ? "BẪY" : def.support ? "HỖ TRỢ" : def.target === "both" ? "BAY+BỘ" : def.target === "air" ? "BAY" : "BỘ";
-    b.innerHTML = `<span class="tw-ic" style="background:${def.color}">${def.glyph}</span><span class="tw-nm">${def.name.replace("Tháp ", "").replace("Bẫy ", "B.")}</span><span class="tw-tg">${tag}</span><span class="tw-cost">💰${def.cost}</span>`;
+    b.innerHTML = `<span class="hk" data-act="${key}"></span><span class="tw-ic" style="background:${def.color}">${def.glyph}</span><span class="tw-nm">${def.name.replace("Tháp ", "").replace("Bẫy ", "B.")}</span><span class="tw-tg">${tag}</span><span class="tw-cost">💰${def.cost}</span>`;
     b.title = def.name + " — " + def.desc; b.onclick = () => game.setBuild(key); grid.appendChild(b); shopBtns[key] = b;
   }
   for (const k of CFG.TOWER_ORDER) addTower(k, CFG.TOWERS[k], false);
   for (const k of CFG.TRAP_ORDER) addTower(k, CFG.TRAPS[k], true);
+
+  /* ---------- PHÍM TẮT (người chơi cấu hình được, lưu localStorage) ---------- */
+  const KB_LS = "stm.keys";
+  const RESERVED = new Set(["escape", "enter", "f2", " ", "tab"]);   // phím dành riêng, không gán được
+  function loadKeys() { let s = {}; try { s = JSON.parse(localStorage.getItem(KB_LS) || "{}"); } catch (e) {} return Object.assign({}, CFG.DEFAULT_KEYS, s); }
+  let KEYS = loadKeys();
+  const keyGlyph = (k) => !k ? "·" : k === " " ? "Space" : k.length === 1 ? k.toUpperCase() : k;
+  let keyMap = {};
+  function rebuildKeyMap() { keyMap = {}; for (const a in KEYS) if (KEYS[a]) keyMap[KEYS[a].toLowerCase()] = a; }
+  function saveKeys() { try { localStorage.setItem(KB_LS, JSON.stringify(KEYS)); } catch (e) {} rebuildKeyMap(); refreshHotkeyBadges(); }
+  function refreshHotkeyBadges() { document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); }); }
+  rebuildKeyMap(); refreshHotkeyBadges();
 
   /* ---------- CÂY KỸ NĂNG (modal) ---------- */
   const modal = $("treeModal"), nodesEl = $("treeNodes"), edgesEl = $("treeEdges"), tipEl = $("treeTip");
@@ -86,7 +98,48 @@
   $("btnRules").onclick = () => rules.classList.remove("hidden");
   $("rulesClose").onclick = () => rules.classList.add("hidden");
   rules.onclick = (e) => { if (e.target === rules) rules.classList.add("hidden"); };
-  $("btnCfg").onclick = () => { game.speed = game.speed === 1 ? 2 : game.speed === 2 ? 3 : 1; log("Cấu hình tốc độ: x" + game.speed); game.emit(); };
+
+  /* ---------- Cấu hình PHÍM TẮT ---------- */
+  const keysModal = $("keysModal");
+  let kbCapture = null;   // mã hành động đang chờ gán phím (null = không capture)
+  function keyRow(act, name, glyph) {
+    return `<div class="kb-row"><span class="kb-nm"><b class="kb-g">${glyph}</b>${name}</span>` +
+      `<button class="kb-key" data-act="${act}">${keyGlyph(KEYS[act])}</button></div>`;
+  }
+  function renderKeysModal() {
+    let h = `<div class="kb-sec">Tháp &amp; Bẫy</div><div class="kb-grid">`;
+    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const d = CFG.TOWERS[k] || CFG.TRAPS[k]; h += keyRow(k, d.name, d.glyph); }
+    h += `</div><div class="kb-sec">Phép (cây kỹ năng)</div><div class="kb-grid">`;
+    for (const k of CFG.SKILL_TREE_ORDER) { const s = CFG.SKILLS[k]; h += keyRow(k, s.name, s.glyph); }
+    h += `</div>`;
+    $("keysBody").innerHTML = h;
+    $("keysBody").querySelectorAll(".kb-key").forEach((btn) => {
+      btn.onclick = () => {
+        if (kbCapture) { const p = $("keysBody").querySelector(`.kb-key[data-act="${kbCapture}"]`); if (p) { p.classList.remove("capturing"); p.textContent = keyGlyph(KEYS[kbCapture]); } }
+        kbCapture = btn.dataset.act; btn.classList.add("capturing"); btn.textContent = "Nhấn phím…";
+        $("keysTip").textContent = "Đang chờ… nhấn phím muốn gán (Esc để hủy). Trùng phím sẽ tự đổi cho phím kia.";
+      };
+    });
+  }
+  // bắt phím KHI đang capture (ưu tiên trước handler game nhờ dùng capture-phase)
+  window.addEventListener("keydown", (e) => {
+    if (!kbCapture) return;
+    e.preventDefault(); e.stopPropagation();
+    const act = kbCapture, key = e.key;
+    const btn = $("keysBody").querySelector(`.kb-key[data-act="${act}"]`);
+    if (key === "Escape") { kbCapture = null; if (btn) { btn.classList.remove("capturing"); btn.textContent = keyGlyph(KEYS[act]); } $("keysTip").textContent = "Đã hủy."; return; }
+    const norm = key.toLowerCase();
+    if (RESERVED.has(norm)) { $("keysTip").textContent = `Phím "${keyGlyph(key)}" dành riêng (Space/Enter/Esc/F2/Tab) — chọn phím khác.`; return; }
+    // nếu phím này đang gán cho hành động khác -> gỡ khỏi hành động đó (tránh trùng)
+    for (const a in KEYS) if (a !== act && (KEYS[a] || "").toLowerCase() === norm) KEYS[a] = "";
+    KEYS[act] = key.length === 1 ? key.toLowerCase() : key;
+    kbCapture = null; saveKeys(); renderKeysModal();
+    $("keysTip").textContent = "Đã lưu. Bấm phím khác để đổi tiếp, hoặc Đóng.";
+  }, true);
+  $("btnCfg").onclick = () => { renderKeysModal(); $("keysTip").textContent = "Bấm ô phím của một tháp/phép rồi nhấn phím mới để gán."; keysModal.classList.remove("hidden"); };
+  $("keysClose").onclick = () => { kbCapture = null; keysModal.classList.add("hidden"); };
+  $("keysReset").onclick = () => { KEYS = Object.assign({}, CFG.DEFAULT_KEYS); saveKeys(); renderKeysModal(); $("keysTip").textContent = "Đã khôi phục phím mặc định."; };
+  keysModal.onclick = (e) => { if (e.target === keysModal) { kbCapture = null; keysModal.classList.add("hidden"); } };
 
   /* ---------- thanh Phép (đã học) ---------- */
   const skillGrid = $("skillGrid");
@@ -97,7 +150,7 @@
     for (const k of learned) {
       const s = CFG.SKILLS[k], b = document.createElement("button"); b.className = "sk-btn"; b.dataset.key = k;
       const pvpLock = s.aim === "pvp" && !g.versus; b.title = s.name + " — " + s.desc + (pvpLock ? " (chỉ Đối kháng)" : "");
-      b.innerHTML = `<span class="g">${s.glyph}</span><span class="n">${s.name}</span><span class="cd"></span>`;
+      b.innerHTML = `<span class="hk" data-act="${k}">${keyGlyph(KEYS[k])}</span><span class="g">${s.glyph}</span><span class="n">${s.name}</span><span class="cd"></span>`;
       b.onclick = () => game.armSkill(k); skillGrid.appendChild(b);
     }
   }
@@ -215,9 +268,15 @@
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
     if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); game.buildType = null; game.selected = null; game.pendingSkill = null; game.emit(); return; }
+    if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
     else if (e.key === "Enter") game.startWave();
-    else { const i = parseInt(e.key, 10) - 1, all = [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]; if (i >= 0 && i < all.length) game.setBuild(all[i]); }
+    else {
+      const a = keyMap[e.key.toLowerCase()]; if (!a) return;
+      if (CFG.TOWERS[a] || CFG.TRAPS[a]) game.setBuild(a);
+      else if (CFG.SKILLS[a] && game.learned.has(a)) game.armSkill(a);
+    }
   });
 
   /* ==================== ĐỐI KHÁNG (versus) ==================== */
@@ -320,6 +379,7 @@
     match.begin(); game.emit();
   }
   function endVersus() {
+    reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
     if (net) { net.leave(); net = null; }
     if (!match) return; match = null;
     document.body.classList.remove("versus", "netplay");
@@ -336,37 +396,99 @@
     $("vsLanStart").disabled = !m.canStart;
     $("vsLanMsg").textContent = m.isHost ? (m.canStart ? "Đủ người — bấm Bắt đầu khi sẵn sàng." : "Cần ít nhất 2 người để bắt đầu.") : "Chờ chủ phòng bắt đầu…";
   }
+  let reconnecting = false, reconnTries = 0, reconnTimer = null;
+  const lanUrl = () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/";
+  function lanFailHint() {
+    $("vsLanConnect").classList.remove("hidden"); $("vsLanLobby").classList.add("hidden");
+    $("vsLanAddr").innerHTML = `❌ <b>Không kết nối được máy chủ</b> tại <b>${location.host}</b>.<br>Kiểm tra: ① máy chủ đã chạy <code>node server.js</code> chưa · ② bạn mở ĐÚNG địa chỉ đó chưa (không phải <code>file://</code> hay server tĩnh khác) · ③ tường lửa/khác mạng LAN.`;
+    $("vsLanJoin").classList.remove("hidden"); $("vsLanLeave").classList.add("hidden");
+    if (net) { net.leave(); net = null; }
+  }
+  function reconnBanner(on, txt) { const b = $("netReconnect"); b.classList.toggle("hidden", !on); if (on && txt) b.querySelector("span").textContent = txt; }
+
+  // Mở kết nối LAN. opts: {sid, silent, reconnect}
+  function openLan(name, opts) {
+    opts = opts || {};
+    let opened = false;
+    const client = new STM.NetClient(lanUrl(),
+      (o) => net && net.handle(o),
+      () => { opened = true; net.join(); },
+      () => onLanClose(opened, opts));
+    net = new STM.NetMatch(game, client, name);
+    net.sid = opts.sid || (STM.loadSession() && STM.loadSession().sid) || null;
+    net.onReject = (why) => { STM.clearSession(); reconnecting = false; reconnBanner(false); $("vsLanMsg").textContent = "Bị từ chối: " + why; if (net) { net.leave(); net = null; } if (!opts.silent) showTab("LAN"); else { endVersus(); openMenu(); } };
+    net.onKick = (why) => { reconnecting = false; reconnBanner(false); if (net) { net.leave(); net = null; } endVersus(); log(why || "Phiên đã mở ở nơi khác.", "warn"); openMenu(); };
+    net.onLobby = (m) => { reconnecting = false; reconnBanner(false); renderLobby(m); if (!(opts.silent && !m.started)) showTab("LAN"); if (opts.silent && !m.started) { vsModal.classList.remove("hidden"); document.body.classList.remove("versus", "netplay"); } };
+    net.onStart = (m) => startVersusNet(m);
+    net.onResume = (m) => resumeVersusNet(m);
+    net.onEnd = (m) => showResult(m);
+    net.onChange = () => game.emit();
+    if (!opts.silent) setTimeout(() => { if (net && !opened) { try { net.client.close(); } catch (e) {} lanFailHint(); } }, 4000);
+    return () => opened;
+  }
+  function onLanClose(wasOpened, opts) {
+    if (!net) return;
+    const sess = STM.loadSession();
+    if (net.started && !net.over && sess && sess.active) { scheduleReconnect(sess); }   // rớt giữa trận -> tự nối lại
+    else if (!wasOpened && !opts.silent) { lanFailHint(); }
+    else if (!opts.silent) { $("vsLanMsg").textContent = "Mất kết nối máy chủ."; }
+  }
+  function scheduleReconnect(sess) {
+    if (reconnecting) return; reconnecting = true; reconnTries = 0;
+    reconnBanner(true, "🔌 Mất kết nối — đang thử vào lại trận…");
+    tryReconnect(sess);
+  }
+  function tryReconnect(sess) {
+    if (!reconnecting) return;
+    reconnTries++;
+    if (reconnTries > 30) { reconnecting = false; reconnBanner(false); log("Không nối lại được — trận đã mất.", "warn"); STM.clearSession(); return; }
+    reconnBanner(true, `🔌 Mất kết nối — đang thử vào lại (${reconnTries})…`);
+    if (net) { try { net.client.close(); } catch (e) {} }
+    net = null;
+    openLan(sess.name, { sid: sess.sid, silent: true, reconnect: true });
+    reconnTimer = setTimeout(() => { if (reconnecting && (!net || net.myPid == null)) tryReconnect(sess); }, 2500);
+  }
+
   $("vsLanJoin").onclick = () => {
     if (location.protocol === "file:") { $("vsLanAddr").innerHTML = `⚠ Bạn đang mở bằng <b>file://</b> (double-click). Chế độ LAN CẦN máy chủ: chạy <code>node server.js</code> (hoặc <code>./run.sh</code>) rồi mở <b>http://&lt;IP&gt;:8090/</b> hiện ở cửa sổ máy chủ.`; return; }
     const name = ($("vsLanName").value || "").trim() || PLAYER;
-    const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/";
-    let opened = false;
+    STM.clearSession();                          // vào phòng mới -> bỏ phiên cũ, xin sid mới
     // hiện ngay trạng thái "đang kết nối" ở khu lobby
     $("vsLanConnect").classList.add("hidden"); $("vsLanLobby").classList.remove("hidden");
     $("vsLobbyCount").textContent = ""; $("vsLobbyList").innerHTML = "";
     $("vsLanMsg").innerHTML = `⏳ Đang kết nối tới <b>${location.host}</b>…`;
     $("vsLanStart").classList.add("hidden"); $("vsLanLeave").classList.remove("hidden");
-    const failHint = () => {
-      $("vsLanConnect").classList.remove("hidden"); $("vsLanLobby").classList.add("hidden");
-      $("vsLanAddr").innerHTML = `❌ <b>Không kết nối được máy chủ</b> tại <b>${location.host}</b>.<br>Kiểm tra: ① máy chủ đã chạy <code>node server.js</code> chưa · ② bạn mở ĐÚNG địa chỉ đó chưa (không phải <code>file://</code> hay server tĩnh khác) · ③ tường lửa/khác mạng LAN.`;
-      $("vsLanJoin").classList.remove("hidden"); $("vsLanLeave").classList.add("hidden");
-      if (net) { net.leave(); net = null; }
-    };
-    const client = new STM.NetClient(url,
-      (o) => net && net.handle(o),
-      () => { opened = true; net.join(); },
-      () => { if (!opened) failHint(); else { $("vsLanMsg").textContent = "Mất kết nối máy chủ."; } });
-    net = new STM.NetMatch(game, client, name);
-    net.onReject = (why) => { $("vsLanMsg").textContent = "Bị từ chối: " + why; if (net) { net.leave(); net = null; } showTab("LAN"); };
-    net.onLobby = (m) => { renderLobby(m); showTab("LAN"); };
-    net.onStart = (m) => startVersusNet(m);
-    net.onEnd = (m) => showResult(m);
-    net.onChange = () => game.emit();
-    // quá 4s chưa mở được -> báo lỗi
-    setTimeout(() => { if (net && !opened) { try { net.client.close(); } catch (e) {} failHint(); } }, 4000);
+    openLan(name, {});
   };
   $("vsLanStart").onclick = () => { if (net) net.startMatch(); };
-  $("vsLanLeave").onclick = () => { endVersus(); showTab("LAN"); };
+  $("vsLanLeave").onclick = () => { reconnecting = false; reconnBanner(false); STM.clearSession(); endVersus(); showTab("LAN"); };
+
+  function resumeVersusNet(m) {
+    reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
+    vsModal.classList.add("hidden");
+    match = m;
+    document.body.classList.add("versus", "netplay");
+    lastLearned = -1; treeSel = null; prevWave = m.wave; prevLives = game.lives; prevEnd = false;
+    buildOppList();
+    log("✅ Đã kết nối lại! Tiếp tục trận ở đợt " + m.wave + ".", "good");
+    game.emit();
+  }
+
+  // Tự động nối lại sau F5/khởi động lại trình duyệt nếu còn phiên đang mở
+  function tryResumeSession() {
+    if (location.protocol === "file:") return;
+    const sess = STM.loadSession();
+    if (!sess || !sess.active || !sess.sid) return;
+    if (sess.host && sess.host !== location.host) return;   // phiên thuộc máy chủ khác
+    fetch("/_stm", { cache: "no-store" }).then((r) => r.json()).then((j) => {
+      if (!(j && j.stm)) return;
+      closeMenu(); document.body.classList.add("versus", "netplay");
+      reconnBanner(true, "🔌 Đang kết nối lại trận LAN…");
+      openLan(sess.name || PLAYER, { sid: sess.sid, silent: true, reconnect: true });
+      reconnecting = true; reconnTries = 0;
+      reconnTimer = setTimeout(() => { if (reconnecting && (!net || net.myPid == null)) tryReconnect(sess); }, 2500);
+    }).catch(() => {});
+  }
 
   function startVersusNet(m) {
     vsModal.classList.add("hidden");
@@ -432,7 +554,9 @@
   mainMenu.onclick = (e) => { if (e.target === mainMenu) closeMenu(); };
 
   newGame("endless"); game.start();
-  if (!location.hash) openMenu();   // người chơi mới thấy ngay các chế độ, khỏi phải mò nút nhỏ
+  const resuming = (function () { const s = STM.loadSession(); return s && s.active && s.sid && (!s.host || s.host === location.host) && location.protocol !== "file:"; })();
+  if (resuming) tryResumeSession();               // còn phiên LAN đang mở -> tự nối lại, khỏi hiện menu
+  else if (!location.hash) openMenu();             // người chơi mới thấy ngay các chế độ, khỏi phải mò nút nhỏ
 
   // demo dựng sẵn để tự chụp màn hình (chỉ khi #demo)
   if (location.hash === "#demo") {

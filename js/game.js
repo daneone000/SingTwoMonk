@@ -164,6 +164,32 @@
         e: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [Math.round(e.x), Math.round(e.y), e.fly ? 1 : 0]),
       };
     }
+    // Ảnh chụp ĐẦY ĐỦ sân để lưu phiên & khôi phục sau F5/mất mạng (đối kháng LAN)
+    serialize() {
+      return {
+        mapId: this.map.id, wave: this.wave, gold: this.gold, sp: this.sp, lives: this.lives, score: this.score,
+        learned: [...this.learned], skillCd: { ...this.skillCd },
+        towers: this.towers.map((t) => ({ k: t.type, c: t.col, r: t.row, lv: t.level })),
+        traps: this.traps.map((t) => ({ k: t.type, c: t.col, r: t.row })),
+      };
+    }
+    // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
+    _spentFor(def, lv) { let s = def.cost; for (let i = 1; i < lv; i++) s += CFG.upgradeCost(def, i); return s; }
+    restore(s) {
+      if (s.mapId) CFG.setMap(s.mapId);
+      this.reset("endless");
+      this.gold = s.gold; this.sp = s.sp; this.lives = s.lives; this.score = s.score || 0; this.wave = s.wave || 0;
+      this.learned = new Set(s.learned && s.learned.length ? s.learned : ["muaLua"]);
+      this.skillCd = s.skillCd || {};
+      for (const t of s.towers || []) {
+        const tw = new STM.Tower(t.k, t.c, t.r); tw.level = t.lv || 1; tw.totalSpent = this._spentFor(tw.def, tw.level);
+        tw.buildTimer = 0; tw.action = null;
+        this.towers.push(tw); this.occupied.add(t.c + "," + t.r); this.blockSet.add(t.c + "," + t.r);
+      }
+      for (const t of s.traps || []) { const tr = new STM.Trap(t.k, t.c, t.r); this.traps.push(tr); this.occupied.add(t.c + "," + t.r); }
+      this.started = this.wave > 0;
+      this.computeFlow(); this.recomputeAuras(); this.emit();
+    }
     nextWavePreview() { const w = CFG.buildWave(this.wave + 1); return { name: CFG.ENEMIES[w.type].name, fly: CFG.ENEMIES[w.type].fly, boss: !!w.boss, count: w.count }; }
     updateSpawns() {
       while (this.spawnQueue.length && this.spawnQueue[0].at <= this.spawnClock) { const s = this.spawnQueue.shift(), w = s.w; this.enemies.push(new STM.Enemy(CFG.ENEMIES[w.type], w.hpMul, w.rwMul, this, w.boss)); }

@@ -206,6 +206,31 @@ body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif; color:
 .menu-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
 .menu-hint { font-size: 11px; color: var(--dim); text-align: right; } .menu-hint b { color: var(--gold); }
 .menu-sel { border-color: var(--gold) !important; color: #ffe9a8; }
+
+/* ---- huy hiệu phím tắt trên nút tháp/phép ---- */
+.hk { position: absolute; top: 2px; left: 3px; min-width: 13px; height: 13px; padding: 0 2px; font-size: 9.5px; line-height: 13px;
+  text-align: center; font-weight: 800; color: #1c140a; background: var(--gold); border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,.5); z-index: 2; pointer-events: none; }
+.sk-btn .hk { top: -2px; left: -2px; }
+
+/* ---- băng "đang kết nối lại" ---- */
+.net-reconnect { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 80;
+  background: linear-gradient(180deg, #7a3820, #4a1f10); border: 2px solid var(--gold-d); border-radius: 10px;
+  padding: 8px 18px; color: #ffe9a8; font-weight: 700; font-size: 13.5px; box-shadow: 0 4px 16px rgba(0,0,0,.5); animation: rcPulse 1.1s ease-in-out infinite; }
+.net-reconnect.hidden { display: none; }
+@keyframes rcPulse { 0%,100% { opacity: .78; } 50% { opacity: 1; } }
+
+/* ---- modal cấu hình phím ---- */
+.keys-box { width: min(560px, 94vw); }
+.keys-body { max-height: 60vh; overflow-y: auto; padding: 2px; }
+.kb-sec { font-family: var(--serif); color: var(--gold); font-size: 14px; margin: 8px 2px 5px; border-bottom: 1px solid var(--gold-d); padding-bottom: 3px; }
+.kb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
+.kb-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--stone-d); border: 1px solid var(--gold-d); border-radius: 7px; padding: 4px 6px 4px 8px; }
+.kb-nm { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--txt); }
+.kb-g { font-size: 15px; }
+.kb-key { min-width: 46px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 12px;
+  border: 2px solid var(--gold-d); background: linear-gradient(180deg, #3a4a2b, #25301b); color: #ffe9a8; }
+.kb-key:hover { border-color: var(--gold); }
+.kb-key.capturing { border-color: var(--gold); background: linear-gradient(180deg, #7a5411, #4a3208); color: #fff3c4; animation: rcPulse .9s ease-in-out infinite; }
 /* ---- bảng phép kiểu bản gốc: đá xám-lam ---- */
 .tree-box.skilltree { width: min(540px, 94vw); padding: 14px;
   background: linear-gradient(180deg, #3d4654, #232a34);

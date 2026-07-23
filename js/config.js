@@ -131,6 +131,16 @@
   };
   const TOWER_ORDER = ["ten", "lua", "bang", "set", "doc", "nangluong"];
   const TRAP_ORDER = ["dinh", "hut"];
+
+  // ----- PHÍM TẮT MẶC ĐỊNH (người chơi cấu hình lại được, lưu ở localStorage) -----
+  // key = mã hành động (tháp/bẫy/phép), value = phím. So khớp theo e.key.toLowerCase().
+  const DEFAULT_KEYS = {
+    // tháp & bẫy
+    ten: "1", lua: "2", bang: "3", set: "4", doc: "5", nangluong: "6", dinh: "7", hut: "8",
+    // phép (theo thứ tự cây kỹ năng)
+    muaLua: "q", baoSet: "w", trieuHoi: "z", tangLuc: "a", khoiDoc: "r", nhatDuong: "e",
+    huyetQuy: "x", meTran: "s", phongAn: "d", maGiap: "c", kiemThan: "t", diaChan: "v", dichChuyen: "f",
+  };
   const MAX_LEVEL = 5;
   function upgradeCost(def, level) { return (def.up && def.up[level - 1]) || 0; }  // giá lên cấp (level -> level+1)
   function statAt(def, level) { return def.lv[Math.min(level, def.lv.length) - 1]; } // thông số cấp `level`
@@ -223,6 +233,7 @@
     TOWERS, TRAPS, TOWER_ORDER, TRAP_ORDER, MAX_LEVEL, upgradeCost, statAt, workTime,
     ENEMIES, buildWave, waveInfo, pickType, randomSummonType, FLY_FROM,
     VS_START_DELAY: 30, VS_AI_PERIOD: 1.6, MAX_PLAYERS: 5,
+    DEFAULT_KEYS,
     SKILLS, SKILL_TREE_ORDER, SKILL_EDGES,
     START_GOLD: 35, START_SP: 0, START_LIVES: 10, MAX_SKILLS: 6, CAMPAIGN_WAVES: 30,
     WAVE_BONUS: 0, SP_PER_KILL: 1, SP_PER_BOSS: 10, SELL_RATE: 0.5,

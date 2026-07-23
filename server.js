@@ -60,37 +60,42 @@ function encodeText(str) {
 function encodeClose() { return Buffer.from([0x88, 0]); }
 function encodePong(payload) { return Buffer.concat([Buffer.from([0x8a, payload.length]), payload]); }
 
-let nextId = 1;
-const clients = new Map();   // id -> {id, sock, name, pid, alive}
+let nextConnId = 1, nextPid = 1;
+const clients = new Map();   // id kết nối -> connection {id, sock, buf, slot}
+// slot = DANH TÍNH người chơi, sống sót qua F5/rớt mạng nhờ sid (session id).
+//   {sid, pid, name, alive, connected, sock, graceTimer}
+const slots = new Map();     // sid -> slot
 
-function send(c, obj) { try { c.sock.write(encodeText(JSON.stringify(obj))); } catch (e) {} }
-function broadcast(obj, exceptId) { for (const c of clients.values()) if (c.id !== exceptId && c.joined) send(c, obj); }
+function makeSid() { return crypto.randomBytes(9).toString("hex"); }
+function sendSock(sock, obj) { try { sock.write(encodeText(JSON.stringify(obj))); } catch (e) {} }
+function send(slot, obj) { if (slot && slot.sock) sendSock(slot.sock, obj); }
+function broadcast(obj, exceptPid) { for (const s of slots.values()) if (s.connected && s.pid !== exceptPid) send(s, obj); }
 
 /* ------------------------------ Phòng ------------------------------ */
 const room = {
   started: false, over: false,
   wave: 0, waveTimer: 0, tickTimer: null,
-  hostId: null,
+  hostSid: null, map: null,
   VS_START_DELAY: 30, WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, MAX: 5,
+  GRACE: 60,        // giây giữ chỗ cho người rớt mạng/F5 trước khi coi là thất thủ
   deathOrder: [],   // pid theo thứ tự gục (sớm nhất trước)
 };
+function slotList() { return [...slots.values()].sort((a, b) => a.pid - b.pid); }
 function joinedList() {
-  return [...clients.values()].filter((c) => c.joined).sort((a, b) => a.pid - b.pid)
-    .map((c) => ({ pid: c.pid, name: c.name, host: c.id === room.hostId, alive: c.alive }));
+  return slotList().map((s) => ({ pid: s.pid, name: s.name, host: s.sid === room.hostSid, alive: s.alive, connected: s.connected }));
 }
 function lobbyUpdate() {
-  const players = joinedList();
-  broadcast({ t: "lobby", players, started: room.started, canStart: players.length >= 2, hostPid: hostPid() });
+  broadcast({ t: "lobby", players: joinedList(), started: room.started, canStart: joinedList().length >= 2, hostPid: hostPid() });
 }
-function hostPid() { const h = clients.get(room.hostId); return h ? h.pid : null; }
-function aliveClients() { return [...clients.values()].filter((c) => c.joined && c.alive); }
+function hostPid() { const h = slots.get(room.hostSid); return h ? h.pid : null; }
+function aliveSlots() { return [...slots.values()].filter((s) => s.alive); }
 function interval() { return room.wave >= room.LATE_WAVE ? room.WAVE_INTERVAL_LATE : room.WAVE_INTERVAL; }
 
 function startMatch(mapId) {
   if (room.started) return;
   room.started = true; room.over = false; room.wave = 0; room.deathOrder = [];
   room.map = mapId || room.map || null;          // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
-  for (const c of clients.values()) if (c.joined) c.alive = true;
+  for (const s of slots.values()) s.alive = true;
   broadcast({ t: "start", players: joinedList(), map: room.map });
   room.waveTimer = room.VS_START_DELAY;
   room.tickTimer = setInterval(serverTick, 250);
@@ -99,50 +104,78 @@ function serverTick() {
   if (room.over) return;
   room.waveTimer -= 0.25;
   if (room.waveTimer <= 0) { room.wave++; broadcast({ t: "wave", n: room.wave }); room.waveTimer = interval(); }
-  broadcast({ t: "clock", wave: room.wave, waveTimer: Math.max(0, room.waveTimer), alive: aliveClients().length });
+  broadcast({ t: "clock", wave: room.wave, waveTimer: Math.max(0, room.waveTimer), alive: aliveSlots().length });
 }
-function playerDead(c) {
-  if (!c.alive) return;
-  c.alive = false; room.deathOrder.push(c.pid);
-  broadcast({ t: "eliminated", pid: c.pid });
-  const alive = aliveClients();
+function playerDead(slot) {
+  if (!slot || !slot.alive) return;
+  slot.alive = false; room.deathOrder.push(slot.pid);
+  broadcast({ t: "eliminated", pid: slot.pid });
+  const alive = aliveSlots();
   if (alive.length <= 1) endMatch(alive[0] || null);
   else lobbyUpdate();
 }
 function endMatch(winner) {
-  room.over = true; if (room.tickTimer) clearInterval(room.tickTimer);
+  room.over = true; if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
   // xếp hạng: người trụ cuối trước, rồi gục muộn -> gục sớm
   const rank = [];
   if (winner) rank.push(winner.pid);
   for (let i = room.deathOrder.length - 1; i >= 0; i--) rank.push(room.deathOrder[i]);
-  const names = {}; for (const c of clients.values()) names[c.pid] = c.name;
+  const names = {}; for (const s of slots.values()) names[s.pid] = s.name;
   broadcast({ t: "end", winner: winner ? winner.pid : null, ranking: rank, names, wave: room.wave });
 }
 function resetRoom() {
   room.started = false; room.over = false; room.wave = 0; room.deathOrder = [];
   if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
 }
+// người rớt mạng/F5 không quay lại trong thời gian giữ chỗ -> coi như thất thủ
+function dropSlot(slot) {
+  if (slot.connected) return;                 // đã kết nối lại rồi
+  if (slot.graceTimer) { clearTimeout(slot.graceTimer); slot.graceTimer = null; }
+  if (room.started && !room.over) playerDead(slot);
+  slots.delete(slot.sid);
+  if (slot.sid === room.hostSid) room.hostSid = (slotList()[0] || {}).sid || null;
+  if (slots.size === 0) resetRoom();
+  lobbyUpdate();
+}
 
 function handleMsg(c, msg) {
   let o; try { o = JSON.parse(msg); } catch (e) { return; }
   switch (o.t) {
     case "join": {
-      if (c.joined) break;
-      if (room.started) { send(c, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
-      if (joinedList().length >= room.MAX) { send(c, { t: "reject", why: "Phòng đã đủ " + room.MAX + " người." }); break; }
-      c.name = (o.name || "").toString().slice(0, 14).trim() || ("Người " + c.pid);
-      c.joined = true; c.alive = true;
-      if (room.hostId == null) room.hostId = c.id;
-      send(c, { t: "welcome", pid: c.pid, host: c.id === room.hostId });
+      const nm = (o.name || "").toString().slice(0, 14).trim();
+      // 1) KẾT NỐI LẠI: sid cũ còn slot -> gắn socket mới vào đúng danh tính
+      if (o.sid && slots.has(o.sid)) {
+        const slot = slots.get(o.sid);
+        if (slot.sock && slot.sock !== c.sock) sendSock(slot.sock, { t: "kick", why: "Phiên mở ở nơi khác." });
+        if (slot.graceTimer) { clearTimeout(slot.graceTimer); slot.graceTimer = null; }
+        slot.sock = c.sock; slot.connected = true; if (nm) slot.name = nm;
+        c.slot = slot;
+        if (room.hostSid == null) room.hostSid = slot.sid;
+        send(slot, { t: "welcome", pid: slot.pid, host: slot.sid === room.hostSid, sid: slot.sid });
+        if (room.started) send(slot, { t: "resume", pid: slot.pid, host: slot.sid === room.hostSid,
+          wave: room.wave, waveTimer: Math.max(0, room.waveTimer), alive: aliveSlots().length,
+          players: joinedList(), map: room.map, over: room.over });
+        lobbyUpdate();
+        break;
+      }
+      // 2) VÀO MỚI
+      if (c.slot) break;                       // đã ở trong phòng rồi
+      if (room.started) { send({ sock: c.sock }, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
+      if (slots.size >= room.MAX) { send({ sock: c.sock }, { t: "reject", why: "Phòng đã đủ " + room.MAX + " người." }); break; }
+      const sid = makeSid(), pid = nextPid++;
+      const slot = { sid, pid, name: nm || ("Người " + pid), alive: true, connected: true, sock: c.sock, graceTimer: null };
+      slots.set(sid, slot); c.slot = slot;
+      if (room.hostSid == null) room.hostSid = sid;
+      send(slot, { t: "welcome", pid, host: sid === room.hostSid, sid });
       lobbyUpdate();
       break;
     }
-    case "start": if (c.id === room.hostId && !room.started && joinedList().length >= 2) startMatch(o.map); break;
-    case "snap": broadcast({ t: "snap", pid: c.pid, s: o.s }, c.id); break;      // minimap của người khác
-    case "spell": broadcast({ t: "spell", from: c.pid, key: o.key, data: o.data }, c.id); break; // phép PvP tác động người khác (kèm data, vd chủng Triệu Hồi)
-    case "dead": playerDead(c); break;
-    case "again": if (c.id === room.hostId && room.over) { resetRoom(); lobbyUpdate(); } break;
-    case "ping": send(c, { t: "pong" }); break;
+    case "start": if (c.slot && c.slot.sid === room.hostSid && !room.started && slots.size >= 2) startMatch(o.map); break;
+    case "snap": if (c.slot) broadcast({ t: "snap", pid: c.slot.pid, s: o.s }, c.slot.pid); break;      // minimap của người khác
+    case "spell": if (c.slot) broadcast({ t: "spell", from: c.slot.pid, key: o.key, data: o.data }, c.slot.pid); break; // phép PvP tác động người khác
+    case "dead": if (c.slot) playerDead(c.slot); break;
+    case "again": if (c.slot && c.slot.sid === room.hostSid && room.over) { resetRoom(); lobbyUpdate(); } break;
+    case "ping": sendSock(c.sock, { t: "pong" }); break;
   }
 }
 
@@ -151,8 +184,7 @@ server.on("upgrade", (req, socket) => {
   if (!key) { socket.destroy(); return; }
   const accept = crypto.createHash("sha1").update(key + WS_GUID).digest("base64");
   socket.write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept + "\r\n\r\n");
-  const c = { id: nextId++, sock: socket, name: "", pid: 0, joined: false, alive: false, buf: Buffer.alloc(0) };
-  c.pid = c.id;
+  const c = { id: nextConnId++, sock: socket, slot: null, buf: Buffer.alloc(0) };
   clients.set(c.id, c);
 
   socket.on("data", (chunk) => {
@@ -167,12 +199,17 @@ server.on("upgrade", (req, socket) => {
   });
   const gone = () => {
     if (!clients.has(c.id)) return;
-    const wasHost = c.id === room.hostId;
     clients.delete(c.id);
-    if (room.started && !room.over) playerDead(c);
-    if (wasHost) { room.hostId = [...clients.values()].filter((x) => x.joined)[0]?.id ?? null; }
-    if (joinedList().length === 0) resetRoom();
-    lobbyUpdate();
+    const slot = c.slot;
+    if (!slot || slot.sock !== c.sock) return;   // socket cũ đã bị thay bằng kết nối lại -> bỏ qua
+    slot.connected = false; slot.sock = null;
+    if (room.started && !room.over && slot.alive) {
+      // GIỮ CHỖ: chờ người chơi kết nối lại trong room.GRACE giây rồi mới coi là thất thủ
+      broadcast({ t: "lobby", players: joinedList(), started: room.started, canStart: false, hostPid: hostPid() });
+      slot.graceTimer = setTimeout(() => dropSlot(slot), room.GRACE * 1000);
+    } else {
+      dropSlot(slot);                            // ở phòng chờ hoặc trận đã xong -> rời hẳn
+    }
   };
   socket.on("close", gone); socket.on("error", gone);
 });
