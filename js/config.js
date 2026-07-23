@@ -14,7 +14,7 @@
   // lava: danh sách hình chữ nhật [cột đầu, hàng đầu, cột cuối, hàng cuối] là SÔNG DUNG NHAM (cấm xây, cấm đi)
   const MAPS = [
     {
-      id: "nham_ha", name: "Cổ Trận Nham Hà", icon: "🌋",
+      id: "ho_tu_than", name: "Hố Tử Thần", icon: "🌋",
       desc: "Bản gốc: 3 sông dung nham chia cắt sân, mê cung ngắn hơn nhưng dễ chặn",
       // theo tọa độ Excel bản gốc (grid 0-index):
       //   F1:M3 -> cột 5-12, hàng 0-2 | A7:H7 -> cột 0-7, hàng 6 | F11:M11 -> cột 5-12, hàng 10

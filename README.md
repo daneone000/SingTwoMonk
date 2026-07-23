@@ -62,14 +62,14 @@ Mưa Lửa / Bão Sét gây thêm **10% máu ĐÃ MẤT** của mục tiêu (cà
 
 | | Bản đồ | Đặc điểm |
 |--|--------|----------|
-| 🌋 | **Cổ Trận Nham Hà** | Đúng bản gốc: 3 sông dung nham chia cắt sân, mê cung ngắn hơn nhưng dễ chặn |
+| 🌋 | **Hố Tử Thần** | Đúng bản gốc: 3 sông dung nham chia cắt sân, mê cung ngắn hơn nhưng dễ chặn |
 | 🏜 | **Miền Đất Chết** | 13×13 trống trải, không một dòng nham — tự do dựng mê cung dài nhất có thể |
 
 ### Chế độ & phím tắt
 
 Vào game hiện **menu chính** để chọn bản đồ + chế độ (mở lại bằng nút **☰** góc trên phải):
 
-- **☠ Hố Tử Thần** — sinh tồn vô tận, khó dần (cày kỷ lục số đợt).
+- **☠ Sinh Tồn Vô Tận** — sinh tồn vô tận, khó dần (cày kỷ lục số đợt).
 - **🗺 Chiến Dịch** — chơi qua các đợt liên tục, trụ hết 30 đợt là thắng.
 - **⚔ Đối kháng** — tối đa **5 sân**, cùng chuỗi đợt quái đồng bộ, ai để 10 quái lọt
   trước thì thất thủ. Đấu với **AI** hoặc **người thật qua LAN** (`node server.js`).
