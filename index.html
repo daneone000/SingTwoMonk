@@ -74,6 +74,12 @@
         <button id="btnTree" class="tree-open">🌟 Học kỹ năng mới</button>
         <div id="skillGrid" class="skill-grid"></div>
 
+        <!-- 2v2: phép đồng đội đã học (CHỈ XEM) -->
+        <div id="mateSkills" class="mate-skills hidden">
+          <div class="mate-head">🤝 Phép đồng đội <b id="mateName"></b> <small>(chỉ xem)</small></div>
+          <div id="mateGrid" class="mate-grid"></div>
+        </div>
+
         <div class="cfg-row">
           <button id="btnCfg" class="cfg-btn">Cấu hình</button>
           <button id="btnRules" class="cfg-btn">Luật Chơi</button>
@@ -160,6 +166,11 @@
         </div>
         <div id="vsLanLobby" class="hidden">
           <div class="vs-lobby-head">Phòng chờ <span id="vsLobbyCount">(0)</span></div>
+          <div class="vs-mode-row" id="vsModeRow">
+            <span class="vs-mode-lb">Kiểu trận:</span>
+            <button class="vs-mode-btn on" data-mode="ffa">Cá nhân (tối đa 5)</button>
+            <button class="vs-mode-btn" data-mode="2v2">Đội 2v2 (đúng 4)</button>
+          </div>
           <div id="vsLobbyList" class="vs-lobby"></div>
           <p class="vs-note" id="vsLanMsg" style="margin-top:8px"></p>
         </div>

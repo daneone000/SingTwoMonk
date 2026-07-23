@@ -270,6 +270,7 @@
     else if (g.campaignDone) { sw.textContent = "— Hết đợt —"; sw.disabled = true; }
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
+    if (match && match.mode === "2v2") renderMateSkills();
     for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k]; b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < def.cost); }
     if (g.learned.size !== lastLearned) { renderSkills(g); lastLearned = g.learned.size; }
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : ""; }
@@ -414,20 +415,42 @@
     reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
     if (net) { net.leave(); net = null; }
     if (!match) return; match = null;
-    document.body.classList.remove("versus", "netplay");
+    document.body.classList.remove("versus", "netplay", "team2v2");
+    $("mateSkills").classList.add("hidden");
     $("oppList").innerHTML = OPP.map((n) => `<div class="opp"><div class="oface">?</div><div class="omap"><span class="oname">${n}</span><small>Đối kháng<br>(chọn ⚔ để chơi)</small></div></div>`).join("");
   }
 
   /* ---------- MẠNG LAN ---------- */
   let net = null;
   function renderLobby(m) {
-    $("vsLobbyCount").textContent = `(${m.players.length}/5)`;
-    $("vsLobbyList").innerHTML = m.players.map((p) =>
-      `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "P" + p.pid}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
+    const mode = m.lobbyMode || "ffa";
+    $("vsLobbyCount").textContent = `(${m.players.length}/${mode === "2v2" ? 4 : 5})`;
+    // đồng bộ nút chọn kiểu trận (chỉ chủ phòng đổi được)
+    $("vsModeRow").classList.toggle("locked", !m.isHost);
+    $("vsModeRow").querySelectorAll(".vs-mode-btn").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+    if (mode === "2v2") {
+      // xếp theo đội (join order: 2 người đầu Đội A, 2 sau Đội B); chủ-bàn = người đầu mỗi đội
+      let html = "";
+      [0, 1].forEach((tm) => {
+        const mem = m.players.filter((_, i) => (i < 2 ? 0 : 1) === tm);
+        if (!mem.length) return;
+        html += `<div class="vs-team-hd t${tm}">${tm === 0 ? "🔵 Đội A" : "🔴 Đội B"}</div>`;
+        html += mem.map((p, j) => `<div class="vs-lobby-row team${tm}${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${j === 0 ? "🛠 Chủ-bàn" : "🤝 Đồng đội"}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}${p.host ? " 👑" : ""}</div>`).join("");
+      });
+      $("vsLobbyList").innerHTML = html;
+    } else {
+      $("vsLobbyList").innerHTML = m.players.map((p) =>
+        `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "P" + p.pid}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
+    }
     $("vsLanStart").classList.toggle("hidden", !m.isHost);
     $("vsLanStart").disabled = !m.canStart;
-    $("vsLanMsg").textContent = m.isHost ? (m.canStart ? "Đủ người — bấm Bắt đầu khi sẵn sàng." : "Cần ít nhất 2 người để bắt đầu.") : "Chờ chủ phòng bắt đầu…";
+    const need = mode === "2v2" ? "Cần ĐÚNG 4 người (2 đội × 2) để bắt đầu." : "Cần ít nhất 2 người để bắt đầu.";
+    $("vsLanMsg").textContent = m.isHost ? (m.canStart ? "Đủ người — bấm Bắt đầu khi sẵn sàng." : need) : "Chờ chủ phòng bắt đầu…";
   }
+  // chủ phòng đổi kiểu trận
+  $("vsModeRow").querySelectorAll(".vs-mode-btn").forEach((b) => {
+    b.onclick = () => { if (net && net.isHost) net.client.send({ t: "setmode", mode: b.dataset.mode }); };
+  });
   let reconnecting = false, reconnTries = 0, reconnTimer = null;
   const lanUrl = () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/";
   function lanFailHint() {
@@ -492,17 +515,34 @@
     $("vsLanStart").classList.add("hidden"); $("vsLanLeave").classList.remove("hidden");
     openLan(name, {});
   };
-  $("vsLanStart").onclick = () => { if (net) net.startMatch(); };
+  $("vsLanStart").onclick = () => { if (net) net.startMatch(net.lobbyMode || "ffa"); };
   $("vsLanLeave").onclick = () => { reconnecting = false; reconnBanner(false); STM.clearSession(); endVersus(); showTab("LAN"); };
+
+  // 2v2: bật/tắt lớp thân + panel phép đồng đội
+  function apply2v2Chrome(m) {
+    const is2 = m && m.mode === "2v2";
+    document.body.classList.toggle("team2v2", !!is2);
+    $("mateSkills").classList.toggle("hidden", !is2);
+    if (is2 && m.teammate) $("mateName").textContent = m.teammate.name;
+    renderMateSkills();
+  }
+  function renderMateSkills() {
+    if (!match || match.mode !== "2v2") return;
+    const sk = (match.teammateSkills && match.teammateSkills.learned) || [];
+    $("mateGrid").innerHTML = sk.length
+      ? sk.map((k) => { const s = CFG.SKILLS[k]; return s ? `<div class="mate-sk" title="${s.name} — ${s.desc}">${s.glyph}</div>` : ""; }).join("")
+      : `<span class="mate-empty">Đồng đội chưa học phép nào.</span>`;
+  }
 
   function resumeVersusNet(m) {
     reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
     vsModal.classList.add("hidden");
     match = m;
     document.body.classList.add("versus", "netplay");
+    apply2v2Chrome(m);
     lastLearned = -1; treeSel = null; prevWave = m.wave; prevLives = game.lives; prevEnd = false;
     buildOppList();
-    log("✅ Đã kết nối lại! Tiếp tục trận ở đợt " + m.wave + ".", "good");
+    log("✅ Đã kết nối lại! Tiếp tục trận ở đợt " + m.wave + (m.mode === "2v2" ? " (2v2, " + (m.isAuthority ? "chủ-bàn" : "đồng đội") + ")." : "."), "good");
     game.emit();
   }
 
@@ -526,19 +566,27 @@
     vsModal.classList.add("hidden");
     match = m;                       // NetMatch cũng có opponentViews/aliveN/resultRows/wave/waveTimer/over
     document.body.classList.add("versus", "netplay");
+    apply2v2Chrome(m);
     lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = "";
     buildOppList();
-    log("Trận LAN bắt đầu! " + m.players.length + " người chơi.", "good");
-    log("Đợt đồng bộ do máy chủ phát — không gọi trước được.", "ev");
+    if (m.mode === "2v2") {
+      log("Trận 2v2 bắt đầu! Bạn ở " + (m.myTeam === 0 ? "Đội A" : "Đội B") + " — " + (m.isAuthority ? "CHỦ-BÀN (mô phỏng)" : "ĐỒNG ĐỘI (xem & cùng xây)") + ".", "good");
+      if (m.teammate) log("Đồng đội: " + m.teammate.name + " — chung bàn, xây/nâng/bán chung.", "ev");
+    } else {
+      log("Trận LAN bắt đầu! " + m.players.length + " người chơi.", "good");
+      log("Đợt đồng bộ do máy chủ phát — không gọi trước được.", "ev");
+    }
     game.emit();
   }
   function showResult(m) {
-    const rows = m.resultRows();
+    const rows = m.resultRows(), is2 = m.mode === "2v2";
     $("vsRank").innerHTML = rows.map((r) => {
       const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`;
-      return `<div class="vs-rk ${r.win ? "win" : ""}${r.me ? " me" : ""}">${medal} <b>${r.name}</b>${r.me ? " (bạn)" : ""} <span>${r.win ? "Người trụ cuối cùng!" : "Thất thủ" + (r.fellWave ? " đợt " + r.fellWave : "")}</span></div>`;
+      const tag = is2 ? `<span class="rk-team t${r.team}">${r.team === 0 ? "Đội A" : "Đội B"}</span> ` : "";
+      const status = r.win ? (is2 ? "Đội chiến thắng!" : "Người trụ cuối cùng!") : "Thất thủ" + (r.fellWave ? " đợt " + r.fellWave : "");
+      return `<div class="vs-rk ${r.win ? "win" : ""}${r.me ? " me" : ""}">${medal} ${tag}<b>${r.name}</b>${r.me ? " (bạn)" : ""} <span>${status}</span></div>`;
     }).join("");
-    const winName = rows[0] ? rows[0].name : "";
+    const winName = is2 ? (rows[0] ? (rows[0].team === 0 ? "Đội A" : "Đội B") : "") : (rows[0] ? rows[0].name : "");
     log("🏆 " + winName + " chiến thắng!", "good");
     $("vsAgain").style.display = (m.net && !m.isHost) ? "none" : "";
     vsResult.classList.remove("hidden");

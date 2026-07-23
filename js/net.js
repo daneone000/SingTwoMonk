@@ -45,14 +45,28 @@
       this.onResume = null; this.onKick = null;
       this.sid = null; this._saveT = 0;
       this._sentDead = false; this._pushT = null;
+      // ---- 2v2 ----
+      this.mode = "ffa"; this.myTeam = 0; this.isAuthority = false;
+      this.teammate = null;                    // {pid,name,authority}
+      this.teammateSkills = { learned: [], sp: 0 };   // để hiển thị phép đồng đội (chỉ xem)
+      this._boardT = 0;
       // gắn vào game
       game.reset("endless"); game.versus = true; game.netMatch = this; game.name = myName;
     }
     join() { this.client.send({ t: "join", name: this.myName, sid: this.sid || undefined }); }
-    startMatch() { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId() }); }
+    startMatch(mode) { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId(), mode: mode || "ffa" }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }
     sendSpell(key, data) { this.client.send({ t: "spell", key, data }); }
     sendVacuum(data) { this.client.send({ t: "vacuum", data }); }   // Bẫy Hút: server chọn 1 đối thủ ngẫu nhiên
+    // 2v2
+    sendCmd(c) { this.client.send({ t: "cmd", c }); }               // đồng đội -> chủ-bàn: xây/nâng/bán/phép bàn
+    sendTeamSpell(key, data) { this.client.send({ t: "teamspell", key, data }); }   // phép PvP -> bàn đội địch
+    sendTeamVacuum(data) { this.client.send({ t: "teamvacuum", data }); }
+    sendSkills() { this.client.send({ t: "skills", learned: [...this.game.learned], sp: this.game.sp }); }
+    setup2v2(o) {   // gán vai trò từ gói start/resume
+      this.mode = "2v2"; this.myTeam = o.team; this.isAuthority = !!o.authority; this.teammate = o.teammate || null;
+      this.game.pid = this.myPid;
+    }
 
     handle(o) {
       const g = this.game, map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
@@ -67,6 +81,16 @@
           this.started = true; this.over = !!o.over; this.myPid = o.pid; this.isHost = o.host;
           this.players = o.players || []; for (const p of this.players) this.names[p.pid] = p.name;
           if (o.map) STM.CFG.setMap(o.map);
+          if (o.mode === "2v2") {
+            this.setup2v2(o);
+            const sv = this.isAuthority ? STM.loadBoard() : null;   // chủ-bàn khôi phục bàn; đồng đội chờ snapshot mới
+            if (this.isAuthority && sv) g.restore(sv); else { g.reset("endless"); g.started = o.wave > 0; }
+            g.versus = true; g.netMatch = this; g.name = this.myName; g.wave = o.wave;
+            this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; this._sentDead = false;
+            this._begin2v2();
+            if (this.onResume) this.onResume(this); if (this.onChange) this.onChange();
+            break;
+          }
           const saved = STM.loadBoard();
           if (saved) g.restore(saved); else { g.reset("endless"); g.started = o.wave > 0; }
           g.versus = true; g.netMatch = this; g.name = this.myName; g.wave = o.wave;
@@ -77,7 +101,7 @@
           break;
         }
         case "lobby":
-          this.players = o.players; this.isHost = o.hostPid === this.myPid; this.canStart = o.canStart;
+          this.players = o.players; this.isHost = o.hostPid === this.myPid; this.canStart = o.canStart; this.lobbyMode = o.mode || "ffa";
           for (const p of o.players) this.names[p.pid] = p.name;
           if (!this.started && this.onLobby) this.onLobby(this);
           break;
@@ -88,10 +112,18 @@
           g.reset("endless"); g.versus = true; g.netMatch = this; g.name = this.myName;
           for (const p of o.players) this.names[p.pid] = p.name;
           STM.saveSession({ sid: this.sid, host: (typeof location !== "undefined" ? location.host : ""), name: this.myName, active: true });
+          if (o.mode === "2v2") { this.setup2v2(o); STM.saveBoard(g.serialize()); this._begin2v2(); if (this.onStart) this.onStart(this); break; }
           STM.saveBoard(g.serialize());
           this._beginPush();
           if (this.onStart) this.onStart(this);
           break;
+        /* ---- 2v2 ---- */
+        case "board": g.applyBoard(o.s); break;                                    // chủ-bàn -> đồng đội: vẽ lại bàn chung
+        case "cmd": if (this.isAuthority) { g.applyCmd(o.c); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh
+        case "reward": g.gold += o.gold || 0; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; // chủ-bàn chia vàng/KN (cộng bằng nhau)
+        case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; if (this.onChange) this.onChange(); break;
+        case "teamspell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình
+        case "teamvacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;
         case "wave": this.wave = o.n; g.receiveWave(o.n); if (this.onChange) this.onChange(); break;
         case "clock": this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; if (this.onChange) this.onChange(); break;
         case "snap": this.snaps[o.pid] = o.s; break;                    // minimap đối thủ
@@ -100,6 +132,7 @@
         case "eliminated": { const p = this.players.find((x) => x.pid === o.pid); if (p) p.alive = false; if (this.onChange) this.onChange(); break; }
         case "end":
           this.over = true; this.winner = o.winner; this.ranking = o.ranking; this.names = o.names || this.names; this.endWave = o.wave;
+          if (o.mode === "2v2") { this.teams = o.teams; this.winTeam = o.winTeam; }
           this._stopPush(); STM.clearSession();       // trận xong -> không còn phiên để nối lại
           if (this.onEnd) this.onEnd(this);
           break;
@@ -117,11 +150,40 @@
         if (this.onChange) this.onChange();       // làm mới minimap/đồng hồ dù local đã chết
       }, 200);
     }
+    // 2v2: chủ-bàn đẩy bàn (cho đồng đội) + minimap (cho đội địch) + chia vàng/KN; đồng đội chỉ khoe phép.
+    _begin2v2() {
+      if (this._pushT) return;
+      const g = this.game;
+      if (this.isAuthority) g._earn = { gold: 0, sp: 0 };
+      this._pushT = setInterval(() => {
+        if (this.isAuthority) {
+          if (!this._sentDead && g.gameOver) { this._sentDead = true; this.client.send({ t: "dead" }); }
+          if (!g.gameOver) {
+            this.client.send({ t: "board", s: g.boardSnapshot() });      // đồng đội vẽ bàn chung
+            if ((this._boardT = (this._boardT + 1) % 3) === 0) this.client.send({ t: "snap", s: g.snapshot() });   // minimap cho đội địch (~4/s)
+            if (g._earn && (g._earn.gold || g._earn.sp)) { this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp }); g._earn = { gold: 0, sp: 0 }; }
+            if ((this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
+          }
+        }
+        // cả hai: khoe phép đã học + điểm KN cho đồng đội (~1.3/s)
+        if ((this._skT = (this._skT + 1 || 1) % 8) === 0) this.sendSkills();
+        if (this.onChange) this.onChange();
+      }, 150);
+    }
     _stopPush() { if (this._pushT) { clearInterval(this._pushT); this._pushT = null; } }
     leave() { this._stopPush(); STM.clearSession(); this.client.close(); }
 
     aliveN() { return this._alive; }
+    // Danh sách "đối thủ" để vẽ minimap bên trái. 2v2: chỉ hiện bàn ĐỘI ĐỊCH (đồng đội chung bàn nên không hiện).
     opponentViews() {
+      if (this.mode === "2v2") {
+        return this.players.filter((p) => p.team !== this.myTeam && p.authority).map((p) => {
+          const snap = this.snaps[p.pid], mate = this.players.find((x) => x.team === p.team && x.pid !== p.pid);
+          const nm = "Đội địch" + (mate ? " · " + p.name + " & " + mate.name : "");
+          return { pid: p.pid, name: nm, wave: snap ? snap.w : 0, lives: snap ? snap.lv : 10, dead: (snap && snap.go) || p.alive === false,
+            draw: (cx, sz) => STM.drawMiniSnap(cx, sz, snap, this.game.map) };
+        });
+      }
       return this.players.filter((p) => p.pid !== this.myPid).map((p) => {
         const snap = this.snaps[p.pid];
         return { pid: p.pid, name: p.name, wave: snap ? snap.w : 0, lives: snap ? snap.lv : 10, dead: (snap && snap.go) || p.alive === false,
@@ -129,6 +191,10 @@
       });
     }
     resultRows() {
+      if (this.mode === "2v2" && this.teams) {
+        return this.ranking.map((pid, i) => ({ pid, name: this.names[pid] || ("Người " + pid), team: this.teams[pid],
+          win: this.teams[pid] === this.winTeam, me: pid === this.myPid, rank: Math.floor(i / 2) + 1 }));
+      }
       return this.ranking.map((pid, i) => ({ pid, name: this.names[pid] || ("Người " + pid), win: i === 0, me: pid === this.myPid, rank: i + 1 }));
     }
   }
