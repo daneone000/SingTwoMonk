@@ -173,6 +173,10 @@ function handleMsg(c, msg) {
     case "start": if (c.slot && c.slot.sid === room.hostSid && !room.started && slots.size >= 2) startMatch(o.map); break;
     case "snap": if (c.slot) broadcast({ t: "snap", pid: c.slot.pid, s: o.s }, c.slot.pid); break;      // minimap của người khác
     case "spell": if (c.slot) broadcast({ t: "spell", from: c.slot.pid, key: o.key, data: o.data }, c.slot.pid); break; // phép PvP tác động người khác
+    case "vacuum": if (c.slot) {   // Bẫy Hút: hút quái sang MỘT đối thủ còn sống ngẫu nhiên
+      const others = aliveSlots().filter((s) => s.pid !== c.slot.pid && s.connected);
+      if (others.length) send(others[(Math.random() * others.length) | 0], { t: "vacuum", from: c.slot.pid, data: o.data });
+    } break;
     case "dead": if (c.slot) playerDead(c.slot); break;
     case "again": if (c.slot && c.slot.sid === room.hostSid && room.over) { resetRoom(); lobbyUpdate(); } break;
     case "ping": sendSock(c.sock, { t: "pong" }); break;

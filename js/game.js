@@ -156,6 +156,29 @@
       if (this.netMatch) { this.netMatch.sendSpell(key, data); return; }
       this.opponents().forEach((g) => g[map[key]](data && data.type));
     }
+    // Thả 1 quái "bị hút" (giữ nguyên chủng + % máu) lên sân này, tại ô ngẫu nhiên
+    spawnTransferred(data) {
+      const d = CFG.ENEMIES[data && data.type]; if (!d) return;
+      const cell = this.randomSpawnableCell();
+      const e = new STM.Enemy(d, data.hpMul || 1, data.rwMul || 1, this, !!data.boss);
+      e.x = (cell.c + 0.5) * TILE; e.y = (cell.r + 0.5) * TILE; e.remain = 1e9;
+      if (data.hpFrac != null) e.hp = Math.max(1, Math.round(e.maxHp * data.hpFrac));
+      this.enemies.push(e);
+      this.effects.push(new BlastRing(e.x, e.y, TILE, "#5c6bc0")); this.emit();   // màu Bẫy Hút
+    }
+    // [Đối kháng] Bẫy Hút: gỡ quái khỏi sân này rồi hút sang 1 sân đối thủ NGẪU NHIÊN.
+    // Trả về true nếu đã hút sang được đối thủ (để bẫy không dịch chuyển quái tại chỗ nữa).
+    pvpVacuum(hit) {
+      const data = { type: hit.def.key, hpMul: hit.hpMul, rwMul: hit.rwMul, boss: hit.boss, hpFrac: hit.hp / hit.maxHp };
+      if (this.netMatch) {                                   // mạng LAN: server chọn 1 đối thủ ngẫu nhiên
+        const i = this.enemies.indexOf(hit); if (i >= 0) this.enemies.splice(i, 1);
+        this.netMatch.sendVacuum(data); return true;
+      }
+      const opps = this.opponents(); if (!opps.length) return false;   // không còn đối thủ -> hút hụt, để bẫy đẩy tại chỗ
+      const i = this.enemies.indexOf(hit); if (i >= 0) this.enemies.splice(i, 1);
+      opps[(Math.random() * opps.length) | 0].spawnTransferred(data);
+      return true;
+    }
     // Ảnh chụp gọn sân này để vẽ minimap cho đối thủ (qua mạng)
     snapshot() {
       return {

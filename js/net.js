@@ -52,6 +52,7 @@
     startMatch() { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId() }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }
     sendSpell(key, data) { this.client.send({ t: "spell", key, data }); }
+    sendVacuum(data) { this.client.send({ t: "vacuum", data }); }   // Bẫy Hút: server chọn 1 đối thủ ngẫu nhiên
 
     handle(o) {
       const g = this.game, map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
@@ -95,6 +96,7 @@
         case "clock": this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; if (this.onChange) this.onChange(); break;
         case "snap": this.snaps[o.pid] = o.s; break;                    // minimap đối thủ
         case "spell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;  // đối thủ đánh mình (trieuHoi kèm chủng chung)
+        case "vacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;   // đối thủ hút quái sang sân mình
         case "eliminated": { const p = this.players.find((x) => x.pid === o.pid); if (p) p.alive = false; if (this.onChange) this.onChange(); break; }
         case "end":
           this.over = true; this.winner = o.winner; this.ranking = o.ranking; this.names = o.names || this.names; this.endWave = o.wave;

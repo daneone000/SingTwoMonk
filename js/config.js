@@ -126,7 +126,7 @@
     hut: {
       key: "hut", name: "Bẫy Hút", glyph: "🌀", color: "#5c6bc0",
       cost: 70, trap: true, once: true, block: false, target: "ground", radius: 0.5,
-      base: { back: 12 }, desc: "Dùng 1 lần: hút 1 con quái BỘ bước vào ô này về vị trí ngẫu nhiên. Vô hiệu Boss & BAY.",
+      base: { back: 12 }, desc: "Dùng 1 lần: hút 1 con quái BỘ bước vào ô này về vị trí ngẫu nhiên. [Đối kháng] hút quái SANG sân đối thủ ngẫu nhiên. Vô hiệu Boss & BAY.",
     },
   };
   const TOWER_ORDER = ["ten", "lua", "bang", "set", "doc", "nangluong"];

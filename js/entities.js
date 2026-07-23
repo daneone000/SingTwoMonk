@@ -302,7 +302,11 @@
       }
       if (!hit) return;
       if (this.type === "dinh") hit.freeze(b.freeze);
-      else { const cell = game.randomBackCell(this.col, this.row, b.back); if (cell) { game.effects.push(new SwirlFx(hit.x, hit.y)); hit.teleportTo((cell.c + .5) * TILE, (cell.r + .5) * TILE); hit.pullCd = 0; } }
+      else {   // Bẫy Hút
+        // [Đối kháng] hút sang sân đối thủ ngẫu nhiên; nếu không có đối thủ -> đẩy về ô cũ trên sân mình
+        if (game.versus && game.pvpVacuum(hit)) { game.effects.push(new SwirlFx(this.x, this.y)); }
+        else { const cell = game.randomBackCell(this.col, this.row, b.back); if (cell) { game.effects.push(new SwirlFx(hit.x, hit.y)); hit.teleportTo((cell.c + .5) * TILE, (cell.r + .5) * TILE); hit.pullCd = 0; } }
+      }
       game.effects.push(new BlastFx(this.x, this.y, this.range, this.type === "dinh" ? "#bdeaff" : "#9fa8ff"));
       this.dead = true;
     }
