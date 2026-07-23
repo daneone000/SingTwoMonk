@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sinh Tử Môn — Local (tái tạo bản gốc ZingPlay)</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="frame">
+    <!-- THANH TRÊN -->
+    <header class="topbar">
+      <div class="logo-banner"><span class="logo">Sinh Tử Môn</span></div>
+      <div class="top-mid">
+        <div class="wave-banner">
+          <span class="wb-name" id="wbName">Chuẩn bị</span>
+          <span class="wb-medal" id="wave">0</span>
+          <span class="wb-next">Tiếp: <span id="wbNext"></span></span>
+        </div>
+        <div class="next" id="nextWave"></div>
+      </div>
+      <div class="top-right">
+        <button id="modeEndless" class="mode-sel" title="Sinh tồn vô tận">☠</button>
+        <button id="modeCampaign" class="mode-sel" title="Chiến dịch">🗺</button>
+        <button id="modeVersus" class="mode-sel" title="Đối kháng (tối đa 5 người)">⚔</button>
+        <button id="btnRestart" class="close-btn" title="Chơi lại">✖</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <!-- CỘT TRÁI: đối thủ + chat -->
+      <aside class="col-left">
+        <div class="opp-wrap" id="oppList"></div>
+        <div class="chatbox">
+          <div class="chat-title">Nhật ký</div>
+          <div id="logBox" class="chat-log"></div>
+        </div>
+      </aside>
+
+      <!-- GIỮA: trận địa + bảng tháp + điều khiển -->
+      <section class="col-center">
+        <div class="canvas-wrap ornate"><canvas id="game"></canvas></div>
+
+        <!-- Bảng chi tiết tháp (đáy giữa, đúng bản gốc) -->
+        <div id="towerPanel" class="tower-panel hidden"></div>
+
+        <div class="controls">
+          <button id="startWave" class="primary">▶ Bắt đầu đợt</button>
+          <button id="btnPause">⏸ Dừng</button>
+          <button id="btnSpeed">⏩ x1</button>
+          <button id="btnAuto" class="on">Tự động: BẬT</button>
+          <button id="btnTree2">🌟 Học phép (F2)</button>
+        </div>
+      </section>
+
+      <!-- PHẢI: chân dung + Tháp + Phép -->
+      <aside class="col-right">
+        <div class="portrait ornate">
+          <b id="pName" class="pr-name">kvandiep</b>
+          <div class="pface" id="pFace">龍</div>
+          <small id="pRank" class="pr-rank">Sĩ Phu</small>
+        </div>
+        <div class="res-row">
+          <div class="res gold" title="Vàng">💰<b id="gold">0</b></div>
+          <div class="res sp" title="Điểm kỹ năng">✦<b id="sp">0</b></div>
+          <div class="res lives" title="Mạng (để 10 quái lọt là thua)">💀<b id="lives">10</b></div>
+        </div>
+
+        <div class="section-banner">Tháp</div>
+        <div id="towerGrid" class="tower-grid"></div>
+
+        <div class="section-banner">Phép</div>
+        <button id="btnTree" class="tree-open">🌟 Học kỹ năng mới</button>
+        <div id="skillGrid" class="skill-grid"></div>
+
+        <div class="cfg-row">
+          <button id="btnCfg" class="cfg-btn">Cấu hình</button>
+          <button id="btnRules" class="cfg-btn">Luật Chơi</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- MODAL CÂY KỸ NĂNG -->
+  <div id="treeModal" class="tree-modal hidden">
+    <div class="tree-box skilltree">
+      <div class="tree-head"><span>◈ Điểm kỹ năng: <b id="treeSP">0</b></span><span class="tree-count">Đã học <b id="treeCount">0</b>/6 phép</span></div>
+      <div class="tree-canvas">
+        <svg id="treeEdges" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div id="treeNodes"></div>
+      </div>
+      <div id="treeTip" class="tree-tip">Bấm 1 phép để chọn, rồi bấm <b>Chọn</b> để học (chỉ được 6 phép). Phải học phép nhánh trước mới mở phép sau.</div>
+      <div class="tree-foot"><button id="treeChoose" class="tree-btn choose" disabled>Chọn</button><button id="treeClose" class="tree-btn">Đóng</button></div>
+    </div>
+  </div>
+
+  <!-- MODAL THIẾT LẬP ĐỐI KHÁNG -->
+  <div id="vsModal" class="tree-modal hidden">
+    <div class="tree-box ornate vs-box">
+      <div class="tree-head">⚔ Đối kháng — Thiết lập ván đấu</div>
+      <div class="vs-tabs">
+        <button id="vsTabAI" class="vs-tab on">🤖 Đấu với Máy</button>
+        <button id="vsTabLAN" class="vs-tab">🌐 Mạng LAN</button>
+      </div>
+
+      <!-- Tab: đấu với AI (offline) -->
+      <div id="vsPanelAI" class="vs-body">
+        <p class="vs-note">Tối đa <b>5</b> người chơi (bạn + tối đa 4 AI). Mọi người đối mặt <b>cùng chuỗi đợt quái</b> đồng bộ. Ai để 10 quái lọt cửa Tử trước sẽ <b>thất thủ</b>; người trụ cuối cùng <b>chiến thắng</b>.</p>
+        <div class="vs-row"><label>Số người chơi:</label>
+          <div class="vs-count" id="vsCount">
+            <button data-n="2">2</button><button data-n="3" class="on">3</button><button data-n="4">4</button><button data-n="5">5</button>
+          </div>
+        </div>
+        <div id="vsNames" class="vs-names"></div>
+      </div>
+
+      <!-- Tab: mạng LAN -->
+      <div id="vsPanelLAN" class="vs-body hidden">
+        <div id="vsLanConnect">
+          <p class="vs-note">Chơi cùng người thật trong <b>mạng LAN</b>. Máy chủ phải chạy <code>node server.js</code>. Các máy khác mở địa chỉ hiện ở cửa sổ máy chủ rồi vào cùng phòng này.<br>🌍 <b>Bạn bè ở xa?</b> Dùng <b>LAN ảo (ZeroTier)</b> để họ join từ bất cứ đâu — xem <code>HUONGDAN-LAN-AO.md</code>.</p>
+          <div class="vs-name-row"><span class="vs-tag me">Tên bạn</span><input id="vsLanName" class="vs-inp" maxlength="14" value="kvandiep"></div>
+          <p class="vs-note" id="vsLanAddr" style="margin-top:8px"></p>
+        </div>
+        <div id="vsLanLobby" class="hidden">
+          <div class="vs-lobby-head">Phòng chờ <span id="vsLobbyCount">(0)</span></div>
+          <div id="vsLobbyList" class="vs-lobby"></div>
+          <p class="vs-note" id="vsLanMsg" style="margin-top:8px"></p>
+        </div>
+      </div>
+
+      <div class="tree-foot">
+        <button id="vsStart" class="tree-btn choose">Bắt đầu trận</button>
+        <button id="vsLanJoin" class="tree-btn choose hidden">Vào phòng</button>
+        <button id="vsLanStart" class="tree-btn choose hidden">Bắt đầu trận</button>
+        <button id="vsLanLeave" class="tree-btn hidden">Rời phòng</button>
+        <button id="vsClose" class="tree-btn">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL KẾT QUẢ ĐỐI KHÁNG -->
+  <div id="vsResult" class="tree-modal hidden">
+    <div class="tree-box ornate vs-box">
+      <div class="tree-head">🏆 Kết quả ván đấu</div>
+      <div id="vsRank" class="vs-rank"></div>
+      <div class="tree-foot"><button id="vsAgain" class="tree-btn choose">Ván mới</button><button id="vsResultClose" class="tree-btn">Đóng</button></div>
+    </div>
+  </div>
+
+  <!-- MODAL LUẬT CHƠI -->
+  <div id="rulesModal" class="tree-modal hidden">
+    <div class="tree-box ornate rules-box">
+      <div class="tree-head">Luật chơi — Sinh Tử Môn</div>
+      <div class="rules-body">
+        <p>🟢 Quái sinh ở cửa <b style="color:#8effb0">SINH</b> (trên-trái), tìm <b>đường ngắn nhất</b> tới cửa <b style="color:#ff9b9b">TỬ</b> (dưới-phải). Để <b>10 quái</b> lọt là <b>thua</b>.</p>
+        <p>🏰 Xây tháp ở ô đá để <b>tạo mê cung</b> ép quái đi vòng. <b>Không được bịt kín</b> đường (ô chặn kín báo đỏ).</p>
+        <p>✈️ Quái <b>Bay</b> đi thẳng, chỉ tháp <b>Tên/Băng/Sét</b> mới bắn được (Sét chỉ đánh Bay). 🔥 Lửa/☠ Độc chỉ đánh <b>Bộ</b>. ✦ Năng Lượng <b>không bắn</b> — buff tháp lân cận.</p>
+        <p>💰 Giết quái nhận <b>Vàng</b> (xây/nâng, tối đa cấp 5, bán hoàn ½) &amp; <b>Điểm KN</b> (học phép ở cây kỹ năng — F2).</p>
+        <p>⌨️ Phím: <b>1–8</b> chọn tháp/bẫy · <b>Space</b> dừng · <b>Enter</b> vào đợt · <b>F2</b> cây phép · <b>Esc</b>/chuột phải hủy.</p>
+      </div>
+      <div class="tree-foot"><button id="rulesClose" class="tree-btn">Đóng</button></div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/match.js"></script>
+  <script src="js/net.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
