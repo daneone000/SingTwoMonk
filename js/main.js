@@ -214,7 +214,7 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); game.buildType = null; game.selected = null; game.pendingSkill = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); game.buildType = null; game.selected = null; game.pendingSkill = null; game.emit(); return; }
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
     else if (e.key === "Enter") game.startWave();
     else { const i = parseInt(e.key, 10) - 1, all = [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]; if (i >= 0 && i < all.length) game.setBuild(all[i]); }
@@ -388,7 +388,22 @@
     vsResult.classList.remove("hidden");
   }
 
+  /* ==================== MENU CHÍNH (bật lên khi mới vào game) ==================== */
+  const mainMenu = $("mainMenu");
+  const openMenu = () => mainMenu.classList.remove("hidden");
+  const closeMenu = () => mainMenu.classList.add("hidden");
+  function openVsTab(tab) { closeMenu(); buildNameInputs(); refreshLanAddr(); showTab(tab); vsModal.classList.remove("hidden"); }
+  $("btnMenu").onclick = openMenu;
+  $("mmEndless").onclick = () => { closeMenu(); newGame("endless"); };
+  $("mmCampaign").onclick = () => { closeMenu(); newGame("campaign"); };
+  $("mmAI").onclick = () => openVsTab("AI");
+  $("mmLan").onclick = () => openVsTab("LAN");
+  $("mmRules").onclick = () => rules.classList.remove("hidden");   // đọc luật xong vẫn quay lại menu
+  $("mmClose").onclick = closeMenu;
+  mainMenu.onclick = (e) => { if (e.target === mainMenu) closeMenu(); };
+
   newGame("endless"); game.start();
+  if (!location.hash) openMenu();   // người chơi mới thấy ngay các chế độ, khỏi phải mò nút nhỏ
 
   // demo dựng sẵn để tự chụp màn hình (chỉ khi #demo)
   if (location.hash === "#demo") {

@@ -20,6 +20,7 @@
         <div class="next" id="nextWave"></div>
       </div>
       <div class="top-right">
+        <button id="btnMenu" class="mode-sel menu-sel" title="Menu chính (chọn chế độ chơi)">☰</button>
         <button id="modeEndless" class="mode-sel" title="Sinh tồn vô tận">☠</button>
         <button id="modeCampaign" class="mode-sel" title="Chiến dịch">🗺</button>
         <button id="modeVersus" class="mode-sel" title="Đối kháng (tối đa 5 người)">⚔</button>
@@ -78,6 +79,40 @@
           <button id="btnRules" class="cfg-btn">Luật Chơi</button>
         </div>
       </aside>
+    </div>
+  </div>
+
+  <!-- MENU CHÍNH — hiện ngay khi mới vào game -->
+  <div id="mainMenu" class="tree-modal menu-modal hidden">
+    <div class="menu-box ornate">
+      <div class="menu-title">Sinh Tử Môn</div>
+      <div class="menu-sub">Thủ thành mê cung — chọn chế độ để bắt đầu</div>
+      <div class="menu-list">
+        <button class="menu-btn" id="mmEndless">
+          <span class="mm-ic">☠</span>
+          <span class="mm-tx"><b>Sinh Tồn Vô Tận</b><small>Chơi một mình, quái mạnh dần không giới hạn</small></span>
+        </button>
+        <button class="menu-btn" id="mmCampaign">
+          <span class="mm-ic">🗺</span>
+          <span class="mm-tx"><b>Chiến Dịch</b><small>40 đợt có hồi kết — trụ hết là chiến thắng</small></span>
+        </button>
+        <button class="menu-btn" id="mmAI">
+          <span class="mm-ic">🤖</span>
+          <span class="mm-tx"><b>Đối Kháng với Máy</b><small>Tối đa 5 sân: bạn + 4 AI, cùng chuỗi đợt quái</small></span>
+        </button>
+        <button class="menu-btn hot" id="mmLan">
+          <span class="mm-ic">🌐</span>
+          <span class="mm-tx"><b>Chơi Mạng — LAN &amp; LAN ảo</b><small>Rủ bạn cùng mạng, hoặc bạn ở xa qua ZeroTier</small></span>
+        </button>
+        <button class="menu-btn small" id="mmRules">
+          <span class="mm-ic">📖</span>
+          <span class="mm-tx"><b>Luật chơi &amp; phím tắt</b><small>Đọc 1 phút trước khi vào trận đầu tiên</small></span>
+        </button>
+      </div>
+      <div class="menu-foot">
+        <button id="mmClose" class="tree-btn">Đóng menu</button>
+        <span class="menu-hint">Mở lại bất cứ lúc nào: nút <b>☰</b> góc trên bên phải</span>
+      </div>
     </div>
   </div>
 
