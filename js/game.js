@@ -185,32 +185,39 @@
        Bàn được mô phỏng ở client -> khi rớt, không ai chạy sân này. Lúc nối lại, mô phỏng NHANH
        các đợt đã lỡ (từ đợt lưu bàn +1 .. đợt hiện tại của server): tháp đã xây tự đánh, quái chết
        cộng vàng/KN, quái lọt trừ mạng. Kết thúc = ĐÚNG trạng thái real-time tại thời điểm nối lại. */
-    // pvp: danh sách phép PvP của đối thủ GIÁNG vào sân này lúc mình offline (server đệm lại),
-    //      mỗi phần tử {wave, kind:"spell"|"vacuum", key, data} — áp đúng đợt trong lúc tua.
-    catchUp(toWave, waveTimer, pvp) {
+    // srv = {wave:Wc, waveTimer:WTc, sWaveTimer:WTs}; pvp = phép PvP offline đã đệm (mỗi phần tử {wave,kind,key,data}).
+    // Tua từ trạng thái đã lưu (quái đang chạy + hàng chờ + đồng hồ) TIẾN tới đúng thời điểm nối lại:
+    // quái tiếp tục chạy (có thể LỌT -> trừ mạng), đợt mới phóng đúng lịch server, phép PvP giáng đúng đợt.
+    catchUp(srv, pvp) {
+      srv = srv || {};
       pvp = (pvp || []).slice().sort((a, b) => (a.wave || 0) - (b.wave || 0));
-      if (this.mirror) { this.wave = toWave; this.started = true; this.emit(); return; }   // đồng đội 2v2 chỉ xem, không mô phỏng
-      const from = this.wave;                        // đợt tại thời điểm lưu bàn (restore đã đặt this.wave = saved.wave)
-      this.started = from > 0 || toWave > 0;
+      const Wc = srv.wave || 0;                                      // đợt hiện tại của server
+      if (this.mirror) { this.wave = Wc; this.started = true; this.emit(); return; }   // đồng đội 2v2 chỉ xem, không mô phỏng
       const per = (w) => (w >= CFG.LATE_WAVE ? CFG.WAVE_INTERVAL_LATE : CFG.WAVE_INTERVAL);  // độ dài 1 đợt (giây thực)
-      const SUB = 1 / 20;                            // bước mô phỏng 50ms giây-thực (khớp nhịp live)
-      this._ff = true;                               // đang tua: chặn emit UI + chặn gửi mạng
+      const Ws = this.wave;                                          // đợt tại thời điểm lưu bàn
+      const WTs = Math.max(0, srv.sWaveTimer || 0);                  // server đếm ngược lúc LƯU
+      const WTc = Math.max(0, srv.waveTimer || 0);                   // server đếm ngược lúc NỐI LẠI
+      this.started = Ws > 0 || Wc > 0 || this.enemies.length > 0;
+      // lịch phóng đợt mới (giây thực, mốc 0 = lúc lưu bàn) + tổng thời gian cần tua T
+      const launches = []; let T;
+      if (Wc <= Ws) T = Math.max(0, WTs - WTc);                      // không lỡ đợt: chỉ trôi trong cùng 1 đợt
+      else { let t = WTs; for (let n = Ws + 1; n <= Wc; n++) { launches.push({ t, n }); if (n < Wc) t += per(n); } T = t + Math.max(0, per(Wc) - WTc); }
+      T = Math.min(Math.max(0, T), 120);                             // chặn giá trị bất thường
+      const SUB = 1 / 20;                                            // bước mô phỏng 50ms giây-thực (khớp nhịp live)
+      this._ff = true;                                               // đang tua: chặn emit UI + chặn gửi mạng
       try {
-        let pi = 0;                                  // con trỏ danh sách phép PvP (đã sắp theo đợt)
+        let li = 0, pi = 0, simt = 0, guard = 0;
         const applyPvpUpTo = (w) => { while (pi < pvp.length && (pvp[pi].wave || 0) <= w && !this.gameOver) this._applyPvp(pvp[pi++]); };
-        if (toWave > from) {
-          const curElapsed = Math.max(0, per(toWave) - (waveTimer || 0));   // đợt hiện tại đã chạy được bao lâu
-          for (let n = from + 1; n <= toWave && !this.gameOver; n++) {
-            applyPvpUpTo(n - 1);                      // phép giáng TRƯỚC đợt n (kể cả phép trước lúc lưu bàn)
-            this.receiveWave(n);
-            applyPvpUpTo(n);                          // phép giáng trong đợt n
-            let dur = (n === toWave) ? curElapsed : per(n), t = 0, guard = 0;
-            while (t < dur && !this.gameOver && guard++ < 6000) { this.step(SUB); t += SUB; }
-          }
+        applyPvpUpTo(Ws);                                            // phép giáng trước/tại đợt lúc lưu bàn
+        const cap = Math.ceil(T / SUB) + 50;
+        while (simt < T && !this.gameOver && guard++ < cap) {
+          while (li < launches.length && launches[li].t <= simt) { const L = launches[li++]; this.receiveWave(L.n); applyPvpUpTo(L.n); }
+          this.step(SUB); simt += SUB;
         }
-        applyPvpUpTo(Infinity);                       // phép còn lại (không lỡ đợt, hoặc phép ở đợt hiện tại) -> áp lên trạng thái cuối
+        while (li < launches.length && !this.gameOver) { const L = launches[li++]; this.receiveWave(L.n); applyPvpUpTo(L.n); }   // phóng nốt đợt còn sót
+        applyPvpUpTo(Infinity);
       } finally { this._ff = false; }
-      this.wave = toWave; this.emit();
+      this.wave = Wc; this.emit();
     }
     // Áp 1 phép PvP đã đệm lên sân này (dùng khi tua bù). Không gửi mạng (đang _ff).
     _applyPvp(ev) {
@@ -292,6 +299,16 @@
         learned: [...this.learned], skillCd: { ...this.skillCd },
         towers: this.towers.map((t) => ({ k: t.type, c: t.col, r: t.row, lv: t.level })),
         traps: this.traps.map((t) => ({ k: t.type, c: t.col, r: t.row })),
+        // trạng thái động để nối lại đúng "kiểu game online": quái đang chạy, hàng chờ sinh, đồng hồ sinh, buff tốc
+        spawnClock: this.spawnClock,
+        spawnQueue: this.spawnQueue.map((s) => ({ at: s.at, w: s.w })),
+        enemies: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [
+          Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.isBoss ? 1 : 0,
+          e.hpMul, e.rwMul, +e.freezeTime.toFixed(2), +e.slowTime.toFixed(2), +e.slowMult.toFixed(3),
+          +e.burnTime.toFixed(2), e.burnDps, +(e.angle || 0).toFixed(3), Math.round(e.remain), e.poison || [],
+        ]),
+        enemyHaste: this.enemyHaste, hasteTime: this.hasteTime,
+        sWaveTimer: this.netMatch ? (this.netMatch.waveTimer || 0) : this.waveTimer,   // server đếm ngược tới đợt kế lúc lưu (để tính khoảng offline)
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -308,8 +325,22 @@
         this.towers.push(tw); this.occupied.add(t.c + "," + t.r); this.blockSet.add(t.c + "," + t.r);
       }
       for (const t of s.traps || []) { const tr = new STM.Trap(t.k, t.c, t.r); this.traps.push(tr); this.occupied.add(t.c + "," + t.r); }
-      this.started = this.wave > 0;
-      this.computeFlow(); this.recomputeAuras(); this.emit();
+      // khôi phục quái đang chạy + hàng chờ sinh + đồng hồ sinh (để catchUp mô phỏng tiếp)
+      this.spawnClock = s.spawnClock || 0;
+      this.spawnQueue = (s.spawnQueue || []).map((q) => ({ at: q.at, w: q.w }));
+      this.computeFlow();   // cần dist trước khi dựng quái (Enemy dùng flow-field)
+      for (const a of s.enemies || []) {
+        const d = CFG.ENEMIES[a[2]]; if (!d) continue;
+        const e = new STM.Enemy(d, a[6] || 1, a[7] || 1, this, !!a[5]);
+        e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3];
+        e.freezeTime = a[8] || 0; e.slowTime = a[9] || 0; e.slowMult = a[10] != null ? a[10] : 1;
+        e.burnTime = a[11] || 0; e.burnDps = a[12] || 0; e.angle = a[13] || 0; e.remain = a[14] != null ? a[14] : 1e9;
+        e.poison = Array.isArray(a[15]) ? a[15].map((p) => ({ pct: p.pct, time: p.time })) : [];
+        this.enemies.push(e);
+      }
+      this.enemyHaste = s.enemyHaste || 1; this.hasteTime = s.hasteTime || 0;
+      this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
+      this.recomputeAuras(); this.emit();
     }
     nextWavePreview() { const w = CFG.buildWave(this.wave + 1); return { name: CFG.ENEMIES[w.type].name, fly: CFG.ENEMIES[w.type].fly, boss: !!w.boss, count: w.count }; }
     updateSpawns() {

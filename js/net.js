@@ -87,7 +87,7 @@
             if (this.isAuthority && sv) {
               g.restore(sv); g.versus = true; g.netMatch = this; g.name = this.myName;
               g._earn = { gold: 0, sp: 0 };
-              g.catchUp(o.wave, o.waveTimer, o.pvp);   // chủ-bàn tua nhanh khoảng bị rớt (tháp tự đánh + phép PvP đối thủ đã đệm)
+              g.catchUp({ wave: o.wave, waveTimer: o.waveTimer, sWaveTimer: (sv && sv.sWaveTimer) || 0 }, o.pvp);   // chủ-bàn tua tiếp từ trạng thái đã lưu (quái chạy tiếp + phép PvP đã đệm)
               if (g._earn.gold || g._earn.sp) this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp });   // chia vàng/KN bù cho đồng đội (cộng bằng nhau)
             } else { g.reset("endless"); g.started = o.wave > 0; g.versus = true; g.netMatch = this; g.name = this.myName; }
             g.wave = o.wave;
@@ -99,7 +99,7 @@
           const saved = STM.loadBoard();
           if (saved) g.restore(saved); else { g.reset("endless"); }
           g.versus = true; g.netMatch = this; g.name = this.myName;
-          g.catchUp(o.wave, o.waveTimer, o.pvp);   // tua nhanh các đợt đã lỡ + phép PvP đối thủ đã đệm -> đúng trạng thái THỰC
+          g.catchUp({ wave: o.wave, waveTimer: o.waveTimer, sWaveTimer: (saved && saved.sWaveTimer) || 0 }, o.pvp);   // tua tiếp từ trạng thái đã lưu -> đúng trạng thái THỰC (quái chạy tiếp, có thể lọt)
           g.wave = o.wave;
           this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; this._sentDead = false;
           this._beginPush();

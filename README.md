@@ -97,11 +97,13 @@ trận vẫn vào lại được. Máy chủ **giữ chỗ 60 giây** (không lo
 đúng địa chỉ máy chủ là **tự động kết nối lại** — sân (tháp/vàng/mạng/phép đã học) được
 khôi phục. Quá 60 giây không quay lại mới tính thất thủ.
 
-Đồng hồ đợt chạy ở **máy chủ theo giờ thực** (không chờ ai). Nếu trong lúc mất kết nối
-đã trôi qua vài đợt, khi vào lại game **tua nhanh (mô phỏng bù)** đúng khoảng đã lỡ: quái
-các đợt bỏ lỡ vẫn ra, **tháp đã xây tự đánh** (giết quái → cộng vàng/Điểm KN, quái lọt →
-trừ mạng), rồi dừng ở **đúng trạng thái thực** tại thời điểm nối lại — không còn bị "nhảy
-cóc" qua đợt mà mất trắng vàng/kinh nghiệm. **Phép PvP** đối thủ giáng vào sân bạn *trong
+Đồng hồ đợt chạy ở **máy chủ theo giờ thực** (không chờ ai) — **trận vẫn diễn ra khi bạn
+offline**, đúng kiểu game online. Khi vào lại, game **tua nhanh (mô phỏng bù)** đúng khoảng
+đã mất kết nối: **quái đang chạy dở được giữ đúng vị trí và tiếp tục di chuyển** — kể cả khi
+bạn offline chúng vẫn có thể **lọt về đích làm mất mạng**; quái các đợt bỏ lỡ vẫn ra; **tháp
+đã xây tự đánh** (giết quái → cộng vàng/Điểm KN, quái lọt → trừ mạng). Kết thúc tua là **đúng
+trạng thái thực** tại thời điểm nối lại (quái đang ở ô nào thì hiện ở ô đó) — không còn cảnh
+F5 xong quái biến mất hay "nhảy cóc" qua đợt mà mất trắng vàng/kinh nghiệm. **Phép PvP** đối thủ giáng vào sân bạn *trong
 lúc bạn offline* cũng **không bị mất**: máy chủ **đệm lại** (kèm số đợt) và khi bạn vào lại,
 chúng được **phát đúng đợt** trong lúc tua bù — quái triệu hồi vẫn xuất hiện, tháp bị Địa
 Chấn vẫn sập, buff tăng máu/tăng tốc vẫn tác động — nên trạng thái khi nối lại là chính xác.
