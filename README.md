@@ -35,7 +35,7 @@ kín hoàn toàn** đường đi (ô chặn kín sẽ báo đỏ, không cho đ�
 | 🔥 | Tháp Lửa | chỉ **BỘ** | Nổ lan (AoE) + thiêu đốt |
 | ❄ | Tháp Băng | BAY+BỘ | Làm chậm |
 | ☠ | Tháp Độc | BAY+BỘ | Nhiễm độc cộng dồn, bỏ qua giáp |
-| ⚡ | Tháp Sét | BAY+BỘ | Sét lan nhiều mục tiêu |
+| ⚡ | Tháp Sét | chỉ **BAY** | Sét lan nhiều mục tiêu trên không (không bắn quái bộ) |
 | ✦ | Tháp Năng Lượng | BAY+BỘ | Sát thương đơn cực mạnh (đắt) |
 | 🕸 | Bẫy Dính | BỘ | Vùng làm chậm, **không chặn đường** |
 | 🌀 | Bẫy Hút | BỘ | Hút quái về vị trí ngẫu nhiên (**Đối kháng:** hút **sang sân đối thủ**), **không chặn đường** |
@@ -101,8 +101,10 @@ khôi phục. Quá 60 giây không quay lại mới tính thất thủ.
 đã trôi qua vài đợt, khi vào lại game **tua nhanh (mô phỏng bù)** đúng khoảng đã lỡ: quái
 các đợt bỏ lỡ vẫn ra, **tháp đã xây tự đánh** (giết quái → cộng vàng/Điểm KN, quái lọt →
 trừ mạng), rồi dừng ở **đúng trạng thái thực** tại thời điểm nối lại — không còn bị "nhảy
-cóc" qua đợt mà mất trắng vàng/kinh nghiệm. *(Lưu ý: phép PvP đối thủ giáng vào sân bạn
-trong lúc bạn offline thì không khôi phục được — máy chủ không lưu đệm sự kiện đó.)*
+cóc" qua đợt mà mất trắng vàng/kinh nghiệm. **Phép PvP** đối thủ giáng vào sân bạn *trong
+lúc bạn offline* cũng **không bị mất**: máy chủ **đệm lại** (kèm số đợt) và khi bạn vào lại,
+chúng được **phát đúng đợt** trong lúc tua bù — quái triệu hồi vẫn xuất hiện, tháp bị Địa
+Chấn vẫn sập, buff tăng máu/tăng tốc vẫn tác động — nên trạng thái khi nối lại là chính xác.
 
 ## Cấu trúc mã nguồn
 

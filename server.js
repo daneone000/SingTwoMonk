@@ -103,6 +103,19 @@ function lobbyUpdate() {
 function hostPid() { const h = slots.get(room.hostSid); return h ? h.pid : null; }
 function aliveSlots() { return [...slots.values()].filter((s) => s.alive); }
 function interval() { return room.wave >= room.LATE_WAVE ? room.WAVE_INTERVAL_LATE : room.WAVE_INTERVAL; }
+/* ---- phép PvP giáng vào người đang OFFLINE: đệm lại (kèm đợt) để phát khi họ nối lại ---- */
+function bufferPvp(slot, msg) {
+  if (!slot.pvpQueue) slot.pvpQueue = [];
+  if (slot.pvpQueue.length >= 60) return;   // chống tràn
+  const kind = (msg.t === "vacuum" || msg.t === "teamvacuum") ? "vacuum" : "spell";
+  slot.pvpQueue.push({ wave: room.wave, kind, key: msg.key, data: msg.data });
+}
+// gửi phép PvP tới 1 sân: còn kết nối -> gửi ngay; offline mà còn sống (đang giữ chỗ) -> đệm lại
+function deliverPvp(slot, msg) {
+  if (!slot) return;
+  if (slot.connected && slot.sock) send(slot, msg);
+  else if (slot.alive) bufferPvp(slot, msg);
+}
 
 function startMatch(mapId, mode) {
   if (room.started) return;
@@ -110,7 +123,7 @@ function startMatch(mapId, mode) {
   room.mode = mode === "2v2" ? "2v2" : "ffa";
   room.started = true; room.over = false; room.wave = 0; room.deathOrder = [];
   room.map = mapId || room.map || null;          // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
-  for (const s of slots.values()) { s.alive = true; if (room.mode !== "2v2") { s.team = 0; s.authority = false; } }
+  for (const s of slots.values()) { s.alive = true; s.pvpQueue = []; if (room.mode !== "2v2") { s.team = 0; s.authority = false; } }
   if (room.mode === "2v2") assignAuthorities();   // giữ đội đã chọn ở phòng chờ, chỉ định chủ-bàn
   for (const s of slots.values()) send(s, {
     t: "start", mode: room.mode, players: joinedList(), map: room.map,
@@ -201,7 +214,9 @@ function handleMsg(c, msg) {
           wave: room.wave, waveTimer: Math.max(0, room.waveTimer), alive: aliveSlots().length,
           players: joinedList(), map: room.map, over: room.over,
           mode: room.mode, team: slot.team, authority: !!slot.authority,
+          pvp: slot.pvpQueue || [],   // phép PvP đối thủ giáng vào lúc offline -> client phát lại khi tua bù
           teammate: room.mode === "2v2" && mate ? { pid: mate.pid, name: mate.name, authority: !!mate.authority } : null }); }
+        slot.pvpQueue = [];   // đã bàn giao -> dọn hàng đợi
         lobbyUpdate();
         break;
       }
@@ -210,7 +225,7 @@ function handleMsg(c, msg) {
       if (room.started) { send({ sock: c.sock }, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
       if (slots.size >= room.MAX) { send({ sock: c.sock }, { t: "reject", why: "Phòng đã đủ " + room.MAX + " người." }); break; }
       const sid = makeSid(), pid = nextPid++;
-      const slot = { sid, pid, name: nm || ("Người " + pid), alive: true, connected: true, sock: c.sock, graceTimer: null };
+      const slot = { sid, pid, name: nm || ("Người " + pid), alive: true, connected: true, sock: c.sock, graceTimer: null, pvpQueue: [] };
       slots.set(sid, slot); c.slot = slot;
       if (room.hostSid == null) room.hostSid = sid;
       if (room.mode === "2v2") autoBalanceTeams();           // xếp người mới vào đội thiếu
@@ -225,18 +240,18 @@ function handleMsg(c, msg) {
       if (room.mode === "2v2") { if (c.slot.authority) for (const s of slots.values()) if (s.connected && s.team !== c.slot.team) send(s, { t: "snap", pid: c.slot.pid, team: c.slot.team, s: o.s }); }
       else broadcast({ t: "snap", pid: c.slot.pid, s: o.s }, c.slot.pid);
     } break;
-    case "spell": if (c.slot) broadcast({ t: "spell", from: c.slot.pid, key: o.key, data: o.data }, c.slot.pid); break; // phép PvP tác động người khác (ffa)
-    case "vacuum": if (c.slot) {   // Bẫy Hút (ffa): hút quái sang MỘT đối thủ còn sống ngẫu nhiên
-      const others = aliveSlots().filter((s) => s.pid !== c.slot.pid && s.connected);
-      if (others.length) send(others[(Math.random() * others.length) | 0], { t: "vacuum", from: c.slot.pid, data: o.data });
+    case "spell": if (c.slot) { for (const s of slots.values()) if (s.pid !== c.slot.pid) deliverPvp(s, { t: "spell", from: c.slot.pid, key: o.key, data: o.data }); } break; // phép PvP tác động người khác (ffa); ai offline -> đệm lại
+    case "vacuum": if (c.slot) {   // Bẫy Hút (ffa): hút quái sang MỘT đối thủ còn sống ngẫu nhiên (kể cả người đang offline -> đệm lại)
+      const others = aliveSlots().filter((s) => s.pid !== c.slot.pid);
+      if (others.length) deliverPvp(others[(Math.random() * others.length) | 0], { t: "vacuum", from: c.slot.pid, data: o.data });
     } break;
     /* ---- 2v2 ---- */
     case "board": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "board", s: o.s }); break;        // chủ-bàn -> đồng đội (xem bàn chung)
     case "cmd": if (c.slot) send(authorityOf(c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;        // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "reward": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "reward", gold: o.gold, sp: o.sp }); break; // chủ-bàn chia vàng/KN cho đồng đội
     case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp }); break; // khoe phép đã học cho đồng đội (chỉ xem)
-    case "teamspell": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) send(a, { t: "teamspell", key: o.key, data: o.data }); } break;   // phép PvP -> bàn đối thủ
-    case "teamvacuum": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) send(a, { t: "teamvacuum", data: o.data }); } break;               // Bẫy Hút -> bàn đối thủ
+    case "teamspell": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamspell", key: o.key, data: o.data }); } break;   // phép PvP -> bàn đội địch (chủ-bàn offline -> đệm)
+    case "teamvacuum": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamvacuum", data: o.data }); } break;               // Bẫy Hút -> bàn đội địch (chủ-bàn offline -> đệm)
     case "dead": if (c.slot) { if (room.mode === "2v2") { if (c.slot.authority) teamDead(c.slot.team); } else playerDead(c.slot); } break;
     case "again": if (c.slot && c.slot.sid === room.hostSid && room.over) { resetRoom(); lobbyUpdate(); } break;
     case "ping": sendSock(c.sock, { t: "pong" }); break;

@@ -185,23 +185,39 @@
        Bàn được mô phỏng ở client -> khi rớt, không ai chạy sân này. Lúc nối lại, mô phỏng NHANH
        các đợt đã lỡ (từ đợt lưu bàn +1 .. đợt hiện tại của server): tháp đã xây tự đánh, quái chết
        cộng vàng/KN, quái lọt trừ mạng. Kết thúc = ĐÚNG trạng thái real-time tại thời điểm nối lại. */
-    catchUp(toWave, waveTimer) {
+    // pvp: danh sách phép PvP của đối thủ GIÁNG vào sân này lúc mình offline (server đệm lại),
+    //      mỗi phần tử {wave, kind:"spell"|"vacuum", key, data} — áp đúng đợt trong lúc tua.
+    catchUp(toWave, waveTimer, pvp) {
+      pvp = (pvp || []).slice().sort((a, b) => (a.wave || 0) - (b.wave || 0));
       if (this.mirror) { this.wave = toWave; this.started = true; this.emit(); return; }   // đồng đội 2v2 chỉ xem, không mô phỏng
       const from = this.wave;                        // đợt tại thời điểm lưu bàn (restore đã đặt this.wave = saved.wave)
       this.started = from > 0 || toWave > 0;
-      if (toWave <= from) { this.emit(); return; }   // không lỡ đợt nào -> resume bình thường
       const per = (w) => (w >= CFG.LATE_WAVE ? CFG.WAVE_INTERVAL_LATE : CFG.WAVE_INTERVAL);  // độ dài 1 đợt (giây thực)
-      const curElapsed = Math.max(0, per(toWave) - (waveTimer || 0));   // đợt hiện tại đã chạy được bao lâu
       const SUB = 1 / 20;                            // bước mô phỏng 50ms giây-thực (khớp nhịp live)
       this._ff = true;                               // đang tua: chặn emit UI + chặn gửi mạng
       try {
-        for (let n = from + 1; n <= toWave && !this.gameOver; n++) {
-          this.receiveWave(n);
-          let dur = (n === toWave) ? curElapsed : per(n), t = 0, guard = 0;
-          while (t < dur && !this.gameOver && guard++ < 6000) { this.step(SUB); t += SUB; }
+        let pi = 0;                                  // con trỏ danh sách phép PvP (đã sắp theo đợt)
+        const applyPvpUpTo = (w) => { while (pi < pvp.length && (pvp[pi].wave || 0) <= w && !this.gameOver) this._applyPvp(pvp[pi++]); };
+        if (toWave > from) {
+          const curElapsed = Math.max(0, per(toWave) - (waveTimer || 0));   // đợt hiện tại đã chạy được bao lâu
+          for (let n = from + 1; n <= toWave && !this.gameOver; n++) {
+            applyPvpUpTo(n - 1);                      // phép giáng TRƯỚC đợt n (kể cả phép trước lúc lưu bàn)
+            this.receiveWave(n);
+            applyPvpUpTo(n);                          // phép giáng trong đợt n
+            let dur = (n === toWave) ? curElapsed : per(n), t = 0, guard = 0;
+            while (t < dur && !this.gameOver && guard++ < 6000) { this.step(SUB); t += SUB; }
+          }
         }
+        applyPvpUpTo(Infinity);                       // phép còn lại (không lỡ đợt, hoặc phép ở đợt hiện tại) -> áp lên trạng thái cuối
       } finally { this._ff = false; }
       this.wave = toWave; this.emit();
+    }
+    // Áp 1 phép PvP đã đệm lên sân này (dùng khi tua bù). Không gửi mạng (đang _ff).
+    _applyPvp(ev) {
+      if (!ev) return;
+      const map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
+      if (ev.kind === "vacuum") this.spawnTransferred(ev.data);
+      else if (map[ev.key]) this[map[ev.key]](ev.data && ev.data.type);
     }
     /* ---------- phép PvP tác động lên chính sân này (do đối thủ thi triển) ---------- */
     // Ô LAND ngẫu nhiên CHƯA xây tháp/bẫy — KỂ CẢ ô bị quây kín không còn đường về đích
