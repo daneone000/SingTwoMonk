@@ -278,8 +278,10 @@
     }
     onEnemyKilled(e) {
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
-      this.gold += e.reward; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
-      if (this._earn) { this._earn.gold += e.reward; this._earn.sp += sp; }   // 2v2 chủ-bàn: dồn để chia cho đồng đội (cộng bằng nhau)
+      // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
+      const gold = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : e.reward;
+      this.gold += gold; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
+      if (this._earn) { this._earn.gold += gold; this._earn.sp += sp; }   // 2v2 chủ-bàn: dồn để chia cho đồng đội (cộng bằng nhau)
       const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1);
       // Yêu Sên: chết đẻ ra con nhỏ hơn (boss snail đẻ ra sên thường, rồi mới ra sên nhỏ)
       if (e.split && !e.leaked) {

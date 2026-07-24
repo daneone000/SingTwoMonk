@@ -229,6 +229,8 @@
     TOWERS, TRAPS, TOWER_ORDER, TRAP_ORDER, MAX_LEVEL, upgradeCost, statAt, workTime,
     ENEMIES, buildWave, waveInfo, pickType, randomSummonType, FLY_FROM,
     VS_START_DELAY: 30, VS_AI_PERIOD: 1.6, MAX_PLAYERS: 5,
+    // 2v2: mỗi người nhận 0.75× vàng so với thường (2v -> 1.5v) nhưng TỔNG cả đội cao hơn 1 người thường (2 × 1.5 = 3v)
+    VS2V2_GOLD_MUL: 0.75,
     DEFAULT_KEYS, DEFAULT_SLOT_KEYS,
     SKILLS, SKILL_TREE_ORDER, SKILL_EDGES,
     START_GOLD: 35, START_SP: 0, START_LIVES: 10, MAX_SKILLS: 6, CAMPAIGN_WAVES: 30,
