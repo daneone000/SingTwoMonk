@@ -95,7 +95,14 @@ Vào game hiện **menu chính** để chọn bản đồ + chế độ (mở l�
 Mỗi người chơi có **phiên riêng**: lỡ nhấn **F5**, đóng nhầm tab, hay **rớt mạng** giữa
 trận vẫn vào lại được. Máy chủ **giữ chỗ 60 giây** (không loại vội), người chơi mở lại
 đúng địa chỉ máy chủ là **tự động kết nối lại** — sân (tháp/vàng/mạng/phép đã học) được
-khôi phục và tiếp tục theo đợt hiện tại. Quá 60 giây không quay lại mới tính thất thủ.
+khôi phục. Quá 60 giây không quay lại mới tính thất thủ.
+
+Đồng hồ đợt chạy ở **máy chủ theo giờ thực** (không chờ ai). Nếu trong lúc mất kết nối
+đã trôi qua vài đợt, khi vào lại game **tua nhanh (mô phỏng bù)** đúng khoảng đã lỡ: quái
+các đợt bỏ lỡ vẫn ra, **tháp đã xây tự đánh** (giết quái → cộng vàng/Điểm KN, quái lọt →
+trừ mạng), rồi dừng ở **đúng trạng thái thực** tại thời điểm nối lại — không còn bị "nhảy
+cóc" qua đợt mà mất trắng vàng/kinh nghiệm. *(Lưu ý: phép PvP đối thủ giáng vào sân bạn
+trong lúc bạn offline thì không khôi phục được — máy chủ không lưu đệm sự kiện đó.)*
 
 ## Cấu trúc mã nguồn
 

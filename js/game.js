@@ -181,6 +181,28 @@
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
       this.spawnQueue.sort((a, b) => a.at - b.at); this.started = true; this.emit();
     }
+    /* ---------- NỐI LẠI: tua nhanh khoảng bị mất kết nối ----------
+       Bàn được mô phỏng ở client -> khi rớt, không ai chạy sân này. Lúc nối lại, mô phỏng NHANH
+       các đợt đã lỡ (từ đợt lưu bàn +1 .. đợt hiện tại của server): tháp đã xây tự đánh, quái chết
+       cộng vàng/KN, quái lọt trừ mạng. Kết thúc = ĐÚNG trạng thái real-time tại thời điểm nối lại. */
+    catchUp(toWave, waveTimer) {
+      if (this.mirror) { this.wave = toWave; this.started = true; this.emit(); return; }   // đồng đội 2v2 chỉ xem, không mô phỏng
+      const from = this.wave;                        // đợt tại thời điểm lưu bàn (restore đã đặt this.wave = saved.wave)
+      this.started = from > 0 || toWave > 0;
+      if (toWave <= from) { this.emit(); return; }   // không lỡ đợt nào -> resume bình thường
+      const per = (w) => (w >= CFG.LATE_WAVE ? CFG.WAVE_INTERVAL_LATE : CFG.WAVE_INTERVAL);  // độ dài 1 đợt (giây thực)
+      const curElapsed = Math.max(0, per(toWave) - (waveTimer || 0));   // đợt hiện tại đã chạy được bao lâu
+      const SUB = 1 / 20;                            // bước mô phỏng 50ms giây-thực (khớp nhịp live)
+      this._ff = true;                               // đang tua: chặn emit UI + chặn gửi mạng
+      try {
+        for (let n = from + 1; n <= toWave && !this.gameOver; n++) {
+          this.receiveWave(n);
+          let dur = (n === toWave) ? curElapsed : per(n), t = 0, guard = 0;
+          while (t < dur && !this.gameOver && guard++ < 6000) { this.step(SUB); t += SUB; }
+        }
+      } finally { this._ff = false; }
+      this.wave = toWave; this.emit();
+    }
     /* ---------- phép PvP tác động lên chính sân này (do đối thủ thi triển) ---------- */
     // Ô LAND ngẫu nhiên CHƯA xây tháp/bẫy — KỂ CẢ ô bị quây kín không còn đường về đích
     // (quái rơi vào đó sẽ đứng im, buộc đối thủ phải tự dọn bằng tháp/phép)
@@ -228,6 +250,7 @@
     // Trả về true nếu đã hút sang được đối thủ (để bẫy không dịch chuyển quái tại chỗ nữa).
     pvpVacuum(hit) {
       const data = { type: hit.def.key, hpMul: hit.hpMul, rwMul: hit.rwMul, boss: hit.boss, hpFrac: hit.hp / hit.maxHp };
+      if (this._ff) { const i = this.enemies.indexOf(hit); if (i >= 0) this.enemies.splice(i, 1); return true; }   // đang tua nối lại: gỡ tại chỗ, KHÔNG gửi mạng
       if (this.netMatch) {                                   // mạng LAN: server chọn đối thủ (2v2 -> bàn đội địch)
         const i = this.enemies.indexOf(hit); if (i >= 0) this.enemies.splice(i, 1);
         if (this.netMatch.mode === "2v2") this.netMatch.sendTeamVacuum(data); else this.netMatch.sendVacuum(data);
@@ -546,8 +569,14 @@
       else this.castSkill(this.pendingSkill, p.x, p.y);
     }
     setBuild(type) { this.buildType = this.buildType === type ? null : type; this.selected = null; this.pendingSkill = null; this.emit(); }
-    emit() { if (this.onChange) this.onChange(this); }
-    loop(ts) { if (!this.lastTime) this.lastTime = ts; let dt = (ts - this.lastTime) / 1000; this.lastTime = ts; if (dt > .05) dt = .05; this.step(dt); if (this.match && this.match.host === this) this.match.tick(dt); this.render(); this._raf = requestAnimationFrame((t) => this.loop(t)); }
+    emit() { if (this._ff) return; if (this.onChange) this.onChange(this); }   // _ff: đang tua nhanh (nối lại) -> không làm mới UI liên tục
+    loop(ts) {
+      if (!this.lastTime) this.lastTime = ts; let dt = (ts - this.lastTime) / 1000; this.lastTime = ts; if (dt > .05) dt = .05;
+      // 1 lỗi khung hình KHÔNG được làm chết vòng lặp (trước đây exception -> không lên lịch khung kế -> game đơ, phải F5)
+      try { this.step(dt); if (this.match && this.match.host === this) this.match.tick(dt); this.render(); }
+      catch (err) { if ((this._errN = (this._errN || 0) + 1) <= 20) console.error("[STM] lỗi khung hình (đã bỏ qua, game vẫn chạy):", err); }
+      this._raf = requestAnimationFrame((t) => this.loop(t));   // LUÔN lên lịch khung kế
+    }
     start() { if (!this._raf) this._raf = requestAnimationFrame((t) => this.loop(t)); }
   }
 
