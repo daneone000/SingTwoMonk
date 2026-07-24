@@ -324,8 +324,13 @@ body.versus #startWave:disabled { opacity: 1; }
 /* lobby: hàng theo đội */
 .vs-lobby-row.team0 { border-left: 4px solid #4a9fe0; }
 .vs-lobby-row.team1 { border-left: 4px solid #e0592f; }
-.vs-team-hd { font-size: 12px; font-weight: 700; margin: 8px 2px 2px; }
+.vs-team-hd { font-size: 12px; font-weight: 700; margin: 8px 2px 3px; display: flex; align-items: center; gap: 7px; }
 .vs-team-hd.t0 { color: #7dc3ff; } .vs-team-hd.t1 { color: #ff9d7a; }
+.vs-team-ct { color: var(--dim); font-weight: 600; }
+.vs-you { color: var(--jade); font-weight: 600; font-size: 11px; }
+.vs-join-team { margin-left: auto; padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; border: 1px solid var(--gold-d); background: var(--stone-d); color: #ffe9a8; }
+.vs-join-team:hover { border-color: var(--gold); background: linear-gradient(180deg, #4a5a34, #2f3b22); }
+.vs-empty-team { font-size: 11.5px; color: var(--dim); padding: 6px 10px; border: 1px dashed var(--gold-d); border-radius: 8px; }
 
 .rk-team { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; }
 .rk-team.t0 { background: #234a66; color: #9fd4ff; } .rk-team.t1 { background: #5a2a1c; color: #ffb499; }

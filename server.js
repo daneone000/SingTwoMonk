@@ -90,8 +90,13 @@ function teammateOf(slot) { return [...slots.values()].find((s) => s !== slot &&
 function authorityOf(team) { return [...slots.values()].find((s) => s.team === team && s.authority) || null; }
 function enemyAuthority(slot) { return authorityOf(slot.team === 0 ? 1 : 0); }
 function aliveTeams() { const t = new Set(); for (const s of slots.values()) if (s.alive) t.add(s.team); return [...t]; }
-function assignTeams() { slotList().forEach((s, i) => { s.team = i < 2 ? 0 : 1; s.authority = (i % 2 === 0); }); }
-function canStartNow() { return room.mode === "2v2" ? joinedList().length === 4 : joinedList().length >= 2; }
+function teamCount(t) { let n = 0; for (const s of slots.values()) if (s.team === t) n++; return n; }
+// chủ-bàn = người vào sớm nhất (pid nhỏ nhất) trong mỗi đội
+function assignAuthorities() { for (const tm of [0, 1]) slotList().filter((s) => s.team === tm).forEach((s, i) => { s.authority = i === 0; }); }
+// gán đội CÂN BẰNG cho ai chưa có đội (giữ nguyên đội đã chọn thủ công)
+function autoBalanceTeams() { for (const s of slotList()) if (s.team !== 0 && s.team !== 1) { s.team = teamCount(0) <= teamCount(1) ? 0 : 1; } }
+function clearTeams() { for (const s of slots.values()) { s.team = undefined; s.authority = false; } }
+function canStartNow() { return room.mode === "2v2" ? (slots.size === 4 && teamCount(0) === 2 && teamCount(1) === 2) : joinedList().length >= 2; }
 function lobbyUpdate() {
   broadcast({ t: "lobby", players: joinedList(), started: room.started, canStart: canStartNow(), hostPid: hostPid(), mode: room.mode });
 }
@@ -101,12 +106,12 @@ function interval() { return room.wave >= room.LATE_WAVE ? room.WAVE_INTERVAL_LA
 
 function startMatch(mapId, mode) {
   if (room.started) return;
-  if (mode === "2v2" && slots.size !== 4) return;   // 2v2 cần đúng 4 người
+  if (mode === "2v2" && !(slots.size === 4 && teamCount(0) === 2 && teamCount(1) === 2)) return;   // 2v2 cần 2 đội × 2
   room.mode = mode === "2v2" ? "2v2" : "ffa";
   room.started = true; room.over = false; room.wave = 0; room.deathOrder = [];
   room.map = mapId || room.map || null;          // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
-  for (const s of slots.values()) { s.alive = true; s.team = 0; s.authority = false; }
-  if (room.mode === "2v2") assignTeams();
+  for (const s of slots.values()) { s.alive = true; if (room.mode !== "2v2") { s.team = 0; s.authority = false; } }
+  if (room.mode === "2v2") assignAuthorities();   // giữ đội đã chọn ở phòng chờ, chỉ định chủ-bàn
   for (const s of slots.values()) send(s, {
     t: "start", mode: room.mode, players: joinedList(), map: room.map,
     team: s.team, authority: !!s.authority,
@@ -208,11 +213,13 @@ function handleMsg(c, msg) {
       const slot = { sid, pid, name: nm || ("Người " + pid), alive: true, connected: true, sock: c.sock, graceTimer: null };
       slots.set(sid, slot); c.slot = slot;
       if (room.hostSid == null) room.hostSid = sid;
+      if (room.mode === "2v2") autoBalanceTeams();           // xếp người mới vào đội thiếu
       send(slot, { t: "welcome", pid, host: sid === room.hostSid, sid });
       lobbyUpdate();
       break;
     }
-    case "setmode": if (c.slot && c.slot.sid === room.hostSid && !room.started) { room.mode = o.mode === "2v2" ? "2v2" : "ffa"; lobbyUpdate(); } break;
+    case "setmode": if (c.slot && c.slot.sid === room.hostSid && !room.started) { room.mode = o.mode === "2v2" ? "2v2" : "ffa"; if (room.mode === "2v2") autoBalanceTeams(); else clearTeams(); lobbyUpdate(); } break;
+    case "setteam": if (c.slot && !room.started && room.mode === "2v2" && (o.team === 0 || o.team === 1)) { c.slot.team = o.team; lobbyUpdate(); } break;
     case "start": if (c.slot && c.slot.sid === room.hostSid && !room.started) { const m = o.mode === "2v2" ? "2v2" : "ffa"; if (m === "2v2" ? slots.size === 4 : slots.size >= 2) startMatch(o.map, m); } break;
     case "snap": if (c.slot) {   // minimap: 2v2 chỉ CHỦ-BÀN gửi, cho đội KHÁC xem; ffa gửi mọi người
       if (room.mode === "2v2") { if (c.slot.authority) for (const s of slots.values()) if (s.connected && s.team !== c.slot.team) send(s, { t: "snap", pid: c.slot.pid, team: c.slot.team, s: o.s }); }

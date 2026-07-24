@@ -429,15 +429,17 @@
     $("vsModeRow").classList.toggle("locked", !m.isHost);
     $("vsModeRow").querySelectorAll(".vs-mode-btn").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
     if (mode === "2v2") {
-      // xếp theo đội (join order: 2 người đầu Đội A, 2 sau Đội B); chủ-bàn = người đầu mỗi đội
+      // xếp theo ĐỘI do server gán (đổi được ở phòng chờ); chủ-bàn = người vào sớm nhất mỗi đội
+      const myTeam = (m.players.find((p) => p.pid === m.myPid) || {}).team;
       let html = "";
       [0, 1].forEach((tm) => {
-        const mem = m.players.filter((_, i) => (i < 2 ? 0 : 1) === tm);
-        if (!mem.length) return;
-        html += `<div class="vs-team-hd t${tm}">${tm === 0 ? "🔵 Đội A" : "🔴 Đội B"}</div>`;
-        html += mem.map((p, j) => `<div class="vs-lobby-row team${tm}${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${j === 0 ? "🛠 Chủ-bàn" : "🤝 Đồng đội"}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}${p.host ? " 👑" : ""}</div>`).join("");
+        const mem = m.players.filter((p) => p.team === tm);
+        html += `<div class="vs-team-hd t${tm}">${tm === 0 ? "🔵 Đội A" : "🔴 Đội B"} <span class="vs-team-ct">(${mem.length}/2)</span>` +
+          (myTeam === tm ? ` <span class="vs-you">— đội của bạn</span>` : ` <button class="vs-join-team" data-team="${tm}">Chuyển sang đây</button>`) + `</div>`;
+        html += mem.length ? mem.map((p, j) => `<div class="vs-lobby-row team${tm}${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${j === 0 ? "🛠 Chủ-bàn" : "🤝 Đồng đội"}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}${p.host ? " 👑" : ""}</div>`).join("") : `<div class="vs-empty-team">— trống —</div>`;
       });
       $("vsLobbyList").innerHTML = html;
+      $("vsLobbyList").querySelectorAll(".vs-join-team").forEach((b) => { b.onclick = () => { if (net) net.client.send({ t: "setteam", team: +b.dataset.team }); }; });
     } else {
       $("vsLobbyList").innerHTML = m.players.map((p) =>
         `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "P" + p.pid}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
