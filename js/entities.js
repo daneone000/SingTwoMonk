@@ -217,16 +217,18 @@
     get firesFused() { return this.fireTarget !== "none"; }                    // có bắn không (Năng Lượng thuần thì không)
     get emitsAura() { return !!(this.def.support || (this.fused && this.fuseDef && this.fuseDef.support)); }   // phát aura buff (Năng Lượng, kể cả sau dung hợp)
     get auraStats() { const ed = this.def.support ? this.def : (this.emitsAura ? this.fuseDef : null); return ed ? CFG.statAt(ed, this.level) : { range: 0, dmgBonus: 0, rateBonus: 0 }; }
-    // chỉ số BẮN hiệu lực sau dung hợp — ĐỐI XỨNG theo 2 tháp (chỉ target là khác theo tháp gốc)
+    // tháp cầm nòng (Năng Lượng gốc thì tháp dung hợp cầm nòng) + chỉ số GỐC của nó
+    get shooter() { return this.fused && this.def.support ? this.fuseDef : this.def; }
+    get shooterStats() { return CFG.statAt(this.shooter, this.level); }
+    // chỉ số BẮN hiệu lực sau dung hợp — ĐỐI XỨNG theo 2 tháp: CỘNG THÊM chỉ số tháp kia (ST/tầm/loang), tốc lấy nhanh hơn
     get fstats() {
       const s = this.stats; if (!this.fused) return s;
-      const shooter = this.def.support ? this.fuseDef : this.def;               // tháp cầm nòng
       const other = this.def.support ? this.def : this.fuseDef;                  // tháp còn lại
-      const ss = CFG.statAt(shooter, this.level); if (!ss.dmg) return s;         // cả hai là Năng Lượng -> không bắn
+      const ss = this.shooterStats; if (!ss.dmg) return s;                       // cả hai là Năng Lượng -> không bắn
       const os = other.support ? null : CFG.statAt(other, this.level);           // cộng chỉ số nếu tháp kia cũng bắn
       return {
         dmg: ss.dmg + (os ? os.dmg : 0), rate: os ? Math.min(ss.rate, os.rate) : ss.rate,
-        range: Math.max(ss.range, os ? os.range : 0), splash: Math.max(ss.splash || 0, os ? (os.splash || 0) : 0),
+        range: ss.range + (os ? os.range : 0), splash: (ss.splash || 0) + (os ? (os.splash || 0) : 0),   // CỘNG tầm xa & bắn loang
         slowPct: Math.max(ss.slowPct || 0, os ? (os.slowPct || 0) : 0), poisonPct: Math.max(ss.poisonPct || 0, os ? (os.poisonPct || 0) : 0),
       };
     }
