@@ -205,7 +205,7 @@
         el.className = "core-slot filled"; el.style.setProperty("--tc", cti.color);
         el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b><small>${def.desc(core.value)}</small></span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
       } else if (i === g.cores.length) {
-        const cost = g.coreUnlockSp(i), canOpen = g.canOpenCore(i), label = i === 0 ? "Chọn lõi" : `Mở · ${cost} KN`;
+        const cost = g.coreUnlockSp(i), canOpen = g.slotOpenable(i), label = i === 0 ? "Chọn lõi" : `Mở · ${cost} KN`;
         el.className = "core-slot open" + (canOpen ? " ready" : ""); el.style.setProperty("--tc", ti.color);
         el.innerHTML = `<span class="core-ic">➕</span><span class="core-tx"><b>Ô lõi ${i + 1}</b><small>Cấp bậc: <span style="color:${ti.color}">${ti.name}</span></small></span><button class="core-open-btn" ${canOpen ? "" : "disabled"}>${label}</button>`;
         el.querySelector(".core-open-btn").onclick = () => openCorePick(i);

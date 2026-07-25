@@ -50,6 +50,8 @@
     nextCoreSlot() { return this.cores.length < CFG.MAX_CORES ? this.cores.length : -1; }
     coreUnlockSp(slot) { return CFG.CORE_UNLOCK_SP[slot] || 0; }
     canOpenCore(slot) { return slot === this.nextCoreSlot() && slot >= 0 && this.sp >= this.coreUnlockSp(slot) && !this.coreOffer && !this.pendingCore; }
+    // trạng thái để BẬT nút "mở ô" trên HUD — KHÔNG xét coreOffer đang mở (tránh nút kẹt disabled sau khi bấm "Để sau")
+    slotOpenable(slot) { return slot === this.nextCoreSlot() && slot >= 0 && this.sp >= this.coreUnlockSp(slot) && !this.pendingCore; }
     // mở ô lõi -> tung 3 lõi ngẫu nhiên CÙNG cấp bậc của ô đó (riêng mỗi người).
     // Random 1 LẦN rồi CHỐT (lưu ở coreRolls): bấm "Để sau" mở lại vẫn đúng 3 lõi đó, không cho roll lại.
     openCore(slot) {
