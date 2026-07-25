@@ -81,7 +81,7 @@
         </div>
 
         <!-- LÕI NÂNG CẤP (giống Augment TFT) — 3 ô -->
-        <div class="section-banner">Lõi nâng cấp</div>
+        <div class="section-banner core-banner">Lõi nâng cấp <button id="btnCoreWiki" class="wiki-btn" title="Tra cứu tất cả lõi">📖</button></div>
         <div id="coreSlots" class="core-slots"></div>
 
         <div class="cfg-row">
@@ -202,6 +202,14 @@
 
   <!-- BĂNG BÁO KẾT NỐI LẠI (đối kháng LAN) -->
   <div id="netReconnect" class="net-reconnect hidden"><span>🔌 Mất kết nối — đang thử vào lại trận…</span></div>
+
+  <!-- WIKI TRA CỨU LÕI -->
+  <div id="coreWiki" class="tree-modal hidden">
+    <div class="wiki-box ornate">
+      <div class="wiki-head">📖 Tra cứu Lõi nâng cấp <button id="wikiClose" class="close-btn">✖</button></div>
+      <div id="wikiBody" class="wiki-body"></div>
+    </div>
+  </div>
 
   <!-- OVERLAY CHỌN LÕI (3 thẻ cùng cấp bậc) -->
   <div id="coreModal" class="tree-modal hidden">

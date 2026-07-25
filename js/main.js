@@ -266,6 +266,29 @@
   $("coreCancel").onclick = () => { game.cancelCoreOffer(); coreModal.classList.add("hidden"); };
   coreModal.onclick = (e) => { if (e.target === coreModal) { game.cancelCoreOffer(); coreModal.classList.add("hidden"); } };
 
+  /* ---------- WIKI tra cứu lõi ---------- */
+  const coreWiki = $("coreWiki"), wikiBody = $("wikiBody");
+  function renderWiki() {
+    const TI = CFG.CORE_TIER_INFO;
+    let html = `<p class="wiki-intro">Mỗi ván chọn tối đa <b>${CFG.MAX_CORES}</b> lõi — <b>ô 1 miễn phí</b>, ô 2/3 mở bằng <b>${CFG.CORE_UNLOCK_SP[1]}</b>/<b>${CFG.CORE_UNLOCK_SP[2]}</b> Điểm KN. Cấp bậc <b style="color:${TI.bac.color}">Bạc</b> &lt; <b style="color:${TI.vang.color}">Vàng</b> &lt; <b style="color:${TI.kimcuong.color}">Kim Cương</b> (mạnh dần), <b>ngẫu nhiên mỗi ván</b> nhưng <b>giống nhau giữa mọi người chơi</b>. Mở 1 ô → hiện 3 lõi cùng cấp bậc để chọn (riêng mỗi người).</p>`;
+    for (const grp of ["Kinh tế", "Tháp", "Phép", "Bản đồ"]) {
+      const ids = CFG.CORE_ORDER.filter((id) => CFG.CORES[id].group === grp);
+      if (!ids.length) continue;
+      html += `<div class="wiki-group">${grp}</div>`;
+      for (const id of ids) {
+        const c = CFG.CORES[id], tiers = CFG.CORE_TIERS.filter((tk) => c.tiers[tk] != null);
+        const chips = tiers.map((tk) => `<span class="wiki-tier" style="background:${TI[tk].color}">${TI[tk].name}</span>`).join(" ");
+        const desc = c.desc(tiers.map((tk) => c.tiers[tk]).join("/"));
+        html += `<div class="wiki-core"><span class="wiki-ic">${c.icon}</span><div class="wiki-tx"><div class="wiki-nm">${c.name} ${chips}</div><div class="wiki-desc">${desc}</div></div></div>`;
+      }
+    }
+    wikiBody.innerHTML = html;
+  }
+  const openWiki = () => { renderWiki(); coreWiki.classList.remove("hidden"); };
+  $("btnCoreWiki").onclick = openWiki;
+  $("wikiClose").onclick = () => coreWiki.classList.add("hidden");
+  coreWiki.onclick = (e) => { if (e.target === coreWiki) coreWiki.classList.add("hidden"); };
+
   /* ---------- bảng chi tiết tháp (đáy) ---------- */
   const tp = $("towerPanel");
   function targetText(def) { return def.trap ? def.desc : def.support ? "Hỗ trợ — không bắn" : def.target === "both" ? "Bắn cả Bay & Bộ" : def.target === "air" ? "Chỉ bắn Quái bay" : "Chỉ bắn Quái bộ"; }
@@ -402,7 +425,7 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.emit(); return; }
     if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
