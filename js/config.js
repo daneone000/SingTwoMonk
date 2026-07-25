@@ -254,9 +254,9 @@
     nguyenBan: { id: "nguyenBan", name: "Nguyên Bản", icon: "⭐", group: "Tháp", impl: true,
       tiers: { bac: 100 }, desc: (v) => `Mọi tháp CHƯA nâng cấp (cấp 1) được tăng ${v}% chỉ số & hiệu ứng.` },
     // --- Phép ---
-    kePhaLuat: { id: "kePhaLuat", name: "Kẻ Phá Luật", icon: "📜", group: "Phép", impl: false,
+    kePhaLuat: { id: "kePhaLuat", name: "Kẻ Phá Luật", icon: "📜", group: "Phép", impl: true,
       tiers: { vang: 1 }, desc: () => "Học phép không cần theo nhánh cây phép." },
-    vuaPhep: { id: "vuaPhep", name: "Vua Phép Thuật", icon: "🎩", group: "Phép", impl: false,
+    vuaPhep: { id: "vuaPhep", name: "Vua Phép Thuật", icon: "🎩", group: "Phép", impl: true,
       tiers: { kimcuong: 1 }, desc: () => "Đổi lại phép đã học thành phép khác (hồi chiêu vẫn chạy theo thời gian thực)." },
     nhanhNhen: { id: "nhanhNhen", name: "Nhanh Nhẹn", icon: "⚡", group: "Phép", impl: true,
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Giảm ${v}% thời gian hồi chiêu của mọi phép.` },

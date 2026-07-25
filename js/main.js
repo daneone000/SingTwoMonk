@@ -86,7 +86,7 @@
   for (const [f, tt, color, bidir] of CFG.SKILL_EDGES) edgeSVG += edgeSvg(pos[f], pos[tt], COLOR[color], bidir);
   edgesEl.innerHTML = edgeSVG;
 
-  let treeSel = null;
+  let treeSel = null, swapMode = false, swapFrom = null;
   function tipFor(k) {
     const s = CFG.SKILLS[k];
     if (!game.learned.has(k) && game.learned.size >= game.maxSkills()) return `<b>${s.name}</b> — ${s.desc}<br><span style="color:#ff9b9b">Đã học tối đa ${game.maxSkills()} phép — không thể học thêm.</span>`;
@@ -99,21 +99,39 @@
     el.style.left = p.x + "%"; el.style.top = p.y + "%";
     el.innerHTML = `<span class="tg">${s.glyph}</span><span class="tc">${s.learn}</span>`;
     el.onmouseenter = () => { tipEl.innerHTML = tipFor(k); };
-    el.onclick = () => { treeSel = k; tipEl.innerHTML = tipFor(k); renderTree(); };
-    el.ondblclick = () => { if (game.learnSkill(k)) { log("Đã học phép: " + s.name, "good"); treeSel = k; renderTree(); } };
+    el.onclick = () => {
+      if (swapMode && game.canSwap()) {   // chế độ Đổi phép (Vua Phép Thuật)
+        if (game.learned.has(k)) { swapFrom = (swapFrom === k ? null : k); treeSel = k; }
+        else if (swapFrom && game.swapSkill(swapFrom, k)) { log("Đổi phép: " + CFG.SKILLS[swapFrom].name + " → " + s.name, "good"); swapFrom = null; treeSel = k; }
+        tipEl.innerHTML = tipFor(k); renderTree(); return;
+      }
+      treeSel = k; tipEl.innerHTML = tipFor(k); renderTree();
+    };
+    el.ondblclick = () => { if (!swapMode && game.learnSkill(k)) { log("Đã học phép: " + s.name, "good"); treeSel = k; renderTree(); } };
     nodesEl.appendChild(el); nodeBtns[k] = el;
   }
   function renderTree() {
     $("treeSP").textContent = game.sp; $("treeCount").textContent = game.learned.size;
     { const tm = $("treeMax"); if (tm) tm.textContent = game.maxSkills(); }
     const maxed = game.learned.size >= game.maxSkills();
-    for (const k of CFG.SKILL_TREE_ORDER) { const el = nodeBtns[k], learned = game.learned.has(k), canL = game.canLearn(k), afford = game.sp >= CFG.SKILLS[k].learn; el.classList.toggle("learned", learned); el.classList.toggle("learnable", !learned && canL && afford); el.classList.toggle("locked", !learned && !canL); el.classList.toggle("selected", treeSel === k); }
-    const ch = $("treeChoose"), canPick = treeSel && game.canLearn(treeSel) && game.sp >= CFG.SKILLS[treeSel].learn;
+    const canSwap = game.canSwap(); if (!canSwap) { swapMode = false; swapFrom = null; }
+    const sw = $("treeSwap"); if (sw) { sw.classList.toggle("hidden", !canSwap); sw.classList.toggle("on", swapMode); sw.textContent = "🎩 Đổi phép: " + (swapMode ? "BẬT" : "TẮT"); }
+    for (const k of CFG.SKILL_TREE_ORDER) {
+      const el = nodeBtns[k], learned = game.learned.has(k);
+      // chế độ đổi: tô sáng phép đã học (nguồn) + mục tiêu đổi hợp lệ
+      const canL = swapMode ? (swapFrom ? game.canSwapTo(swapFrom, k) : false) : game.canLearn(k), afford = swapMode || game.sp >= CFG.SKILLS[k].learn;
+      el.classList.toggle("learned", learned); el.classList.toggle("learnable", !learned && canL && afford);
+      el.classList.toggle("locked", !learned && !canL && !(swapMode && learned)); el.classList.toggle("selected", treeSel === k);
+      el.classList.toggle("swapfrom", swapMode && swapFrom === k);
+    }
+    const ch = $("treeChoose"), canPick = !swapMode && treeSel && game.canLearn(treeSel) && game.sp >= CFG.SKILLS[treeSel].learn;
     ch.disabled = !canPick; ch.textContent = maxed ? `Đủ ${game.maxSkills()} phép` : "Chọn";
+    { const tip = $("treeSwapTip"); if (tip) tip.classList.toggle("hidden", !swapMode); }
   }
   const openTree = () => { modal.classList.remove("hidden"); renderTree(); };
   const closeTree = () => modal.classList.add("hidden");
   $("btnTree").onclick = openTree; $("btnTree2").onclick = openTree; $("treeClose").onclick = closeTree;
+  { const sw = $("treeSwap"); if (sw) sw.onclick = () => { swapMode = !swapMode; swapFrom = null; renderTree(); }; }
   $("treeChoose").onclick = () => { if (treeSel && game.learnSkill(treeSel)) { log("Đã học phép: " + CFG.SKILLS[treeSel].name, "good"); renderTree(); } };
   modal.onclick = (e) => { if (e.target === modal) closeTree(); };
 

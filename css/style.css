@@ -389,3 +389,7 @@ body.netplay #btnPause { display: none; }
   background: linear-gradient(180deg, #3a4a2b, #232d18); border: 2px solid var(--gold); border-radius: 10px;
   padding: 10px 18px; font-size: 13.5px; color: var(--txt); box-shadow: 0 6px 24px rgba(0,0,0,.6);
   animation: coreGlow 1.6s ease-in-out infinite; --tc: var(--gold); }
+
+/* Vua Phép Thuật — nút đổi phép & node nguồn đang chọn */
+.tree-btn.on { background: linear-gradient(180deg, #6b4f9e, #3d2c66); border-color: #c9b8ff; color: #efe8ff; }
+.tnode.swapfrom { box-shadow: 0 0 0 3px #c9b8ff, 0 0 16px rgba(201,184,255,.85); transform: translate(-50%, -50%) scale(1.14); z-index: 4; }

@@ -459,7 +459,20 @@
     onEnemyLeak(e) { this.lives -= 1; const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
 
     /* ------------------------- CÂY PHÉP ------------------------- */
-    canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }
+    canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (this.hasCore("kePhaLuat")) return true; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }   // Kẻ Phá Luật: bỏ ràng buộc nhánh
+    // Vua Phép Thuật: đổi phép đã học -> phép khác (miễn phí, không giới hạn số lần; hồi chiêu vẫn chạy thực nhờ skillCd giữ theo key).
+    canSwap() { return !!this.hasCore("vuaPhep"); }
+    canSwapTo(oldKey, newKey) {
+      if (!this.hasCore("vuaPhep") || !this.learned.has(oldKey) || this.learned.has(newKey) || !CFG.SKILLS[newKey]) return false;
+      if (this.hasCore("kePhaLuat")) return true;                    // Kẻ Phá Luật: bỏ ràng buộc nhánh
+      const s = CFG.SKILLS[newKey]; if (!s.parents.length) return true;
+      const rest = new Set(this.learned); rest.delete(oldKey); return s.parents.some((p) => rest.has(p));   // nhánh tính theo phép CÒN LẠI
+    }
+    swapSkill(oldKey, newKey) {
+      if (!this.canSwapTo(oldKey, newKey)) return false;
+      this.learned.delete(oldKey); this.learned.add(newKey);        // giữ skillCd[oldKey]/[newKey] -> đổi lại vẫn còn hồi chiêu
+      this.emit(); return true;
+    }
     learnSkill(key) { const s = CFG.SKILLS[key]; if (!this.canLearn(key) || this.sp < s.learn) return false; this.sp -= s.learn; this.learned.add(key); this.emit(); return true; }
     castable(key) { const s = CFG.SKILLS[key]; if (!this.learned.has(key)) return false; if (s.aim === "pvp" && !this.versus) return false; return (this.skillCd[key] || 0) <= 0; }
     armSkill(key) { const s = CFG.SKILLS[key]; if (!this.castable(key)) return; if (s.aim === "global" || s.aim === "pvp") { this.castSkill(key); return; } this.pendingSkill = key; this.buildType = null; this.selected = null; this.emit(); }
