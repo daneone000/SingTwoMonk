@@ -353,7 +353,12 @@
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
-    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k]; b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < g.buyCost(def.cost)); }
+    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) {
+      const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k], cost = g.buyCost(def.cost);
+      b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < cost);
+      const sale = cost < def.cost; b.classList.toggle("sale", sale);   // Black Friday: giá giảm
+      const cs = b.querySelector(".tw-cost"); const txt = "💰" + cost; if (cs.textContent !== txt) cs.textContent = txt;
+    }
     maybeRenderCores(g); updateAfkLive(g);
     if (g.learned.size !== lastLearned) { renderSkills(g); lastLearned = g.learned.size; }
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : ""; }

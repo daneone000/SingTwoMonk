@@ -404,3 +404,7 @@ body.netplay #btnPause { display: none; }
 .tp-raise.on { background: #6b7a3f; color: #1a120a; }
 .tp-raise:disabled { opacity: .5; }
 .tp-raise.hidden { display: none; }
+
+/* Black Friday — giá đã giảm ở cửa hàng */
+.tw-btn.sale .tw-cost { color: #7dff9a; }
+.tw-btn.sale .tw-cost::after { content: " ↓"; font-size: 10px; }
