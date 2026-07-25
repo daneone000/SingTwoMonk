@@ -408,3 +408,6 @@ body.netplay #btnPause { display: none; }
 /* Black Friday — giá đã giảm ở cửa hàng */
 .tw-btn.sale .tw-cost { color: #7dff9a; }
 .tw-btn.sale .tw-cost::after { content: " ↓"; font-size: 10px; }
+
+/* Dung Hợp — dòng thông tin trong bảng chi tiết tháp */
+.tp-fuse { color: #c9a0ff; font-weight: 600; margin-bottom: 3px; border-bottom: 1px dashed rgba(201,160,255,.3); padding-bottom: 3px; }

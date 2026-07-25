@@ -267,16 +267,22 @@
   /* ---------- bảng chi tiết tháp (đáy) ---------- */
   const tp = $("towerPanel");
   function targetText(def) { return def.trap ? def.desc : def.support ? "Hỗ trợ — không bắn" : def.target === "both" ? "Bắn cả Bay & Bộ" : def.target === "air" ? "Chỉ bắn Quái bay" : "Chỉ bắn Quái bộ"; }
+  function targetLabel(tgt) { return tgt === "both" ? "cả Bay & Bộ" : tgt === "air" ? "chỉ Quái bay" : tgt === "ground" ? "chỉ Quái bộ" : "không bắn"; }
+  const shortName = (n) => n.replace("Tháp ", "").replace("Bẫy ", "");
   function statsHTML(t) {
     if (t.trap) return `<div>Loại: <b>Dùng 1 lần</b> (kích hoạt là biến mất)</div><div>Bán kính: <b>${t.def.radius}</b></div>`;
-    if (t.support) { const s = t.stats; return `<div>Buff ST: <b class="plus">+${Math.round(s.dmgBonus * 100)}%</b></div><div>Buff Tốc: <b class="plus">+${Math.round(s.rateBonus * 100)}%</b></div><div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>`; }
-    const s = t.stats, base = Math.round(s.dmg), bonus = Math.round(t.effDmg() - s.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / s.rate;
-    const eff = s.slowPct != null ? `<div>Làm chậm: <b class="plus">${Math.round(s.slowPct * 100)}%</b></div>`
-      : s.poisonPct != null ? `<div>Độc: <b class="plus">${Math.round(s.poisonPct * 100)}% máu hiện tại/5s</b></div>` : "";
-    return `<div>Sức Mạnh: <b>${base}</b>${bonus > 0 ? ` <span class="plus">+${bonus}</span>` : ``}</div>` +
+    if (t.support && !t.fused) { const s = t.stats; return `<div>Buff ST: <b class="plus">+${Math.round(s.dmgBonus * 100)}%</b></div><div>Buff Tốc: <b class="plus">+${Math.round(s.rateBonus * 100)}%</b></div><div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>`; }
+    const s = t.fused ? t.fstats : t.stats, base = Math.round(s.dmg), bonus = Math.round(t.effDmg() - s.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / (s.rate || 1);
+    // tháp dung hợp: hiện ĐỦ các hiệu ứng đã gộp (chậm + độc...)
+    let eff = "";
+    if ((s.slowPct || 0) > 0) eff += `<div>Làm chậm: <b class="plus">${Math.round(s.slowPct * 100)}%</b></div>`;
+    if ((s.poisonPct || 0) > 0) eff += `<div>Độc: <b class="plus">${Math.round(s.poisonPct * 100)}% máu hiện tại/5s</b></div>`;
+    const fuseLine = t.fused ? `<div class="tp-fuse">⚗ Dung hợp <b>${shortName(t.def.name)}</b> + <b>${shortName(t.fuseDef.name)}</b> → bắn ${targetLabel(t.fireTarget)}${t.emitsAura ? " · tự buff + buff quanh" : ""}</div>` : "";
+    return fuseLine +
+      `<div>Sức Mạnh: <b>${base}</b>${bonus > 0 ? ` <span class="plus">+${bonus}</span>` : ``}</div>` +
       `<div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>` +
       `<div>Tốc độ bắn: <b>${sps.toFixed(2)}</b>/s${spsBonus > 0.01 ? ` <span class="plus">+${spsBonus.toFixed(2)}</span>` : ``}</div>` +
-      (s.splash ? `<div>Bắn Loang: <b>${s.splash.toFixed(1)}</b></div>` : `<div>Cấp: <b>${t.level}/5</b></div>`) + eff;
+      (s.splash ? `<div>Bắn Loang: <b>${s.splash.toFixed(1)}</b></div>` : `<div>Cấp: <b>${t.level}/${t.def.lv.length}</b></div>`) + eff;
   }
   // Xem trước nâng cấp: cấp kế sẽ +chỉ số gì (để cân nhắc)
   function upgradePreviewHTML(t) {
@@ -294,14 +300,15 @@
   }
   // CHỈ dựng lại khung khi ĐỔI tháp chọn; còn lại chỉ cập nhật chữ/nút (KHÔNG thay phần tử nút)
   // -> tránh nút bị thay giữa mousedown/mouseup làm mất cú click (lỗi trên Edge).
-  let tpTower = undefined;
+  let tpTower = undefined, tpFused = false;
   function renderTowerPanel(g) {
     const t = g.selected; tp.classList.remove("hidden");
-    if (t !== tpTower) {
-      tpTower = t;
+    if (t !== tpTower || !!(t && t.fused) !== tpFused) {   // dựng lại cả khi tháp vừa được DUNG HỢP
+      tpTower = t; tpFused = !!(t && t.fused);
       if (!t) { const nx = g.nextWavePreview(); tp.innerHTML = `<div class="tp-empty">🏰 Chọn tháp/bẫy trên bản đồ để xem chi tiết &amp; nâng cấp/bán. &nbsp;•&nbsp; Đợt sau: <b>${nx.name}</b> ×${nx.count}${nx.boss ? " (BOSS)" : nx.fly ? " (bay)" : ""}</div>`; return; }
+      const title = t.fused ? `${shortName(t.def.name)}+${shortName(t.fuseDef.name)} ⚗: ${targetLabel(t.fireTarget)}` : `${t.def.name}: ${targetText(t.def)}`;
       tp.innerHTML = `<div class="tp-icon" style="background:${t.def.color}">${t.def.glyph}</div>` +
-        `<div class="tp-main"><div class="tp-title">${t.def.name}: ${targetText(t.def)} <span class="lv" id="tpLv"></span></div><div class="tp-stats" id="tpStats"></div><div class="tp-prev" id="tpPrev"></div></div>` +
+        `<div class="tp-main"><div class="tp-title">${title} <span class="lv" id="tpLv"></span></div><div class="tp-stats" id="tpStats"></div><div class="tp-prev" id="tpPrev"></div></div>` +
         `<div class="tp-actions"><button class="tp-up" id="tpUp"></button><button class="tp-sell" id="tpSell"></button><button class="tp-move hidden" id="tpMove">↔ Dời</button><button class="tp-raise hidden" id="tpRaise">⛰ Nâng ô</button></div>`;
       // pointerdown: kích hoạt NGAY lúc nhấn (tránh emit làm nút disabled giữa mousedown→mouseup nuốt click, hay gặp ở PvP/Edge)
       $("tpUp").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.upgradeSelected(); };
