@@ -27,7 +27,8 @@
       // ----- LÕI NÂNG CẤP -----
       this.cores = [];                       // [{id,tier,value,target?}] tối đa 3
       this.coreTiers = [0, 1, 2].map(() => CFG.CORE_TIERS[(Math.random() * CFG.CORE_TIERS.length) | 0]);   // solo random; đối kháng: net ghi đè bằng seed server
-      this.coreOffer = null;                 // {slot, items:[{id,tier,value}]} đang mở
+      this.coreOffer = null;                 // {slot, items} đang MỞ trên màn hình (tạm thời)
+      this.coreRolls = {};                   // slot -> 3 lõi ĐÃ random (chốt cứng, mở lại KHÔNG đổi)
       this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null;
       this.computeFlow(); this.buildTerrain(); this.emit();
@@ -49,16 +50,19 @@
     nextCoreSlot() { return this.cores.length < CFG.MAX_CORES ? this.cores.length : -1; }
     coreUnlockSp(slot) { return CFG.CORE_UNLOCK_SP[slot] || 0; }
     canOpenCore(slot) { return slot === this.nextCoreSlot() && slot >= 0 && this.sp >= this.coreUnlockSp(slot) && !this.coreOffer && !this.pendingCore; }
-    // mở ô lõi -> tung 3 lõi ngẫu nhiên CÙNG cấp bậc của ô đó (riêng mỗi người), chưa trừ KN
+    // mở ô lõi -> tung 3 lõi ngẫu nhiên CÙNG cấp bậc của ô đó (riêng mỗi người).
+    // Random 1 LẦN rồi CHỐT (lưu ở coreRolls): bấm "Để sau" mở lại vẫn đúng 3 lõi đó, không cho roll lại.
     openCore(slot) {
       if (!this.canOpenCore(slot)) return null;
-      const tier = this.coreTiers[slot], pool = CFG.coresAtTier(tier).filter((id) => !this.hasCore(id));
-      const pick = []; const bag = pool.slice();
-      while (pick.length < 3 && bag.length) pick.push(bag.splice((Math.random() * bag.length) | 0, 1)[0]);
-      this.coreOffer = { slot, items: pick.map((id) => ({ id, tier, value: CFG.coreVal(id, tier) })) };
+      if (!this.coreRolls[slot]) {
+        const tier = this.coreTiers[slot], bag = CFG.coresAtTier(tier).filter((id) => !this.hasCore(id)), pick = [];
+        while (pick.length < 3 && bag.length) pick.push(bag.splice((Math.random() * bag.length) | 0, 1)[0]);
+        this.coreRolls[slot] = pick.map((id) => ({ id, tier, value: CFG.coreVal(id, tier) }));
+      }
+      this.coreOffer = { slot, items: this.coreRolls[slot] };
       this.emit(); return this.coreOffer;
     }
-    cancelCoreOffer() { this.coreOffer = null; this.emit(); }
+    cancelCoreOffer() { this.coreOffer = null; this.emit(); }   // chỉ đóng bảng, GIỮ nguyên 3 lõi đã chốt
     // chọn 1 lõi trong 3 thẻ -> trừ KN mở ô, ghi nhận; lõi cần mục tiêu thì chờ chọn tháp
     pickCore(id) {
       const off = this.coreOffer; if (!off) return false;
@@ -389,7 +393,7 @@
         enemyHaste: this.enemyHaste, hasteTime: this.hasteTime,
         sWaveTimer: this.netMatch ? (this.netMatch.waveTimer || 0) : this.waveTimer,   // server đếm ngược tới đợt kế lúc lưu (để tính khoảng offline)
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
-        coreTiers: this.coreTiers,
+        coreTiers: this.coreTiers, coreRolls: this.coreRolls,
         afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave },
       };
     }
@@ -424,6 +428,7 @@
       // ----- lõi nâng cấp -----
       if (s.coreTiers && s.coreTiers.length === 3) this.coreTiers = s.coreTiers;
       this.cores = (s.cores || []).map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target || null }));
+      this.coreRolls = s.coreRolls || {};
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
       if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
