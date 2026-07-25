@@ -99,19 +99,22 @@ ván; **ô 2/ô 3** cần **100 / 150 Điểm KN** để mở. Mỗi lõi có 3 
 ngẫu nhiên cùng cấp bậc** của ô đó để chọn (riêng mỗi người). Áp dụng cho **mọi chế độ**;
 nút mở **thủ công**, **không dừng** trận.
 
-Các lõi hiện có (Phase 1):
+Danh sách lõi:
 
 | Nhóm | Lõi | Hiệu ứng (Bạc/Vàng/Kim Cương) |
 |------|-----|-------------------------------|
 | Kinh tế | 🏷 **Black Friday** | Giá xây/nâng rẻ hơn **5/10/15%** |
 | Kinh tế | 💤 **AFK** (Bạc) | Không xây/nâng/bán **3 đợt liền** → nhận **gấp đôi** vàng của 3 đợt đó |
 | Kinh tế | 💰 **Tay Buôn** | **+5/10/15%** vàng từ mọi nguồn |
-| Tháp | 🔧 **Gia Cố** | **+5/10/15%** chỉ số (ST/tốc/tầm/loang) một tháp chọn (cộng theo cấp) |
+| Tháp | 🔧 **Gia Cố** | **+5/10/15%** chỉ số (ST/tốc/tầm/loang) một tháp chọn (cộng theo cấp); tháp có vòng đồng nhận biết |
 | Tháp | ⭐ **Nguyên Bản** (Bạc) | Tháp **chưa nâng cấp (cấp 1)** được **+100%** chỉ số & hiệu ứng (nâng lên cấp 2 là mất) |
+| Tháp | ⚗ **Dung Hợp** (Kim Cương) | **1 lần/ván**: xây tháp **đè** lên tháp đã có → giữ **target tháp gốc** (Lửa+Sét=bộ, Sét+Lửa=bay), cộng chỉ số & **gộp hiệu ứng**; Năng Lượng dung hợp thì vừa bắn vừa tự buff + buff quanh. Tháp dung hợp có vòng đôi 2 màu |
+| Tháp | 🧲 **Back King Xây** (Vàng) | **Di chuyển** tháp đã xây sang ô khác (nút *Dời* ở bảng tháp) |
 | Phép | ⚡ **Nhanh Nhẹn** | Giảm **5/10/15%** hồi chiêu mọi phép |
 | Phép | 🎰 **Tham Lam** | Mở thêm **1/2/3 ô phép** (học được nhiều phép hơn) |
-
-*(Sắp có: ⚗ Dung Hợp tháp, 🧲 Di chuyển tháp, 📜 Kẻ Phá Luật, 🎩 Vua Phép Thuật, 🗺 Trùm Bản Đồ.)*
+| Phép | 📜 **Kẻ Phá Luật** (Vàng) | Học phép **không cần theo nhánh** cây phép |
+| Phép | 🎩 **Vua Phép Thuật** (Kim Cương) | **Đổi** phép đã học sang phép khác (nút *Đổi phép* trong cây; hồi chiêu vẫn chạy thực) |
+| Bản đồ | 🗺 **Trùm Bản Đồ** (Vàng) | Dùng **10 KN** nâng cao ô tháp → **chặn cả quái BAY** (bay phải né/kẹt) |
 
 ### Kết nối lại khi đối kháng LAN (F5 / rớt mạng)
 
