@@ -30,6 +30,7 @@
       this.coreOffer = null;                 // {slot, items} đang MỞ trên màn hình (tạm thời)
       this.coreRolls = {};                   // slot -> 3 lõi ĐÃ random (chốt cứng, mở lại KHÔNG đổi)
       this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
+      this.pendingMove = null;               // Back King Xây: tháp đang chờ dời sang ô mới
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null;
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -84,6 +85,32 @@
       else { t.reinforce = (t.reinforce || 0) + core.value / 100; }
       core.target = { c: t.col, r: t.row }; this.pendingCore = null;
       this.recomputeAuras(); this.emit(); return true;
+    }
+    // Back King Xây: di chuyển 1 tháp/bẫy đã xây sang ô khác.
+    startMoveTower(t) { if (!this.hasCore("backKingXay") || !t) return; this.pendingMove = t; this.buildType = null; this.pendingSkill = null; this.pendingCore = null; this.selected = t; this.emit(); }
+    // kiểm tra dời tháp `t` sang (c,r) có hợp lệ không (gỡ tạm ô cũ rồi thử)
+    canMoveTo(t, c, r) {
+      if (!t || (t.col === c && t.row === r)) return false;
+      const isTrap = !!t.trap, oc = t.col, orr = t.row;
+      this.occupied.delete(oc + "," + orr); if (!isTrap) this.blockSet.delete(oc + "," + orr);
+      const okCell = isTrap ? this.isLandFree(c, r) : this.canPlaceTower(c, r);
+      this.occupied.add(oc + "," + orr); if (!isTrap) this.blockSet.add(oc + "," + orr);
+      return okCell;
+    }
+    _moveTower(t, c, r) {   // thực hiện dời (dùng chung: local + lệnh đồng đội 2v2)
+      if (!this.canMoveTo(t, c, r)) return false;
+      const isTrap = !!t.trap, oc = t.col, orr = t.row;
+      this.occupied.delete(oc + "," + orr); if (!isTrap) this.blockSet.delete(oc + "," + orr);
+      t.col = c; t.row = r; t.x = (c + .5) * TILE; t.y = (r + .5) * TILE;
+      this.occupied.add(c + "," + r); if (!isTrap) this.blockSet.add(c + "," + r);
+      for (const co of this.cores) if (co.target && co.target.c === oc && co.target.r === orr) co.target = { c, r };   // Gia Cố trỏ theo ô -> cập nhật
+      if (!isTrap) { this.computeFlow(); this.recomputeAuras(); }
+      return true;
+    }
+    applyMoveTower(c, r) {   // người chơi bấm ô đích
+      const t = this.pendingMove; if (!t) return false;
+      if (this.mirror) { const okc = this.canMoveTo(t, c, r); this.pendingMove = null; if (okc) this.netMatch.sendCmd({ act: "move", fc: t.col, fr: t.row, c, r }); this.emit(); return okc; }
+      const done = this._moveTower(t, c, r); this.pendingMove = null; this.emit(); return done;
     }
     // đánh dấu "có hành động" cho lõi AFK (xây/nâng/bán của CHÍNH mình)
     _coreActed() { if (this.hasCore("afk")) this._curWaveActed = true; }
@@ -211,6 +238,9 @@
         this.castSkill(cmd.key, cmd.x, cmd.y, tgt, true);   // free=true: không trừ KN/hồi chiêu của chủ-bàn
       } else if (cmd.act === "giaco") {   // Gia Cố của đồng đội -> áp lên tháp bàn chung
         const t = this.towerAt(cmd.c, cmd.r); if (t) { t.reinforce = (t.reinforce || 0) + (cmd.value || 0) / 100; this.recomputeAuras(); this.emit(); }
+      } else if (cmd.act === "move") {   // đồng đội dời tháp trên bàn chung
+        const t = this.towerAt(cmd.fc, cmd.fr) || this.traps.find((x) => x.col === cmd.fc && x.row === cmd.fr);
+        if (t && this._moveTower(t, cmd.c, cmd.r)) this.emit();
       }
     }
     /* ---- 2v2: ảnh chụp ĐẦY ĐỦ bàn để đồng đội VẼ LẠI (chủ-bàn -> mirror) ---- */
@@ -706,6 +736,12 @@
         ctx.strokeStyle = ok ? "rgba(255,255,255,.4)" : "rgba(255,120,120,.4)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc((c + .5) * TILE, (r + .5) * TILE, rng, 0, 7); ctx.stroke(); ctx.setLineDash([]);
       }
       if (this.pendingSkill && this.hover) { const s = CFG.SKILLS[this.pendingSkill]; if (s.aim === "area") { ctx.fillStyle = "rgba(255,220,120,.20)"; ctx.beginPath(); ctx.arc(this.hover.x, this.hover.y, s.radius * TILE, 0, 7); ctx.fill(); } }
+      if (this.pendingMove && this.hover) {   // Back King Xây: xem trước ô đích dời tháp
+        const { c, r } = this.hover, ok = this.canMoveTo(this.pendingMove, c, r);
+        ctx.fillStyle = ok ? "rgba(120,255,120,.28)" : "rgba(255,60,60,.30)"; ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
+        const mt = this.pendingMove, rng = (mt.trap ? mt.def.radius : CFG.statAt(mt.def, mt.level).range) * TILE;
+        ctx.strokeStyle = ok ? "rgba(255,255,255,.4)" : "rgba(255,120,120,.4)"; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc((c + .5) * TILE, (r + .5) * TILE, rng, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      }
     }
     overlay(ctx, title, color, sub) { ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fillRect(0, 0, CFG.CANVAS_W, CFG.CANVAS_H); ctx.textAlign = "center"; ctx.fillStyle = color; ctx.font = "bold 44px system-ui"; ctx.fillText(title, CFG.CANVAS_W / 2, CFG.CANVAS_H / 2 - 6); if (sub) { ctx.fillStyle = "#ddd"; ctx.font = "16px system-ui"; ctx.fillText(sub, CFG.CANVAS_W / 2, CFG.CANVAS_H / 2 + 26); } }
 
@@ -715,8 +751,8 @@
       const toXY = (ev) => { const b = cv.getBoundingClientRect(); const x = (ev.clientX - b.left) * (cv.width / b.width) - CFG.MARGIN, y = (ev.clientY - b.top) * (cv.height / b.height) - CFG.MARGIN; return { x, y, c: Math.floor(x / TILE), r: Math.floor(y / TILE) }; };
       cv.addEventListener("mousemove", (ev) => { this.hover = toXY(ev); });
       cv.addEventListener("mouseleave", () => { this.hover = null; });
-      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
-      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.emit(); });
+      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } if (this.pendingMove) { this.applyMoveTower(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
+      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.pendingMove = null; this.emit(); });
     }
     handleSkillClick(p) {
       const s = CFG.SKILLS[this.pendingSkill];

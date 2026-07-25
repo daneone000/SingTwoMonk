@@ -293,10 +293,11 @@
       if (!t) { const nx = g.nextWavePreview(); tp.innerHTML = `<div class="tp-empty">🏰 Chọn tháp/bẫy trên bản đồ để xem chi tiết &amp; nâng cấp/bán. &nbsp;•&nbsp; Đợt sau: <b>${nx.name}</b> ×${nx.count}${nx.boss ? " (BOSS)" : nx.fly ? " (bay)" : ""}</div>`; return; }
       tp.innerHTML = `<div class="tp-icon" style="background:${t.def.color}">${t.def.glyph}</div>` +
         `<div class="tp-main"><div class="tp-title">${t.def.name}: ${targetText(t.def)} <span class="lv" id="tpLv"></span></div><div class="tp-stats" id="tpStats"></div><div class="tp-prev" id="tpPrev"></div></div>` +
-        `<div class="tp-actions"><button class="tp-up" id="tpUp"></button><button class="tp-sell" id="tpSell"></button></div>`;
+        `<div class="tp-actions"><button class="tp-up" id="tpUp"></button><button class="tp-sell" id="tpSell"></button><button class="tp-move hidden" id="tpMove">↔ Dời</button></div>`;
       // pointerdown: kích hoạt NGAY lúc nhấn (tránh emit làm nút disabled giữa mousedown→mouseup nuốt click, hay gặp ở PvP/Edge)
       $("tpUp").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.upgradeSelected(); };
       $("tpSell").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.sellSelected(); };
+      $("tpMove").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.startMoveTower(game.selected); };   // Back King Xây
     }
     if (!t) return;
     // cập nhật phần ĐỘNG tại chỗ (đổi text/disabled, không thay nút)
@@ -311,7 +312,8 @@
     else { const uc = g.buyCost(t.upgradeCost), afford = g.gold >= uc; bu.textContent = `Nâng Cấp −${uc}💰`; bu.disabled = false; bu.className = "tp-up" + (afford ? "" : " poor"); }
     const sb = $("tpSell");
     if (!t.trap && t.action === "sell") { sb.textContent = "Đang tháo dỡ…"; sb.disabled = true; }
-    else { sb.textContent = `Bán +${t.sellValue}💰`; sb.disabled = false; }
+    else { sb.textContent = `Bán +${g.gainGold(t.sellValue)}💰`; sb.disabled = false; }
+    { const mv = $("tpMove"); if (mv) { mv.classList.toggle("hidden", !g.hasCore("backKingXay")); mv.classList.toggle("on", g.pendingMove === t); mv.textContent = g.pendingMove === t ? "↔ Chọn ô…" : "↔ Dời"; } }
   }
 
   /* ---------- HUD ---------- */
@@ -347,7 +349,7 @@
     if (!modal.classList.contains("hidden")) renderTree();
     { const can = hasLearnable(g); $("btnTree").classList.toggle("can-learn", can); $("btnTree2").classList.toggle("can-learn", can); }
     $("btnPause").textContent = g.paused ? "▶ Tiếp" : "⏸ Dừng"; $("btnSpeed").textContent = "⏩ x" + g.speed;
-    canvas.style.cursor = g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: chờ Gia Cố / chờ chọn mục tiêu phép / khi xây
+    canvas.style.cursor = g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
     renderTowerPanel(g);
     if (g.wave !== prevWave && g.wave > 0) { log("Đợt " + g.wave + " bắt đầu", "ev"); prevWave = g.wave; }
     if (g.lives < prevLives) { log("Quái lọt cửa Tử! Còn " + g.lives + " mạng", "warn"); prevLives = g.lives; }
@@ -369,7 +371,7 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); game.buildType = null; game.selected = null; game.pendingSkill = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.emit(); return; }
     if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }

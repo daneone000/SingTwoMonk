@@ -249,7 +249,7 @@
       tiers: { kimcuong: 1 }, desc: () => "1 lần/ván: xây đè lên 1 tháp để dung hợp — giữ đặc tính tháp gốc, cộng chỉ số & hiệu ứng tháp kia." },
     giaCo: { id: "giaCo", name: "Gia Cố", icon: "🔧", group: "Tháp", impl: true, aim: "tower",
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% chỉ số (ST/tốc/tầm/loang) cho MỘT tháp được chọn (cộng theo cấp).` },
-    backKingXay: { id: "backKingXay", name: "Back King Xây", icon: "🧲", group: "Tháp", impl: false,
+    backKingXay: { id: "backKingXay", name: "Back King Xây", icon: "🧲", group: "Tháp", impl: true,
       tiers: { vang: 1 }, desc: () => "Có thể di chuyển tháp đã xây sang vị trí khác." },
     nguyenBan: { id: "nguyenBan", name: "Nguyên Bản", icon: "⭐", group: "Tháp", impl: true,
       tiers: { bac: 100 }, desc: (v) => `Mọi tháp CHƯA nâng cấp (cấp 1) được tăng ${v}% chỉ số & hiệu ứng.` },

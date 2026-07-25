@@ -393,3 +393,8 @@ body.netplay #btnPause { display: none; }
 /* Vua Phép Thuật — nút đổi phép & node nguồn đang chọn */
 .tree-btn.on { background: linear-gradient(180deg, #6b4f9e, #3d2c66); border-color: #c9b8ff; color: #efe8ff; }
 .tnode.swapfrom { box-shadow: 0 0 0 3px #c9b8ff, 0 0 16px rgba(201,184,255,.85); transform: translate(-50%, -50%) scale(1.14); z-index: 4; }
+
+/* Back King Xây — nút dời tháp */
+.tp-move { background: #2e4a6a; color: #cfe0ff; }
+.tp-move.on { background: #c9862b; color: #1a120a; }
+.tp-move.hidden { display: none; }
