@@ -8,6 +8,8 @@
   const game = new STM.Game(canvas);
   // con trỏ "vòng ngắm" khi đang chờ chọn mục tiêu cho phép
   const AIM_CURSOR = "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='34'%20height='34'%3E%3Ccircle%20cx='17'%20cy='17'%20r='12'%20fill='none'%20stroke='%23ffd24a'%20stroke-width='2.5'/%3E%3Ccircle%20cx='17'%20cy='17'%20r='2.5'%20fill='%23ff5a3c'/%3E%3Cg%20stroke='%23ffd24a'%20stroke-width='2.5'%3E%3Cline%20x1='17'%20y1='1'%20x2='17'%20y2='8'/%3E%3Cline%20x1='17'%20y1='26'%20x2='17'%20y2='33'/%3E%3Cline%20x1='1'%20y1='17'%20x2='8'%20y2='17'/%3E%3Cline%20x1='26'%20y1='17'%20x2='33'%20y2='17'/%3E%3C/g%3E%3C/svg%3E\") 17 17, crosshair";
+  // con trỏ Gia Cố: vòng đồng + dấu cộng (nhận biết đang chờ chọn tháp để gia cố)
+  const CORE_CURSOR = "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='34'%20height='34'%3E%3Ccircle%20cx='17'%20cy='17'%20r='12'%20fill='rgba(232,161,58,0.18)'%20stroke='%23e8a13a'%20stroke-width='3'/%3E%3Cg%20stroke='%23ffcf6a'%20stroke-width='3'%20stroke-linecap='round'%3E%3Cline%20x1='17'%20y1='10'%20x2='17'%20y2='24'/%3E%3Cline%20x1='10'%20y1='17'%20x2='24'%20y2='17'/%3E%3C/g%3E%3C/svg%3E\") 17 17, pointer";
   const PLAYER = "kvandiep";
   $("pName").textContent = PLAYER;
 
@@ -327,7 +329,7 @@
     if (!modal.classList.contains("hidden")) renderTree();
     { const can = hasLearnable(g); $("btnTree").classList.toggle("can-learn", can); $("btnTree2").classList.toggle("can-learn", can); }
     $("btnPause").textContent = g.paused ? "▶ Tiếp" : "⏸ Dừng"; $("btnSpeed").textContent = "⏩ x" + g.speed;
-    canvas.style.cursor = g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi khi chờ chọn mục tiêu phép / khi xây
+    canvas.style.cursor = g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: chờ Gia Cố / chờ chọn mục tiêu phép / khi xây
     renderTowerPanel(g);
     if (g.wave !== prevWave && g.wave > 0) { log("Đợt " + g.wave + " bắt đầu", "ev"); prevWave = g.wave; }
     if (g.lives < prevLives) { log("Quái lọt cửa Tử! Còn " + g.lives + " mạng", "warn"); prevLives = g.lives; }

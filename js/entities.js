@@ -212,6 +212,7 @@
       return best;
     }
     update(dt, game) {
+      this.glowT = (this.glowT || 0) + dt;   // nhịp sáng cho hiệu ứng Gia Cố (luôn chạy)
       if (this.buildTimer > 0 || this.action === "sell") return;  // đang xây/nâng/tháo -> chưa bắn
       if (this.support) return;   // tháp năng lượng không bắn
       if (this.cooldown > 0) this.cooldown -= dt;
@@ -227,8 +228,10 @@
       if (this.support && !working) { ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = this.def.color2 || this.def.color; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.fill(); ctx.restore(); }
       stoneBase(ctx, x, y);
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
+      if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
       this.drawTurret(ctx, x, y);
       levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
+      if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
       ctx.restore();
       if (working) {  // vòng tiến độ + đếm giây (đỏ=bán, lục=nâng, vàng=xây)
         const p = 1 - this.buildTimer / this.buildDur, col = this.action === "sell" ? "#ff8a5a" : this.action === "up" ? "#8bff9c" : "#ffe082";
@@ -237,6 +240,17 @@
         ctx.fillStyle = col; ctx.font = "bold 15px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(Math.ceil(this.buildTimer), x, y); ctx.restore();
       }
       if (sel) { ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    }
+    // Vòng đồng gia cố (quay + nhấp nháy) quanh chân tháp — dấu hiệu tháp đã Gia Cố
+    drawReinforce(ctx, x, y) {
+      const t = this.glowT || 0, p = 0.5 + 0.5 * Math.sin(t * 3), R = TILE * .44;
+      ctx.save();
+      ctx.globalAlpha = .5 + .4 * p; ctx.strokeStyle = "#e8a13a"; ctx.lineWidth = 2.4;
+      ctx.setLineDash([5, 3.5]); ctx.lineDashOffset = -t * 10;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 1; ctx.fillStyle = "#ffcf6a";
+      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + t * .5; ctx.beginPath(); ctx.arc(x + Math.cos(a) * R, y + Math.sin(a) * R, 1.7, 0, 7); ctx.fill(); }
+      ctx.restore();
     }
     drawTurret(ctx, x, y) {
       const d = this.def, col = d.color, a = this.angle, top = y - TILE * .1;
@@ -395,6 +409,12 @@
     ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
     ctx.strokeStyle = "#b9862b"; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = "#ffd24a"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(lv, x, y + .5);
+  }
+  // huy hiệu Gia Cố: "+N%" nền đồng ở góc trên-trái tháp
+  function reinforceBadge(ctx, x, y, pct) {
+    ctx.fillStyle = "rgba(34,20,6,.85)"; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#e8a13a"; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = "#ffcf6a"; ctx.font = "bold 8px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("+" + pct + "%", x, y + .5);
   }
 
   STM.Enemy = Enemy; STM.Tower = Tower; STM.Trap = Trap;
