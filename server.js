@@ -76,7 +76,7 @@ const room = {
   started: false, over: false,
   mode: "ffa",      // "ffa" (cá nhân, tối đa 5) | "2v2" (2 đội × 2, chung bàn mỗi đội)
   wave: 0, waveTimer: 0, tickTimer: null,
-  hostSid: null, map: null,
+  hostSid: null, map: null, coreTiers: null,   // cấp bậc 3 ô lõi (CHUNG mọi người chơi trong ván)
   VS_START_DELAY: 30, WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, MAX: 5,
   GRACE: 60,        // giây giữ chỗ cho người rớt mạng/F5 trước khi coi là thất thủ
   deathOrder: [],   // pid (ffa) hoặc team (2v2) theo thứ tự gục (sớm nhất trước)
@@ -123,10 +123,11 @@ function startMatch(mapId, mode) {
   room.mode = mode === "2v2" ? "2v2" : "ffa";
   room.started = true; room.over = false; room.wave = 0; room.deathOrder = [];
   room.map = mapId || room.map || null;          // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
+  { const T = ["bac", "vang", "kimcuong"]; room.coreTiers = [0, 0, 0].map(() => T[(Math.random() * 3) | 0]); }   // cấp bậc lõi ngẫu nhiên, CHUNG cho mọi người
   for (const s of slots.values()) { s.alive = true; s.pvpQueue = []; if (room.mode !== "2v2") { s.team = 0; s.authority = false; } }
   if (room.mode === "2v2") assignAuthorities();   // giữ đội đã chọn ở phòng chờ, chỉ định chủ-bàn
   for (const s of slots.values()) send(s, {
-    t: "start", mode: room.mode, players: joinedList(), map: room.map,
+    t: "start", mode: room.mode, players: joinedList(), map: room.map, coreTiers: room.coreTiers,
     team: s.team, authority: !!s.authority,
     teammate: room.mode === "2v2" ? (function () { const m = teammateOf(s); return m ? { pid: m.pid, name: m.name, authority: !!m.authority } : null; })() : null,
   });
@@ -212,7 +213,7 @@ function handleMsg(c, msg) {
         send(slot, { t: "welcome", pid: slot.pid, host: slot.sid === room.hostSid, sid: slot.sid });
         if (room.started) { const mate = teammateOf(slot); send(slot, { t: "resume", pid: slot.pid, host: slot.sid === room.hostSid,
           wave: room.wave, waveTimer: Math.max(0, room.waveTimer), alive: aliveSlots().length,
-          players: joinedList(), map: room.map, over: room.over,
+          players: joinedList(), map: room.map, over: room.over, coreTiers: room.coreTiers,
           mode: room.mode, team: slot.team, authority: !!slot.authority,
           pvp: slot.pvpQueue || [],   // phép PvP đối thủ giáng vào lúc offline -> client phát lại khi tua bù
           teammate: room.mode === "2v2" && mate ? { pid: mate.pid, name: mate.name, authority: !!mate.authority } : null }); }
@@ -249,7 +250,7 @@ function handleMsg(c, msg) {
     case "board": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "board", s: o.s }); break;        // chủ-bàn -> đồng đội (xem bàn chung)
     case "cmd": if (c.slot) send(authorityOf(c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;        // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "reward": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "reward", gold: o.gold, sp: o.sp }); break; // chủ-bàn chia vàng/KN cho đồng đội
-    case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp }); break; // khoe phép đã học cho đồng đội (chỉ xem)
+    case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp, cores: o.cores }); break; // khoe phép + lõi đã chọn cho đồng đội
     case "teamspell": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamspell", key: o.key, data: o.data }); } break;   // phép PvP -> bàn đội địch (chủ-bàn offline -> đệm)
     case "teamvacuum": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamvacuum", data: o.data }); } break;               // Bẫy Hút -> bàn đội địch (chủ-bàn offline -> đệm)
     case "dead": if (c.slot) { if (room.mode === "2v2") { if (c.slot.authority) teamDead(c.slot.team); } else playerDead(c.slot); } break;

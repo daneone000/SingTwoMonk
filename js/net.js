@@ -49,6 +49,7 @@
       this.mode = "ffa"; this.myTeam = 0; this.isAuthority = false;
       this.teammate = null;                    // {pid,name,authority}
       this.teammateSkills = { learned: [], sp: 0 };   // để hiển thị phép đồng đội (chỉ xem)
+      this.mateCores = [];                             // lõi đồng đội (2v2: áp lõi bàn chung như Nguyên Bản)
       this._boardT = 0;
       // gắn vào game
       game.reset("endless"); game.versus = true; game.netMatch = this; game.name = myName;
@@ -62,7 +63,9 @@
     sendCmd(c) { this.client.send({ t: "cmd", c }); }               // đồng đội -> chủ-bàn: xây/nâng/bán/phép bàn
     sendTeamSpell(key, data) { this.client.send({ t: "teamspell", key, data }); }   // phép PvP -> bàn đội địch
     sendTeamVacuum(data) { this.client.send({ t: "teamvacuum", data }); }
-    sendSkills() { this.client.send({ t: "skills", learned: [...this.game.learned], sp: this.game.sp }); }
+    sendSkills() { this.client.send({ t: "skills", learned: [...this.game.learned], sp: this.game.sp, cores: this.game.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value })) }); }
+    sendCores() { if (this.mode === "2v2") this.sendSkills(); }   // đẩy ngay lõi vừa chọn cho đồng đội (2v2)
+    mateCoreValue(id) { const c = (this.mateCores || []).find((x) => x.id === id); return c ? c.value : 0; }
     setup2v2(o) {   // gán vai trò từ gói start/resume
       this.mode = "2v2"; this.myTeam = o.team; this.isAuthority = !!o.authority; this.teammate = o.teammate || null;
       this.game.pid = this.myPid;
@@ -90,6 +93,7 @@
               g.catchUp({ wave: o.wave, waveTimer: o.waveTimer, sWaveTimer: (sv && sv.sWaveTimer) || 0 }, o.pvp);   // chủ-bàn tua tiếp từ trạng thái đã lưu (quái chạy tiếp + phép PvP đã đệm)
               if (g._earn.gold || g._earn.sp) this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp });   // chia vàng/KN bù cho đồng đội (cộng bằng nhau)
             } else { g.reset("endless"); g.started = o.wave > 0; g.versus = true; g.netMatch = this; g.name = this.myName; }
+            if (o.coreTiers && o.coreTiers.length === 3) g.coreTiers = o.coreTiers;
             g.wave = o.wave;
             this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; this._sentDead = false;
             this._begin2v2();
@@ -99,6 +103,7 @@
           const saved = STM.loadBoard();
           if (saved) g.restore(saved); else { g.reset("endless"); }
           g.versus = true; g.netMatch = this; g.name = this.myName;
+          if (o.coreTiers && o.coreTiers.length === 3) g.coreTiers = o.coreTiers;   // cấp bậc lõi CHUNG do server phát
           g.catchUp({ wave: o.wave, waveTimer: o.waveTimer, sWaveTimer: (saved && saved.sWaveTimer) || 0 }, o.pvp);   // tua tiếp từ trạng thái đã lưu -> đúng trạng thái THỰC (quái chạy tiếp, có thể lọt)
           g.wave = o.wave;
           this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; this._sentDead = false;
@@ -117,6 +122,7 @@
           // bản đồ chủ phòng chọn -> dựng lại sân sạch cho mọi máy trước khi vào trận
           if (o.map) STM.CFG.setMap(o.map);
           g.reset("endless"); g.versus = true; g.netMatch = this; g.name = this.myName;
+          if (o.coreTiers && o.coreTiers.length === 3) g.coreTiers = o.coreTiers;   // cấp bậc lõi CHUNG do server phát
           for (const p of o.players) this.names[p.pid] = p.name;
           STM.saveSession({ sid: this.sid, host: (typeof location !== "undefined" ? location.host : ""), name: this.myName, active: true });
           if (o.mode === "2v2") { this.setup2v2(o); STM.saveBoard(g.serialize()); this._begin2v2(); if (this.onStart) this.onStart(this); break; }
@@ -127,8 +133,8 @@
         /* ---- 2v2 ---- */
         case "board": g.applyBoard(o.s); break;                                    // chủ-bàn -> đồng đội: vẽ lại bàn chung
         case "cmd": if (this.isAuthority) { g.applyCmd(o.c); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh
-        case "reward": g.gold += o.gold || 0; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; // chủ-bàn chia vàng/KN (cộng bằng nhau)
-        case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; if (this.onChange) this.onChange(); break;
+        case "reward": { const got = g.gainGold(o.gold || 0); g.gold += got; g._curWaveGold += got; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; } // chủ-bàn chia vàng/KN (người nhận tự áp Tay Buôn; tính cả cho AFK)
+        case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; this.mateCores = o.cores || []; if (this.isAuthority) g.recomputeAuras(); if (this.onChange) this.onChange(); break;
         case "teamspell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình
         case "teamvacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;
         case "wave": this.wave = o.n; g.receiveWave(o.n); if (this.onChange) this.onChange(); break;

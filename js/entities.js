@@ -190,18 +190,21 @@
       this.buffMult = 1; this.buffTime = 0;       // phép Tăng Lực
       this.auraDmg = 1; this.auraRate = 1;         // buff từ Tháp Năng Lượng
       this.buildTimer = 0; this.buildDur = 0; this.action = null;   // xây/nâng/bán cần thời gian
+      this.reinforce = 0;   // Gia Cố: +% chỉ số (cộng dồn theo cấp)
+      this.origMul = 1;     // Nguyên Bản: ×N khi tháp đã max cấp
     }
     get ready() { return this.buildTimer <= 0; }
+    coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
     startWork(action, t) { this.action = action; this.buildTimer = t; this.buildDur = t; }
     get stats() { return CFG.statAt(this.def, this.level); }
-    get range() { return this.stats.range * TILE; }
+    get range() { return this.stats.range * TILE * this.coreMul(); }
     get maxLevel() { return this.level >= this.def.lv.length; }
     get upgradeCost() { return this.maxLevel ? 0 : CFG.upgradeCost(this.def, this.level); }
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }
     upgrade() { if (this.maxLevel) return false; this.totalSpent += this.upgradeCost; this.level++; return true; }
     buff(m, d) { this.buffMult = m; this.buffTime = d; }
-    effDmg() { return this.stats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1); }
-    effRate() { return this.stats.rate * this.auraRate; }
+    effDmg() { return this.stats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul(); }
+    effRate() { return this.stats.rate * this.auraRate / this.coreMul(); }   // chia -> bắn nhanh hơn khi có lõi
     canHit(e) { const t = this.def.target; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
     findTarget(en) {
       let best = null, br = 1e18; const rng = this.range;
@@ -338,15 +341,17 @@
   class Projectile {
     constructor(tower, target) {
       this.def = tower.def; this.st = tower.stats; this.dmg = tower.effDmg();
-      this.tgt = tower.def.target; this.effect = tower.def.effect; this.splash = this.st.splash || 0;
+      this.tgt = tower.def.target; this.effect = tower.def.effect;
+      this.splash = (this.st.splash || 0) * (1 + (tower.reinforce || 0)) * (tower.origMul || 1);   // Gia Cố/Nguyên Bản: nới bán kính loang
+      this.effMul = tower.origMul || 1;   // Nguyên Bản: nhân đôi hiệu ứng (làm chậm/độc)
       this.x = tower.x; this.y = tower.y; this.target = target; this.tx = target.x; this.ty = target.y;
       this.speed = tower.def.projSpeed; this.dead = false;
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e) {
       e.applyDamage(this.dmg);
-      if (this.effect === "slow") e.slow(1 - this.st.slowPct, 1.2);
-      else if (this.effect === "poison") e.addPoison(this.st.poisonPct / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, trong 5s
+      if (this.effect === "slow") e.slow(1 - Math.min(0.95, this.st.slowPct * this.effMul), 1.2);
+      else if (this.effect === "poison") e.addPoison(this.st.poisonPct * this.effMul / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, trong 5s
     }
     update(dt, game) {
       if (this.target && !this.target.dead && !this.target.leaked) { this.tx = this.target.x; this.ty = this.target.y; }

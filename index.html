@@ -80,6 +80,10 @@
           <div id="mateGrid" class="mate-grid"></div>
         </div>
 
+        <!-- LÕI NÂNG CẤP (giống Augment TFT) — 3 ô -->
+        <div class="section-banner">Lõi nâng cấp</div>
+        <div id="coreSlots" class="core-slots"></div>
+
         <div class="cfg-row">
           <button id="btnCfg" class="cfg-btn">Cấu hình</button>
           <button id="btnRules" class="cfg-btn">Luật Chơi</button>
@@ -126,7 +130,7 @@
   <!-- MODAL CÂY KỸ NĂNG -->
   <div id="treeModal" class="tree-modal hidden">
     <div class="tree-box skilltree">
-      <div class="tree-head"><span>◈ Điểm kỹ năng: <b id="treeSP">0</b></span><span class="tree-count">Đã học <b id="treeCount">0</b>/6 phép</span></div>
+      <div class="tree-head"><span>◈ Điểm kỹ năng: <b id="treeSP">0</b></span><span class="tree-count">Đã học <b id="treeCount">0</b>/<b id="treeMax">6</b> phép</span></div>
       <div class="tree-canvas">
         <svg id="treeEdges" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         <div id="treeNodes"></div>
@@ -197,6 +201,18 @@
 
   <!-- BĂNG BÁO KẾT NỐI LẠI (đối kháng LAN) -->
   <div id="netReconnect" class="net-reconnect hidden"><span>🔌 Mất kết nối — đang thử vào lại trận…</span></div>
+
+  <!-- OVERLAY CHỌN LÕI (3 thẻ cùng cấp bậc) -->
+  <div id="coreModal" class="tree-modal hidden">
+    <div class="core-box ornate">
+      <div class="core-modal-head" id="coreHead">Chọn 1 lõi nâng cấp</div>
+      <div id="coreCards" class="core-cards"></div>
+      <div class="core-foot"><button id="coreCancel" class="tree-btn">Để sau</button></div>
+    </div>
+  </div>
+
+  <!-- BĂNG GỢI Ý: chọn mục tiêu cho lõi (vd Gia Cố -> chọn tháp) -->
+  <div id="corePending" class="core-pending hidden"><span id="corePendingTx"></span></div>
 
   <!-- MODAL CẤU HÌNH PHÍM TẮT -->
   <div id="keysModal" class="tree-modal hidden">

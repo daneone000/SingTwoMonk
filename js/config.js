@@ -136,7 +136,7 @@
   // Tháp/bẫy: gán theo từng loại. Phép: gán theo 6 Ô (học tối đa 6 phép), phép học được
   // xếp vào ô theo thứ tự -> phím theo Ô, không theo tên phép. Mặc định 6 ô: Q W E A S D.
   const DEFAULT_KEYS = { ten: "1", lua: "2", bang: "3", set: "4", doc: "5", nangluong: "6", dinh: "7", hut: "8" };
-  const DEFAULT_SLOT_KEYS = ["q", "w", "e", "a", "s", "d"];
+  const DEFAULT_SLOT_KEYS = ["q", "w", "e", "a", "s", "d", "z", "x", "c"];   // 6 ô gốc + tối đa 3 ô mở thêm bằng lõi Tham Lam
   const MAX_LEVEL = 5;
   function upgradeCost(def, level) { return (def.up && def.up[level - 1]) || 0; }  // giá lên cấp (level -> level+1)
   function statAt(def, level) { return def.lv[Math.min(level, def.lv.length) - 1]; } // thông số cấp `level`
@@ -221,8 +221,60 @@
   for (const k in SKILLS) SKILLS[k].parents = [];
   for (const [f, t, , bidir] of SKILL_EDGES) { SKILLS[t].parents.push(f); if (bidir) SKILLS[f].parents.push(t); }
 
+  /* ===================== LÕI NÂNG CẤP (giống Augment TFT) =====================
+   * Mỗi ván: 3 ô lõi. Ô1 miễn phí từ đầu; ô2/ô3 mở bằng 100/150 Điểm KN.
+   * Cấp bậc (bạc<vàng<kim cương) NGẪU NHIÊN mỗi ván nhưng GIỐNG nhau giữa các
+   * người chơi ở CÙNG ô (đối kháng: server phát; solo: random cục bộ).
+   * Khi mở 1 ô: hiện 3 lõi ngẫu nhiên CÙNG cấp bậc của ô đó để chọn (riêng mỗi người).
+   * `tiers`: các cấp bậc lõi này có + GIÁ TRỊ ở cấp đó. `impl`: đã làm ở Phase 1.
+   * `aim`: cần chọn mục tiêu sau khi lấy ("tower"...). `group`: nhóm hiển thị.
+   * `note` chỉ để dev, KHÔNG hiện cho người chơi. */
+  const CORE_TIERS = ["bac", "vang", "kimcuong"];
+  const CORE_TIER_INFO = {
+    bac: { name: "Bạc", color: "#c3ccd6", glow: "rgba(195,204,214,.6)" },
+    vang: { name: "Vàng", color: "#ffcf4a", glow: "rgba(255,207,74,.6)" },
+    kimcuong: { name: "Kim Cương", color: "#79e3ff", glow: "rgba(121,227,255,.65)" },
+  };
+  const CORE_UNLOCK_SP = [0, 100, 150];   // Điểm KN để mở ô 1/2/3
+  const CORES = {
+    // --- Kinh tế ---
+    blackFriday: { id: "blackFriday", name: "Black Friday", icon: "🏷", group: "Kinh tế", impl: true,
+      tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Giá xây/nâng tháp & bẫy rẻ hơn ${v}%.` },
+    afk: { id: "afk", name: "AFK", icon: "💤", group: "Kinh tế", impl: true,
+      tiers: { bac: 1 }, desc: () => "Không xây/nâng/bán suốt 3 đợt liên tiếp → nhận gấp đôi tổng vàng của 3 đợt đó." },
+    tayBuon: { id: "tayBuon", name: "Tay Buôn", icon: "💰", group: "Kinh tế", impl: true,
+      tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% vàng nhận được từ mọi nguồn.` },
+    // --- Tháp ---
+    dungHop: { id: "dungHop", name: "Dung Hợp", icon: "⚗", group: "Tháp", impl: false,
+      tiers: { kimcuong: 1 }, desc: () => "1 lần/ván: xây đè lên 1 tháp để dung hợp — giữ đặc tính tháp gốc, cộng chỉ số & hiệu ứng tháp kia." },
+    giaCo: { id: "giaCo", name: "Gia Cố", icon: "🔧", group: "Tháp", impl: true, aim: "tower",
+      tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% chỉ số (ST/tốc/tầm/loang) cho MỘT tháp được chọn (cộng theo cấp).` },
+    backKingXay: { id: "backKingXay", name: "Back King Xây", icon: "🧲", group: "Tháp", impl: false,
+      tiers: { vang: 1 }, desc: () => "Có thể di chuyển tháp đã xây sang vị trí khác." },
+    nguyenBan: { id: "nguyenBan", name: "Nguyên Bản", icon: "⭐", group: "Tháp", impl: true,
+      tiers: { bac: 100 }, desc: (v) => `Mọi tháp ĐÃ MAX cấp được tăng ${v}% chỉ số & hiệu ứng.` },
+    // --- Phép ---
+    kePhaLuat: { id: "kePhaLuat", name: "Kẻ Phá Luật", icon: "📜", group: "Phép", impl: false,
+      tiers: { vang: 1 }, desc: () => "Học phép không cần theo nhánh cây phép." },
+    vuaPhep: { id: "vuaPhep", name: "Vua Phép Thuật", icon: "🎩", group: "Phép", impl: false,
+      tiers: { kimcuong: 1 }, desc: () => "Đổi lại phép đã học thành phép khác (hồi chiêu vẫn chạy theo thời gian thực)." },
+    nhanhNhen: { id: "nhanhNhen", name: "Nhanh Nhẹn", icon: "⚡", group: "Phép", impl: true,
+      tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Giảm ${v}% thời gian hồi chiêu của mọi phép.` },
+    thamLam: { id: "thamLam", name: "Tham Lam", icon: "🎰", group: "Phép", impl: true,
+      tiers: { bac: 1, vang: 2, kimcuong: 3 }, desc: (v) => `Mở khoá thêm ${v} ô phép (học được nhiều phép hơn).` },
+    // --- Bản đồ ---
+    trumBanDo: { id: "trumBanDo", name: "Trùm Bản Đồ", icon: "🗺", group: "Bản đồ", impl: false,
+      tiers: { vang: 1 }, desc: () => "Dùng 10 KN nâng cao ô đất đã xây tháp để chặn cả quái BAY." },
+  };
+  const CORE_ORDER = ["blackFriday", "afk", "tayBuon", "giaCo", "nguyenBan", "nhanhNhen", "thamLam", "dungHop", "backKingXay", "kePhaLuat", "vuaPhep", "trumBanDo"];
+  // các lõi ĐÃ LÀM có mặt ở 1 cấp bậc
+  function coresAtTier(tier) { return CORE_ORDER.filter((id) => CORES[id].impl && CORES[id].tiers[tier] != null); }
+  const coreVal = (id, tier) => { const c = CORES[id]; return c && c.tiers[tier] != null ? c.tiers[tier] : 0; };
+  // random không phụ thuộc (offer 3 thẻ per-player); tiers do server/solo phát riêng
+
   STM.CFG = {
     TILE, COLS, ROWS, CELL, MARGIN, buildMap, MAPS, curMap, setMap, getMapId,
+    CORES, CORE_ORDER, CORE_TIERS, CORE_TIER_INFO, CORE_UNLOCK_SP, coresAtTier, coreVal, MAX_CORES: 3,
     GRID_W: TILE * COLS, GRID_H: TILE * ROWS,
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,

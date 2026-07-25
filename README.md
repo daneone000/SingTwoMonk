@@ -90,6 +90,29 @@ Vào game hiện **menu chính** để chọn bản đồ + chế độ (mở l�
   xếp vào ô theo thứ tự) · `Space` dừng · `Enter` vào đợt · `F2` cây phép · `Esc`/chuột phải
   hủy. **Đổi phím tùy ý** ở nút **Cấu hình** (gán theo từng tháp và theo từng ô phép; lưu lại máy).
 
+### 💠 Lõi nâng cấp (giống Augment của Đấu Trường Chân Lý)
+
+Mỗi ván bạn chọn tối đa **3 lõi** (khu **Lõi nâng cấp** cột phải). **Ô 1 miễn phí** từ đầu
+ván; **ô 2/ô 3** cần **100 / 150 Điểm KN** để mở. Mỗi lõi có 3 **cấp bậc** sức mạnh:
+🥈 **Bạc** < 🥇 **Vàng** < 💎 **Kim Cương**. Cấp bậc từng ô **ngẫu nhiên mỗi ván** nhưng
+**giống nhau giữa các người chơi** (đối kháng: máy chủ phát chung). Khi mở 1 ô, hiện **3 lõi
+ngẫu nhiên cùng cấp bậc** của ô đó để chọn (riêng mỗi người). Áp dụng cho **mọi chế độ**;
+nút mở **thủ công**, **không dừng** trận.
+
+Các lõi hiện có (Phase 1):
+
+| Nhóm | Lõi | Hiệu ứng (Bạc/Vàng/Kim Cương) |
+|------|-----|-------------------------------|
+| Kinh tế | 🏷 **Black Friday** | Giá xây/nâng rẻ hơn **5/10/15%** |
+| Kinh tế | 💤 **AFK** (Bạc) | Không xây/nâng/bán **3 đợt liền** → nhận **gấp đôi** vàng của 3 đợt đó |
+| Kinh tế | 💰 **Tay Buôn** | **+5/10/15%** vàng từ mọi nguồn |
+| Tháp | 🔧 **Gia Cố** | **+5/10/15%** chỉ số (ST/tốc/tầm/loang) một tháp chọn (cộng theo cấp) |
+| Tháp | ⭐ **Nguyên Bản** (Bạc) | Tháp **đã max cấp** được **+100%** chỉ số & hiệu ứng |
+| Phép | ⚡ **Nhanh Nhẹn** | Giảm **5/10/15%** hồi chiêu mọi phép |
+| Phép | 🎰 **Tham Lam** | Mở thêm **1/2/3 ô phép** (học được nhiều phép hơn) |
+
+*(Sắp có: ⚗ Dung Hợp tháp, 🧲 Di chuyển tháp, 📜 Kẻ Phá Luật, 🎩 Vua Phép Thuật, 🗺 Trùm Bản Đồ.)*
+
 ### Kết nối lại khi đối kháng LAN (F5 / rớt mạng)
 
 Mỗi người chơi có **phiên riêng**: lỡ nhấn **F5**, đóng nhầm tab, hay **rớt mạng** giữa

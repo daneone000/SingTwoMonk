@@ -24,11 +24,83 @@
       // ----- đối kháng -----
       this.versus = false; this.ai = false; this.name = "Người Chơi"; this.pid = 0; this.match = null; this.netMatch = null;
       this.enemyHaste = 1; this.hasteTime = 0; this._aiT = 0; this._earn = null;   // _earn: cộng dồn vàng/KN để chia cho đồng đội (2v2, chủ-bàn)
+      // ----- LÕI NÂNG CẤP -----
+      this.cores = [];                       // [{id,tier,value,target?}] tối đa 3
+      this.coreTiers = [0, 1, 2].map(() => CFG.CORE_TIERS[(Math.random() * CFG.CORE_TIERS.length) | 0]);   // solo random; đối kháng: net ghi đè bằng seed server
+      this.coreOffer = null;                 // {slot, items:[{id,tier,value}]} đang mở
+      this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
+      this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null;
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
     // 2v2: netMatch chế độ đội? mirror = đồng đội KHÔNG mô phỏng (chỉ xem bàn của chủ-bàn)
     get t2() { return this.netMatch && this.netMatch.mode === "2v2" ? this.netMatch : null; }
     get mirror() { const m = this.t2; return !!(m && !m.isAuthority); }
+
+    /* ------------------------- LÕI NÂNG CẤP ------------------------- */
+    hasCore(id) { return this.cores.find((c) => c.id === id) || null; }
+    coreValue(id) { const c = this.hasCore(id); return c ? c.value : 0; }
+    maxSkills() { return CFG.MAX_SKILLS + this.coreValue("thamLam"); }        // Tham Lam: thêm ô phép
+    costMul() { return 1 - this.coreValue("blackFriday") / 100; }             // Black Friday: rẻ hơn
+    goldMul() { return 1 + this.coreValue("tayBuon") / 100; }                 // Tay Buôn: +vàng mọi nguồn
+    spellCdMul() { return 1 - this.coreValue("nhanhNhen") / 100; }            // Nhanh Nhẹn: giảm hồi chiêu
+    buyCost(base) { return Math.max(0, Math.round(base * this.costMul())); }
+    gainGold(base) { return Math.max(0, Math.round(base * this.goldMul())); } // vàng đã cộng hệ số Tay Buôn
+    // số ô lõi kế tiếp có thể mở (=slot cần điền); -1 nếu đã đủ 3
+    nextCoreSlot() { return this.cores.length < CFG.MAX_CORES ? this.cores.length : -1; }
+    coreUnlockSp(slot) { return CFG.CORE_UNLOCK_SP[slot] || 0; }
+    canOpenCore(slot) { return slot === this.nextCoreSlot() && slot >= 0 && this.sp >= this.coreUnlockSp(slot) && !this.coreOffer && !this.pendingCore; }
+    // mở ô lõi -> tung 3 lõi ngẫu nhiên CÙNG cấp bậc của ô đó (riêng mỗi người), chưa trừ KN
+    openCore(slot) {
+      if (!this.canOpenCore(slot)) return null;
+      const tier = this.coreTiers[slot], pool = CFG.coresAtTier(tier).filter((id) => !this.hasCore(id));
+      const pick = []; const bag = pool.slice();
+      while (pick.length < 3 && bag.length) pick.push(bag.splice((Math.random() * bag.length) | 0, 1)[0]);
+      this.coreOffer = { slot, items: pick.map((id) => ({ id, tier, value: CFG.coreVal(id, tier) })) };
+      this.emit(); return this.coreOffer;
+    }
+    cancelCoreOffer() { this.coreOffer = null; this.emit(); }
+    // chọn 1 lõi trong 3 thẻ -> trừ KN mở ô, ghi nhận; lõi cần mục tiêu thì chờ chọn tháp
+    pickCore(id) {
+      const off = this.coreOffer; if (!off) return false;
+      const it = off.items.find((x) => x.id === id); if (!it) return false;
+      const cost = this.coreUnlockSp(off.slot); if (this.sp < cost) return false;
+      this.sp -= cost;
+      const core = { id: it.id, tier: it.tier, value: it.value, target: null };
+      this.cores.push(core); this.coreOffer = null;
+      if (this.netMatch) this.netMatch.sendCores && this.netMatch.sendCores();   // đồng bộ (2v2 dùng để áp lõi bàn chung)
+      if (CFG.CORES[id].aim === "tower") { this.pendingCore = core; this.buildType = null; this.selected = null; }   // chờ chọn tháp
+      this.recomputeAuras(); this.emit(); return true;
+    }
+    // áp lõi cần mục tiêu lên 1 tháp (Gia Cố)
+    applyCoreToTower(t) {
+      const core = this.pendingCore; if (!core || !t || t.trap) return false;
+      if (this.mirror) { this.netMatch.sendCmd({ act: "giaco", c: t.col, r: t.row, value: core.value }); }
+      else { t.reinforce = (t.reinforce || 0) + core.value / 100; }
+      core.target = { c: t.col, r: t.row }; this.pendingCore = null;
+      this.recomputeAuras(); this.emit(); return true;
+    }
+    // đánh dấu "có hành động" cho lõi AFK (xây/nâng/bán của CHÍNH mình)
+    _coreActed() { if (this.hasCore("afk")) this._curWaveActed = true; }
+    // chốt đợt vừa qua cho AFK khi sang đợt mới
+    _afkOnWave(n) {
+      if (this.hasCore("afk") && this._afkPrevWave != null) {
+        if (this._curWaveActed) { this._afkClean = 0; this._afkGold = 0; }
+        else {
+          this._afkClean++; this._afkGold += this._curWaveGold;
+          if (this._afkClean >= 3) {
+            const bonus = Math.round(this._afkGold); this.gold += bonus; if (this._earn) this._earn.gold += bonus;
+            this._afkClean = 0; this._afkGold = 0; if (this.onCoreLog) this.onCoreLog("💤 AFK: +" + bonus + " vàng (3 đợt không động tháp)");
+          }
+        }
+      }
+      this._afkPrevWave = n; this._curWaveGold = 0; this._curWaveActed = false;
+    }
+    // Nguyên Bản: tháp ĐÃ MAX cấp ×(1+val/100) chỉ số & hiệu ứng -> cập nhật origMul mỗi tháp
+    recomputeCores() {
+      let nb = this.coreValue("nguyenBan");
+      if (this.t2 && this.netMatch.mateCoreValue) nb = Math.max(nb, this.netMatch.mateCoreValue("nguyenBan"));   // 2v2 bàn chung: đồng đội có Nguyên Bản cũng áp
+      for (const t of this.towers) t.origMul = (nb && t.maxLevel && !t.support) ? (1 + nb / 100) : 1;
+    }
 
     /* ------------------- flow-field ------------------- */
     inBounds(c, r) { return c >= 0 && c < CFG.COLS && r >= 0 && r < CFG.ROWS; }
@@ -57,6 +129,7 @@
 
     /* --------------------- buff aura (Tháp Năng Lượng) --------------------- */
     recomputeAuras() {
+      this.recomputeCores();   // Nguyên Bản: cập nhật origMul theo tháp đã max cấp
       const sups = this.towers.filter((t) => t.support && t.ready);   // chỉ tháp Năng Lượng đã xây xong
       for (const t of this.towers) {
         if (t.support) continue; let dmg = 0, rate = 0;
@@ -82,30 +155,32 @@
     placeSelected(c, r) {
       const type = this.buildType; if (!type) return;
       const isTrap = !!CFG.TRAPS[type], def = isTrap ? CFG.TRAPS[type] : CFG.TOWERS[type];
-      if (this.gold < def.cost) return;
+      const cost = this.buyCost(def.cost);   // Black Friday: rẻ hơn
+      if (this.gold < cost) return;
       if (this.mirror) {   // 2v2 đồng đội: kiểm tra chỗ trên bàn chung, trừ vàng CỦA MÌNH, gửi lệnh cho chủ-bàn đặt
         if (!(isTrap ? this.isLandFree(c, r) : this.canPlaceTower(c, r))) return;
-        this.gold -= def.cost; this.netMatch.sendCmd({ act: "build", type, c, r }); this.emit(); return;
+        this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "build", type, c, r }); this.emit(); return;
       }
-      if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= def.cost; this.selected = t; }
-      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(def.cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= def.cost; this.selected = t; this.computeFlow(); this.recomputeAuras(); }
-      this.emit();
+      if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= cost; this.selected = t; }
+      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this.computeFlow(); this.recomputeAuras(); }
+      this._coreActed(); this.emit();
     }
     // Nâng cấp: trừ vàng ngay, tăng cấp, nhưng CHỜ (chưa hiệu lực) trong UP_TIME.
     upgradeSelected() {
-      const t = this.selected; if (!t || t.trap || t.maxLevel || !t.ready || this.gold < t.upgradeCost) return; const cost = t.upgradeCost;
-      if (this.mirror) { this.gold -= cost; this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row }); this.emit(); return; }
-      this.gold -= cost; t.upgrade(); t.startWork("up", CFG.workTime(cost, this.wave)); this.recomputeAuras(); this.emit();
+      const t = this.selected; if (!t || t.trap || t.maxLevel || !t.ready) return;
+      const cost = this.buyCost(t.upgradeCost); if (this.gold < cost) return;   // Black Friday: rẻ hơn
+      if (this.mirror) { this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row }); this.emit(); return; }
+      this.gold -= cost; t.upgrade(); t.startWork("up", CFG.workTime(cost, this.wave)); this._coreActed(); this.recomputeAuras(); this.emit();
     }
     // Bán/tháo dỡ: KHÔNG gỡ ngay — vào trạng thái "sell" chờ SELL_TIME rồi mới gỡ & hoàn vàng.
     sellSelected() {
       const t = this.selected; if (!t) return;
       if (this.mirror) {   // 2v2 đồng đội: hoàn ½ vào VÍ MÌNH ngay, gửi lệnh gỡ cho chủ-bàn (bàn không hoàn lại)
-        this.gold += t.sellValue; this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row }); this.selected = null; this.emit(); return;
+        this.gold += this.gainGold(t.sellValue); this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row }); this.selected = null; this.emit(); return;
       }
-      if (t.trap) { this.gold += t.sellValue; this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
+      if (t.trap) { this.gold += this.gainGold(t.sellValue); this._coreActed(); this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
       if (t.action === "sell") return;   // đang tháo rồi
-      t.startWork("sell", CFG.workTime(t.sellValue, this.wave)); this.emit();
+      t.startWork("sell", CFG.workTime(t.sellValue, this.wave)); this._coreActed(); this.emit();
     }
     /* ---- 2v2: áp LỆNH của đồng đội lên bàn chung (chủ-bàn), KHÔNG trừ vàng (người ra lệnh đã tự trừ) ---- */
     towerAt(c, r) { return this.towers.find((t) => t.col === c && t.row === r) || null; }
@@ -127,6 +202,8 @@
         if (s && s.aim === "enemy") { let hd = 1e9; for (const e of this.enemies) { const d = STM.util.dist(e.x, e.y, cmd.x, cmd.y); if (d < hd) { hd = d; tgt = e; } } }
         else if (s && s.aim === "tower") tgt = this.towerAt(Math.floor(cmd.x / TILE), Math.floor(cmd.y / TILE));
         this.castSkill(cmd.key, cmd.x, cmd.y, tgt, true);   // free=true: không trừ KN/hồi chiêu của chủ-bàn
+      } else if (cmd.act === "giaco") {   // Gia Cố của đồng đội -> áp lên tháp bàn chung
+        const t = this.towerAt(cmd.c, cmd.r); if (t) { t.reinforce = (t.reinforce || 0) + (cmd.value || 0) / 100; this.recomputeAuras(); this.emit(); }
       }
     }
     /* ---- 2v2: ảnh chụp ĐẦY ĐỦ bàn để đồng đội VẼ LẠI (chủ-bàn -> mirror) ---- */
@@ -165,7 +242,7 @@
     // Gọi đợt kế: xếp quái vào hàng chờ theo thời gian tuyệt đối (spawnClock), KHÔNG xoá đợt cũ.
     launchWave() {
       if (this.gameOver || this.victory || this.campaignDone) return;
-      this.wave++;
+      this.wave++; this._afkOnWave(this.wave);   // chốt AFK đợt trước
       const w = CFG.buildWave(this.wave); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
       this.spawnQueue.sort((a, b) => a.at - b.at);
@@ -176,6 +253,7 @@
     // ĐỐI KHÁNG: nhận đợt n từ MATCH (đồng bộ mọi người chơi, không tự gọi trước)
     receiveWave(n) {
       if (this.gameOver) return;
+      this._afkOnWave(n);   // chốt AFK đợt trước
       if (this.mirror) { this.wave = n; this.started = true; this.emit(); return; }   // đồng đội không sinh quái, chỉ xem bàn chủ-bàn
       this.wave = n; const w = CFG.buildWave(n); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
@@ -309,6 +387,9 @@
         ]),
         enemyHaste: this.enemyHaste, hasteTime: this.hasteTime,
         sWaveTimer: this.netMatch ? (this.netMatch.waveTimer || 0) : this.waveTimer,   // server đếm ngược tới đợt kế lúc lưu (để tính khoảng offline)
+        cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
+        coreTiers: this.coreTiers,
+        afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -339,6 +420,11 @@
         this.enemies.push(e);
       }
       this.enemyHaste = s.enemyHaste || 1; this.hasteTime = s.hasteTime || 0;
+      // ----- lõi nâng cấp -----
+      if (s.coreTiers && s.coreTiers.length === 3) this.coreTiers = s.coreTiers;
+      this.cores = (s.cores || []).map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target || null }));
+      for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
+      if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }
@@ -349,9 +435,11 @@
     onEnemyKilled(e) {
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
       // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
-      const gold = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : e.reward;
-      this.gold += gold; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
-      if (this._earn) { this._earn.gold += gold; this._earn.sp += sp; }   // 2v2 chủ-bàn: dồn để chia cho đồng đội (cộng bằng nhau)
+      const base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : e.reward;
+      const got = this.gainGold(base);   // Tay Buôn: +% vàng
+      this.gold += got; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
+      this._curWaveGold += got;          // AFK: gom vàng đợt hiện tại
+      if (this._earn) { this._earn.gold += base; this._earn.sp += sp; }   // 2v2: gửi CƠ BẢN cho đồng đội (họ tự áp Tay Buôn của mình)
       const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1);
       // Yêu Sên: chết đẻ ra con nhỏ hơn (boss snail đẻ ra sên thường, rồi mới ra sên nhỏ)
       if (e.split && !e.leaked) {
@@ -363,7 +451,7 @@
     onEnemyLeak(e) { this.lives -= 1; const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
 
     /* ------------------------- CÂY PHÉP ------------------------- */
-    canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= CFG.MAX_SKILLS) return false; const s = CFG.SKILLS[key]; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }
+    canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }
     learnSkill(key) { const s = CFG.SKILLS[key]; if (!this.canLearn(key) || this.sp < s.learn) return false; this.sp -= s.learn; this.learned.add(key); this.emit(); return true; }
     castable(key) { const s = CFG.SKILLS[key]; if (!this.learned.has(key)) return false; if (s.aim === "pvp" && !this.versus) return false; return (this.skillCd[key] || 0) <= 0; }
     armSkill(key) { const s = CFG.SKILLS[key]; if (!this.castable(key)) return; if (s.aim === "global" || s.aim === "pvp") { this.castSkill(key); return; } this.pendingSkill = key; this.buildType = null; this.selected = null; this.emit(); }
@@ -373,7 +461,7 @@
       // chỉ trừ Điểm KN + hồi chiêu CỦA MÌNH.
       if (!free && this.mirror && s.aim !== "pvp") {
         this.netMatch.sendCmd({ act: "spell", key, x, y });
-        this.skillCd[key] = s.cd; this.pendingSkill = null; this.emit(); return;
+        this.skillCd[key] = s.cd * this.spellCdMul(); this.pendingSkill = null; this.emit(); return;
       }
       switch (key) {
         case "muaLua": case "baoSet": {
@@ -397,7 +485,7 @@
         case "diaChan": this.castPvp("diaChan"); this.effects.push(new FieldFlash("#ffcc66", .4)); break;
         default: return;
       }
-      if (!free) this.skillCd[key] = s.cd;   // chủ-bàn áp lệnh của đồng đội thì KHÔNG tính hồi chiêu của mình
+      if (!free) this.skillCd[key] = s.cd * this.spellCdMul();   // Nhanh Nhẹn giảm hồi chiêu; chủ-bàn áp lệnh đồng đội thì KHÔNG tính hồi chiêu của mình
       this.pendingSkill = null; this.emit();
     }
 
@@ -427,7 +515,7 @@
       for (const t of this.towers) t.update(pdt, this);
       // tháp đang "bán/phá" hết giờ -> gỡ khỏi sân (+ hoàn vàng nếu do người chơi bán)
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
-      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += t.sellValue; this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; } this.computeFlow(); this.recomputeAuras(); this.emit(); }
+      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; } this.computeFlow(); this.recomputeAuras(); this.emit(); }
       if (this._towerDone) { this._towerDone = false; this.recomputeAuras(); this.emit(); }   // xây/nâng xong -> cập nhật aura
       for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);
@@ -606,7 +694,7 @@
       const toXY = (ev) => { const b = cv.getBoundingClientRect(); const x = (ev.clientX - b.left) * (cv.width / b.width) - CFG.MARGIN, y = (ev.clientY - b.top) * (cv.height / b.height) - CFG.MARGIN; return { x, y, c: Math.floor(x / TILE), r: Math.floor(y / TILE) }; };
       cv.addEventListener("mousemove", (ev) => { this.hover = toXY(ev); });
       cv.addEventListener("mouseleave", () => { this.hover = null; });
-      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
+      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
       cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.emit(); });
     }
     handleSkillClick(p) {

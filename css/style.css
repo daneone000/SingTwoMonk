@@ -347,3 +347,45 @@ body.team2v2 .portrait::after { content: "2v2"; position: absolute; top: 2px; ri
 
 /* mạng: không được Dừng */
 body.netplay #btnPause { display: none; }
+
+/* ============================ LÕI NÂNG CẤP ============================ */
+.core-slots { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.core-slot { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px;
+  border: 2px solid var(--gold-d); background: var(--stone-d); position: relative; --tc: var(--gold); }
+.core-slot .core-ic { font-size: 20px; width: 26px; text-align: center; flex-shrink: 0; }
+.core-slot .core-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.core-slot .core-tx b { font-size: 12.5px; color: var(--txt); }
+.core-slot .core-tx small { font-size: 10.5px; color: var(--dim); line-height: 1.25; }
+.core-slot.filled { border-color: var(--tc); box-shadow: inset 0 0 10px rgba(0,0,0,.4), 0 0 6px -2px var(--tc); }
+.core-slot.filled .core-tx b { color: var(--tc); }
+.core-badge { font-size: 9px; font-weight: 800; color: #1a1a1a; padding: 2px 6px; border-radius: 6px; flex-shrink: 0; }
+.core-slot.locked { opacity: .5; }
+.core-slot.open.ready { border-color: var(--tc); animation: coreGlow 1.6s ease-in-out infinite; }
+@keyframes coreGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(255,210,74,0); } 50% { box-shadow: 0 0 10px -1px var(--tc); } }
+.core-open-btn { flex-shrink: 0; padding: 6px 10px; border-radius: 7px; cursor: pointer; font-weight: 800;
+  font-size: 11.5px; border: 2px solid var(--tc); background: var(--stone); color: var(--txt); }
+.core-open-btn:hover:not(:disabled) { background: var(--tc); color: #1a1a1a; }
+.core-open-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* overlay chọn lõi */
+.core-box { background: linear-gradient(180deg, #2a3320, #1c2416); border: 3px solid var(--gold-d);
+  border-radius: 14px; padding: 20px 22px; max-width: 720px; width: 92%; box-shadow: 0 12px 50px rgba(0,0,0,.7); }
+.core-modal-head { font-family: var(--serif); font-size: 20px; color: #ffe9a8; text-align: center; margin-bottom: 16px; }
+.core-cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.core-card { --tc: var(--gold); width: 200px; min-height: 190px; padding: 16px 12px 14px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--tc); background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.06), var(--stone-d));
+  display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; color: var(--txt);
+  box-shadow: 0 0 14px -6px var(--tc); transition: transform .12s, box-shadow .12s; }
+.core-card:hover { transform: translateY(-4px); box-shadow: 0 8px 22px -6px var(--tc); }
+.cc-badge { position: absolute; top: 8px; right: 8px; font-size: 9.5px; font-weight: 800; color: #1a1a1a; padding: 2px 7px; border-radius: 6px; }
+.cc-ic { font-size: 40px; margin-top: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.cc-name { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--tc); text-align: center; }
+.cc-group { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+.cc-desc { font-size: 12px; color: var(--txt); text-align: center; line-height: 1.35; margin-top: 2px; }
+.core-foot { display: flex; justify-content: center; margin-top: 16px; }
+
+/* băng gợi ý chọn mục tiêu lõi */
+.core-pending { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60;
+  background: linear-gradient(180deg, #3a4a2b, #232d18); border: 2px solid var(--gold); border-radius: 10px;
+  padding: 10px 18px; font-size: 13.5px; color: var(--txt); box-shadow: 0 6px 24px rgba(0,0,0,.6);
+  animation: coreGlow 1.6s ease-in-out infinite; --tc: var(--gold); }

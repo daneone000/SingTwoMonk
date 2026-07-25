@@ -45,7 +45,7 @@
   function loadSlotKeys() {
     let a = null; try { a = JSON.parse(localStorage.getItem(SLOT_LS)); } catch (e) {}
     if (!Array.isArray(a)) a = [];
-    const out = []; for (let i = 0; i < CFG.MAX_SKILLS; i++) out[i] = (a[i] != null ? a[i] : CFG.DEFAULT_SLOT_KEYS[i]);
+    const out = []; for (let i = 0; i < CFG.DEFAULT_SLOT_KEYS.length; i++) out[i] = (a[i] != null ? a[i] : CFG.DEFAULT_SLOT_KEYS[i]);
     return out;
   }
   let KEYS = loadKeys(), SLOT_KEYS = loadSlotKeys();
@@ -60,7 +60,7 @@
     document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); });
     document.querySelectorAll(".hk[data-slot]").forEach((el) => { el.textContent = keyGlyph(SLOT_KEYS[+el.dataset.slot]); });
   }
-  const learnedSkills = (g) => CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k)).slice(0, CFG.MAX_SKILLS);
+  const learnedSkills = (g) => CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k)).slice(0, g.maxSkills());
   const skillInSlot = (g, i) => learnedSkills(g)[i] || null;
   rebuildKeyMap(); refreshHotkeyBadges();
 
@@ -87,7 +87,7 @@
   let treeSel = null;
   function tipFor(k) {
     const s = CFG.SKILLS[k];
-    if (!game.learned.has(k) && game.learned.size >= CFG.MAX_SKILLS) return `<b>${s.name}</b> — ${s.desc}<br><span style="color:#ff9b9b">Đã học tối đa ${CFG.MAX_SKILLS} phép — không thể học thêm.</span>`;
+    if (!game.learned.has(k) && game.learned.size >= game.maxSkills()) return `<b>${s.name}</b> — ${s.desc}<br><span style="color:#ff9b9b">Đã học tối đa ${game.maxSkills()} phép — không thể học thêm.</span>`;
     return `<b>${s.name}</b> — ${s.desc}<br>Giá học: <b>${s.learn}</b> Điểm KN` + (s.aim === "pvp" ? ` · <span style="color:#ff9b9b">chỉ dùng ở Đối kháng</span>` : ``) + (game.learned.has(k) ? ` · <span style="color:#7ee0a8">đã học</span>` : !game.canLearn(k) ? ` · <span style="color:#ff9b9b">cần học phép nhánh trước</span>` : ``);
   }
   const nodeBtns = {};
@@ -103,10 +103,11 @@
   }
   function renderTree() {
     $("treeSP").textContent = game.sp; $("treeCount").textContent = game.learned.size;
-    const maxed = game.learned.size >= CFG.MAX_SKILLS;
+    { const tm = $("treeMax"); if (tm) tm.textContent = game.maxSkills(); }
+    const maxed = game.learned.size >= game.maxSkills();
     for (const k of CFG.SKILL_TREE_ORDER) { const el = nodeBtns[k], learned = game.learned.has(k), canL = game.canLearn(k), afford = game.sp >= CFG.SKILLS[k].learn; el.classList.toggle("learned", learned); el.classList.toggle("learnable", !learned && canL && afford); el.classList.toggle("locked", !learned && !canL); el.classList.toggle("selected", treeSel === k); }
     const ch = $("treeChoose"), canPick = treeSel && game.canLearn(treeSel) && game.sp >= CFG.SKILLS[treeSel].learn;
-    ch.disabled = !canPick; ch.textContent = maxed ? `Đủ ${CFG.MAX_SKILLS} phép` : "Chọn";
+    ch.disabled = !canPick; ch.textContent = maxed ? `Đủ ${game.maxSkills()} phép` : "Chọn";
   }
   const openTree = () => { modal.classList.remove("hidden"); renderTree(); };
   const closeTree = () => modal.classList.add("hidden");
@@ -186,6 +187,54 @@
   }
   let lastLearned = -1;
 
+  /* ---------- LÕI NÂNG CẤP (giống Augment TFT) ---------- */
+  const coreSlotsEl = $("coreSlots"), coreModal = $("coreModal"), coreCardsEl = $("coreCards"), coreHeadEl = $("coreHead");
+  const corePendingEl = $("corePending"), corePendingTx = $("corePendingTx"), TIER = CFG.CORE_TIER_INFO;
+  let coreSig = "";
+  function maybeRenderCores(g) {
+    const nx = g.cores.length, cost = g.coreUnlockSp(nx);
+    const sig = nx + "|" + (g.sp >= cost ? 1 : 0) + "|" + (g.pendingCore ? g.pendingCore.id : "") + "|" + g.coreTiers.join(",") + "|" + g.cores.map((c) => c.id + c.tier).join(",");
+    if (sig === coreSig) return; coreSig = sig; renderCores(g);
+  }
+  function renderCores(g) {
+    coreSlotsEl.innerHTML = "";
+    for (let i = 0; i < CFG.MAX_CORES; i++) {
+      const core = g.cores[i], tier = g.coreTiers[i], ti = TIER[tier] || TIER.bac, el = document.createElement("div");
+      if (core) {
+        const def = CFG.CORES[core.id], cti = TIER[core.tier];
+        el.className = "core-slot filled"; el.style.setProperty("--tc", cti.color);
+        el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b><small>${def.desc(core.value)}</small></span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
+      } else if (i === g.cores.length) {
+        const cost = g.coreUnlockSp(i), canOpen = g.canOpenCore(i), label = i === 0 ? "Chọn lõi" : `Mở · ${cost} KN`;
+        el.className = "core-slot open" + (canOpen ? " ready" : ""); el.style.setProperty("--tc", ti.color);
+        el.innerHTML = `<span class="core-ic">➕</span><span class="core-tx"><b>Ô lõi ${i + 1}</b><small>Cấp bậc: <span style="color:${ti.color}">${ti.name}</span></small></span><button class="core-open-btn" ${canOpen ? "" : "disabled"}>${label}</button>`;
+        el.querySelector(".core-open-btn").onclick = () => openCorePick(i);
+      } else {
+        el.className = "core-slot locked";
+        el.innerHTML = `<span class="core-ic">🔒</span><span class="core-tx"><b>Ô lõi ${i + 1}</b><small>Mở ô ${i} trước (cần ${g.coreUnlockSp(i)} KN)</small></span>`;
+      }
+      coreSlotsEl.appendChild(el);
+    }
+    if (g.pendingCore) { corePendingEl.classList.remove("hidden"); corePendingTx.innerHTML = `🔧 <b>${CFG.CORES[g.pendingCore.id].name}</b>: bấm chọn 1 <b>tháp</b> trên bản đồ để gia cố (+${g.pendingCore.value}%).`; }
+    else corePendingEl.classList.add("hidden");
+  }
+  function openCorePick(slot) {
+    const off = game.openCore(slot); if (!off || !off.items.length) return;
+    const cti = TIER[off.items[0].tier];
+    coreHeadEl.innerHTML = `Ô lõi ${slot + 1} — cấp bậc <b style="color:${cti.color}">${cti.name}</b> · chọn 1 trong 3`;
+    coreCardsEl.innerHTML = "";
+    off.items.forEach((it) => {
+      const def = CFG.CORES[it.id], c = TIER[it.tier], card = document.createElement("button");
+      card.className = "core-card"; card.style.setProperty("--tc", c.color);
+      card.innerHTML = `<span class="cc-badge" style="background:${c.color}">${c.name}</span><span class="cc-ic">${def.icon}</span><span class="cc-name">${def.name}</span><span class="cc-group">${def.group}</span><span class="cc-desc">${def.desc(it.value)}</span>`;
+      card.onclick = () => { if (game.pickCore(it.id)) { coreModal.classList.add("hidden"); log("Đã chọn lõi: " + def.name + " (" + c.name + ")", "good"); game.emit(); } };
+      coreCardsEl.appendChild(card);
+    });
+    coreModal.classList.remove("hidden");
+  }
+  $("coreCancel").onclick = () => { game.cancelCoreOffer(); coreModal.classList.add("hidden"); };
+  coreModal.onclick = (e) => { if (e.target === coreModal) { game.cancelCoreOffer(); coreModal.classList.add("hidden"); } };
+
   /* ---------- bảng chi tiết tháp (đáy) ---------- */
   const tp = $("towerPanel");
   function targetText(def) { return def.trap ? def.desc : def.support ? "Hỗ trợ — không bắn" : def.target === "both" ? "Bắn cả Bay & Bộ" : def.target === "air" ? "Chỉ bắn Quái bay" : "Chỉ bắn Quái bộ"; }
@@ -239,7 +288,7 @@
     else if (!t.ready) { const lab = t.action === "sell" ? "Đang tháo dỡ" : t.action === "up" ? "Đang nâng cấp" : "Đang xây"; bu.textContent = `⏳ ${lab}… ${Math.ceil(t.buildTimer)}s`; bu.disabled = true; bu.className = "tp-up poor"; }
     else if (t.maxLevel) { bu.textContent = t.def.lv.length === 1 ? "Không nâng cấp" : `Đã tối đa (${t.def.lv.length})`; bu.disabled = true; bu.className = "tp-up"; }
     // KHÔNG disable theo vàng (tránh chớp nháy disabled nuốt click); chỉ tô mờ, upgradeSelected tự chặn nếu thiếu vàng
-    else { const afford = g.gold >= t.upgradeCost; bu.textContent = `Nâng Cấp −${t.upgradeCost}💰`; bu.disabled = false; bu.className = "tp-up" + (afford ? "" : " poor"); }
+    else { const uc = g.buyCost(t.upgradeCost), afford = g.gold >= uc; bu.textContent = `Nâng Cấp −${uc}💰`; bu.disabled = false; bu.className = "tp-up" + (afford ? "" : " poor"); }
     const sb = $("tpSell");
     if (!t.trap && t.action === "sell") { sb.textContent = "Đang tháo dỡ…"; sb.disabled = true; }
     else { sb.textContent = `Bán +${t.sellValue}💰`; sb.disabled = false; }
@@ -271,7 +320,8 @@
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
-    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k]; b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < def.cost); }
+    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k]; b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < g.buyCost(def.cost)); }
+    maybeRenderCores(g);
     if (g.learned.size !== lastLearned) { renderSkills(g); lastLearned = g.learned.size; }
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : ""; }
     if (!modal.classList.contains("hidden")) renderTree();
@@ -284,6 +334,7 @@
     if ((g.gameOver || g.victory) && !prevEnd) { log(g.victory ? "CHIẾN THẮNG!" : "THẤT THỦ!", g.victory ? "good" : "warn"); prevEnd = true; }
   }
   game.onChange = updateHUD;
+  game.onCoreLog = (m) => log(m, "good");   // lõi AFK báo thưởng vàng
 
   /* ---------- điều khiển ---------- */
   $("startWave").onclick = () => game.startWave();
@@ -291,7 +342,7 @@
   $("btnSpeed").onclick = () => { game.speed = game.speed === 1 ? 2 : game.speed === 2 ? 3 : 1; game.emit(); };
   function syncAuto() { $("btnAuto").classList.toggle("on", game.autoNext); $("btnAuto").textContent = "Tự động: " + (game.autoNext ? "BẬT" : "TẮT"); }
   $("btnAuto").onclick = () => { game.autoNext = !game.autoNext; syncAuto(); };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = ""; log("Ván mới: " + (mode === "campaign" ? "Chiến Dịch" : "Sinh Tồn Vô Tận") + " — bản đồ " + CFG.curMap().name, "good"); }
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; log("Ván mới: " + (mode === "campaign" ? "Chiến Dịch" : "Sinh Tồn Vô Tận") + " — bản đồ " + CFG.curMap().name, "good"); }
   $("modeEndless").onclick = () => newGame("endless");
   $("modeCampaign").onclick = () => newGame("campaign");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame("endless"); };
