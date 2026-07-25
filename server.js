@@ -193,7 +193,7 @@ function dropSlot(slot) {
   }
   slots.delete(slot.sid);
   if (slot.sid === room.hostSid) room.hostSid = (slotList()[0] || {}).sid || null;
-  if (slots.size === 0) resetRoom();
+  if (slots.size === 0) { resetRoom(); nextPid = 1; }   // phòng trống hẳn -> đánh số người chơi lại từ đầu
   lobbyUpdate();
 }
 

@@ -568,8 +568,8 @@
       $("vsLobbyList").innerHTML = html;
       $("vsLobbyList").querySelectorAll(".vs-join-team").forEach((b) => { b.onclick = () => { if (net) net.client.send({ t: "setteam", team: +b.dataset.team }); }; });
     } else {
-      $("vsLobbyList").innerHTML = m.players.map((p) =>
-        `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "P" + p.pid}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
+      $("vsLobbyList").innerHTML = m.players.map((p, i) =>
+        `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "Người " + (i + 1)}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
     }
     $("vsLanStart").classList.toggle("hidden", !m.isHost);
     $("vsLanStart").disabled = !m.canStart;
