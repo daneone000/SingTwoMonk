@@ -213,7 +213,7 @@
   let coreSig = "";
   function maybeRenderCores(g) {
     const nx = g.cores.length, cost = g.coreUnlockSp(nx);
-    const sig = nx + "|" + (g.sp >= cost ? 1 : 0) + "|" + (g.pendingCore ? g.pendingCore.id : "") + "|" + g.coreTiers.join(",") + "|" + g.cores.map((c) => c.id + c.tier).join(",");
+    const sig = nx + "|" + (g.sp >= cost ? 1 : 0) + "|" + (g.pendingCore ? g.pendingCore.id : "") + "|" + g.coreTiers.join(",") + "|" + g.cores.map((c) => c.id + c.tier).join(",") + "|" + (g.dungHopUsed ? 1 : 0);
     if (sig === coreSig) return; coreSig = sig; renderCores(g);
   }
   function renderCores(g) {
@@ -223,7 +223,8 @@
       if (core) {
         const def = CFG.CORES[core.id], cti = TIER[core.tier];
         el.className = "core-slot filled"; el.style.setProperty("--tc", cti.color);
-        el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b><small>${def.desc(core.value)}</small></span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
+        const extra = core.id === "dungHop" ? (g.dungHopUsed ? " · <span style='color:#ff9b9b'>đã dùng</span>" : " · <span style='color:#8bff9c'>sẵn sàng (xây đè lên tháp)</span>") : "";
+        el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b><small>${def.desc(core.value)}${extra}</small></span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
       } else if (i === g.cores.length) {
         const cost = g.coreUnlockSp(i), canOpen = g.slotOpenable(i), label = i === 0 ? "Chọn lõi" : `Mở · ${cost} KN`;
         el.className = "core-slot open" + (canOpen ? " ready" : ""); el.style.setProperty("--tc", ti.color);
@@ -247,7 +248,7 @@
       const def = CFG.CORES[it.id], c = TIER[it.tier], card = document.createElement("button");
       card.className = "core-card"; card.style.setProperty("--tc", c.color);
       card.innerHTML = `<span class="cc-badge" style="background:${c.color}">${c.name}</span><span class="cc-ic">${def.icon}</span><span class="cc-name">${def.name}</span><span class="cc-group">${def.group}</span><span class="cc-desc">${def.desc(it.value)}</span>`;
-      card.onclick = () => { if (game.pickCore(it.id)) { coreModal.classList.add("hidden"); log("Đã chọn lõi: " + def.name + " (" + c.name + ")", "good"); game.emit(); } };
+      card.onclick = () => { if (game.pickCore(it.id)) { coreModal.classList.add("hidden"); log("Đã chọn lõi: " + def.name + " (" + c.name + ")", "good"); if (it.id === "dungHop") log("⚗ Dung Hợp: chọn 1 loại tháp ở cửa hàng rồi bấm XÂY ĐÈ lên 1 tháp đã có (1 lần/ván).", "ev"); game.emit(); } };
       coreCardsEl.appendChild(card);
     });
     coreModal.classList.remove("hidden");

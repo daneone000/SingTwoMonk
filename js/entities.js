@@ -206,20 +206,41 @@
       this.buildTimer = 0; this.buildDur = 0; this.action = null;   // xây/nâng/bán cần thời gian
       this.reinforce = 0;   // Gia Cố: +% chỉ số (cộng dồn theo cấp)
       this.origMul = 1;     // Nguyên Bản: ×N khi tháp đã max cấp
+      this.fused = false; this.fuseType = null; this.fuseDef = null;   // Dung Hợp
     }
     get ready() { return this.buildTimer <= 0; }
     coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
+    /* ---------- DUNG HỢP ---------- */
+    fuse(type) { const d = CFG.TOWERS[type]; if (!d) return; this.fused = true; this.fuseType = type; this.fuseDef = d; }
+    // mục tiêu bắn hiệu lực: giữ target tháp GỐC; nếu gốc là Năng Lượng thì bắn theo tháp dung hợp
+    get fireTarget() { if (!this.fused) return this.def.target; if (this.def.support) return this.fuseDef.support ? "none" : this.fuseDef.target; return this.def.target; }
+    get firesFused() { return this.fireTarget !== "none"; }                    // có bắn không (Năng Lượng thuần thì không)
+    get emitsAura() { return !!(this.def.support || (this.fused && this.fuseDef && this.fuseDef.support)); }   // phát aura buff (Năng Lượng, kể cả sau dung hợp)
+    get auraStats() { const ed = this.def.support ? this.def : (this.emitsAura ? this.fuseDef : null); return ed ? CFG.statAt(ed, this.level) : { range: 0, dmgBonus: 0, rateBonus: 0 }; }
+    // chỉ số BẮN hiệu lực sau dung hợp — ĐỐI XỨNG theo 2 tháp (chỉ target là khác theo tháp gốc)
+    get fstats() {
+      const s = this.stats; if (!this.fused) return s;
+      const shooter = this.def.support ? this.fuseDef : this.def;               // tháp cầm nòng
+      const other = this.def.support ? this.def : this.fuseDef;                  // tháp còn lại
+      const ss = CFG.statAt(shooter, this.level); if (!ss.dmg) return s;         // cả hai là Năng Lượng -> không bắn
+      const os = other.support ? null : CFG.statAt(other, this.level);           // cộng chỉ số nếu tháp kia cũng bắn
+      return {
+        dmg: ss.dmg + (os ? os.dmg : 0), rate: os ? Math.min(ss.rate, os.rate) : ss.rate,
+        range: Math.max(ss.range, os ? os.range : 0), splash: Math.max(ss.splash || 0, os ? (os.splash || 0) : 0),
+        slowPct: Math.max(ss.slowPct || 0, os ? (os.slowPct || 0) : 0), poisonPct: Math.max(ss.poisonPct || 0, os ? (os.poisonPct || 0) : 0),
+      };
+    }
     startWork(action, t) { this.action = action; this.buildTimer = t; this.buildDur = t; }
     get stats() { return CFG.statAt(this.def, this.level); }
-    get range() { return this.stats.range * TILE * this.coreMul(); }
+    get range() { return this.fstats.range * TILE * this.coreMul(); }
     get maxLevel() { return this.level >= this.def.lv.length; }
     get upgradeCost() { return this.maxLevel ? 0 : CFG.upgradeCost(this.def, this.level); }
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }
     upgrade() { if (this.maxLevel) return false; this.totalSpent += this.upgradeCost; this.level++; return true; }
     buff(m, d) { this.buffMult = m; this.buffTime = d; }
-    effDmg() { return this.stats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul(); }
-    effRate() { return this.stats.rate * this.auraRate / this.coreMul(); }   // chia -> bắn nhanh hơn khi có lõi
-    canHit(e) { const t = this.def.target; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
+    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul(); }
+    effRate() { return this.fstats.rate * this.auraRate / this.coreMul(); }   // chia -> bắn nhanh hơn khi có lõi
+    canHit(e) { const t = this.fireTarget; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
     findTarget(en) {
       let best = null, br = 1e18; const rng = this.range;
       for (const e of en) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= rng + e.radius && e.remain < br) { br = e.remain; best = e; } }
@@ -228,7 +249,7 @@
     update(dt, game) {
       this.glowT = (this.glowT || 0) + dt;   // nhịp sáng cho hiệu ứng Gia Cố (luôn chạy)
       if (this.buildTimer > 0 || this.action === "sell") return;  // đang xây/nâng/tháo -> chưa bắn
-      if (this.support) return;   // tháp năng lượng không bắn
+      if (!this.firesFused) return;   // Năng Lượng thuần (chưa dung hợp tháp bắn) -> không bắn
       if (this.cooldown > 0) this.cooldown -= dt;
       if (this.buffTime > 0) this.buffTime -= dt;
       const t = this.findTarget(game.enemies); if (!t) return;
@@ -242,10 +263,17 @@
       if (this.support && !working) { ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = this.def.color2 || this.def.color; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.fill(); ctx.restore(); }
       stoneBase(ctx, x, y);
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
+      if (!working && this.fused) this.drawFused(ctx, x, y);   // Dung Hợp: vầng sáng + vòng đôi 2 màu
       if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
       this.drawTurret(ctx, x, y);
       levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
+      if (!working && this.fused) {   // chấm màu = tháp đã dung hợp vào (góc dưới-trái)
+        const bx = x - TILE * .3, by = y + TILE * .3;
+        ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.beginPath(); ctx.arc(bx, by, 7.5, 0, 7); ctx.fill();
+        ctx.fillStyle = this.fuseDef.color; ctx.beginPath(); ctx.arc(bx, by, 4.2, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#e6d4ff"; ctx.lineWidth = 1; ctx.stroke();
+      }
       ctx.restore();
       if (working) {  // vòng tiến độ + đếm giây (đỏ=bán, lục=nâng, vàng=xây)
         const p = 1 - this.buildTimer / this.buildDur, col = this.action === "sell" ? "#ff8a5a" : this.action === "up" ? "#8bff9c" : "#ffe082";
@@ -264,6 +292,19 @@
       ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.stroke(); ctx.setLineDash([]);
       ctx.globalAlpha = 1; ctx.fillStyle = "#ffcf6a";
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + t * .5; ctx.beginPath(); ctx.arc(x + Math.cos(a) * R, y + Math.sin(a) * R, 1.7, 0, 7); ctx.fill(); }
+      ctx.restore();
+    }
+    // Hiệu ứng tháp DUNG HỢP: vầng sáng tím + vòng đôi 2 màu quay ngược nhau
+    drawFused(ctx, x, y) {
+      const t = this.glowT || 0, p = 0.5 + 0.5 * Math.sin(t * 4), R = TILE * .5;
+      ctx.save();
+      const g = ctx.createRadialGradient(x, y, R * .3, x, y, R);
+      g.addColorStop(0, "rgba(190,120,255,0)"); g.addColorStop(1, `rgba(190,120,255,${.16 + .12 * p})`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+      ctx.lineWidth = 2.6; ctx.setLineDash([R * .9, R * .7]);
+      ctx.strokeStyle = this.def.color; ctx.lineDashOffset = t * 20; ctx.beginPath(); ctx.arc(x, y, R * .92, 0, 7); ctx.stroke();
+      ctx.strokeStyle = this.fuseDef.color2 || this.fuseDef.color; ctx.lineDashOffset = -t * 20; ctx.beginPath(); ctx.arc(x, y, R * .74, 0, 7); ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
     drawTurret(ctx, x, y) {
@@ -368,18 +409,22 @@
   /* --------------------------- ĐẠN & FX --------------------------- */
   class Projectile {
     constructor(tower, target) {
-      this.def = tower.def; this.st = tower.stats; this.dmg = tower.effDmg();
-      this.tgt = tower.def.target; this.effect = tower.def.effect;
+      this.def = tower.def; this.st = tower.fstats; this.dmg = tower.effDmg();
+      this.tgt = tower.fireTarget;
+      this.effects = tower.fused ? [tower.def.effect, tower.fuseDef.effect].filter(Boolean) : (tower.def.effect ? [tower.def.effect] : []);   // dung hợp: gộp hiệu ứng 2 tháp
       this.splash = (this.st.splash || 0) * (1 + (tower.reinforce || 0)) * (tower.origMul || 1);   // Gia Cố/Nguyên Bản: nới bán kính loang
       this.effMul = tower.origMul || 1;   // Nguyên Bản: nhân đôi hiệu ứng (làm chậm/độc)
-      this.x = tower.x; this.y = tower.y; this.target = target; this.tx = target.x; this.ty = target.y;
-      this.speed = tower.def.projSpeed; this.dead = false;
+      const shooter = (tower.fused && tower.def.support) ? tower.fuseDef : tower.def;   // Năng Lượng gốc -> đạn theo tháp dung hợp
+      this.projColor = shooter.projColor || "#ffe8b0"; this.speed = shooter.projSpeed || tower.def.projSpeed || 400;
+      this.x = tower.x; this.y = tower.y; this.target = target; this.tx = target.x; this.ty = target.y; this.dead = false;
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e) {
       e.applyDamage(this.dmg);
-      if (this.effect === "slow") e.slow(1 - Math.min(0.95, this.st.slowPct * this.effMul), 1.2);
-      else if (this.effect === "poison") e.addPoison(this.st.poisonPct * this.effMul / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, trong 5s
+      for (const fx of this.effects) {   // dung hợp có thể có nhiều hiệu ứng (làm chậm + độc...)
+        if (fx === "slow") e.slow(1 - Math.min(0.95, (this.st.slowPct || 0) * this.effMul), 1.2);
+        else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, 5s
+      }
     }
     update(dt, game) {
       if (this.target && !this.target.dead && !this.target.leaked) { this.tx = this.target.x; this.ty = this.target.y; }
@@ -391,10 +436,10 @@
       if (this.splash > 0) {   // NỔ LAN: trúng mọi quái đúng loại trong bán kính
         const r = this.splash * TILE;
         for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, this.tx, this.ty) <= r + e.radius) this.applyTo(e); }
-        game.effects.push(new BlastFx(this.tx, this.ty, r, this.def.projColor));
+        game.effects.push(new BlastFx(this.tx, this.ty, r, this.projColor));
       } else if (this.target && !this.target.dead && !this.target.leaked) this.applyTo(this.target);
     }
-    draw(ctx) { ctx.fillStyle = this.def.projColor; ctx.beginPath(); ctx.arc(this.x, this.y, this.splash > 0 ? 6 : 4, 0, 7); ctx.fill(); }
+    draw(ctx) { ctx.fillStyle = this.projColor; ctx.beginPath(); ctx.arc(this.x, this.y, this.splash > 0 ? 6 : 4, 0, 7); ctx.fill(); }
   }
   class BlastFx { constructor(x, y, r, c) { this.x = x; this.y = y; this.r = r; this.color = c; this.t = 0; this.dur = .3; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, this.r * f, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
   class SwirlFx { constructor(x, y) { this.x = x; this.y = y; this.t = 0; this.dur = .35; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = "#9fa8ff"; ctx.lineWidth = 2.5; ctx.beginPath(); for (let a = 0; a < 12; a++) { const ang = a * .6 + f * 6, rr = a * 1.6 * (1 - f * .3); const px = this.x + Math.cos(ang) * rr, py = this.y + Math.sin(ang) * rr; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.globalAlpha = 1; } }

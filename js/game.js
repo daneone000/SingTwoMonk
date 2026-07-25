@@ -31,6 +31,7 @@
       this.coreRolls = {};                   // slot -> 3 lõi ĐÃ random (chốt cứng, mở lại KHÔNG đổi)
       this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
       this.pendingMove = null;               // Back King Xây: tháp đang chờ dời sang ô mới
+      this.dungHopUsed = false;              // Dung Hợp: đã dùng (1 lần/ván) chưa
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null;
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -113,6 +114,15 @@
       if (this.mirror) { const okc = this.canMoveTo(t, c, r); this.pendingMove = null; if (okc) this.netMatch.sendCmd({ act: "move", fc: t.col, fr: t.row, c, r }); this.emit(); return okc; }
       const done = this._moveTower(t, c, r); this.pendingMove = null; this.emit(); return done;
     }
+    // Dung Hợp: xây tháp `type` ĐÈ lên tháp `base` (1 lần/ván) -> base giữ target, cộng chỉ số + hiệu ứng tháp kia.
+    fuseTower(base, type) {
+      if (!this.hasCore("dungHop") || this.dungHopUsed || !base || base.trap || base.fused || !CFG.TOWERS[type]) return false;
+      const cost = this.buyCost(CFG.TOWERS[type].cost); if (this.gold < cost) return false;
+      this.gold -= cost; this.dungHopUsed = true; this._coreActed(); this.selected = base;
+      if (this.mirror) { this.netMatch.sendCmd({ act: "fuse", c: base.col, r: base.row, type }); this.emit(); return true; }
+      base.fuse(type); base.startWork("build", CFG.workTime(cost, this.wave));
+      this.computeFlow(); this.recomputeAuras(); this.emit(); return true;
+    }
     // Trùm Bản Đồ: nâng cao ô của 1 tháp (10 KN) để chặn quái BAY (bay phải né ô đã nâng).
     canRaise(t) { return this.hasCore("trumBanDo") && t && !t.trap && !this.raised.has(t.col + "," + t.row) && this.sp >= CFG.RAISE_SP; }
     raiseTile(t) {
@@ -184,10 +194,11 @@
     /* --------------------- buff aura (Tháp Năng Lượng) --------------------- */
     recomputeAuras() {
       this.recomputeCores();   // Nguyên Bản: cập nhật origMul theo tháp đã max cấp
-      const sups = this.towers.filter((t) => t.support && t.ready);   // chỉ tháp Năng Lượng đã xây xong
+      const sups = this.towers.filter((t) => t.emitsAura && t.ready);   // Năng Lượng (kể cả sau dung hợp) phát aura
       for (const t of this.towers) {
-        if (t.support) continue; let dmg = 0, rate = 0;
-        for (const s of sups) { const st = s.stats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE) { dmg += st.dmgBonus; rate += st.rateBonus; } }
+        if (!t.firesFused) continue;   // chỉ tháp CÓ BẮN mới nhận buff (tháp dung hợp Năng Lượng tự buff vì dist=0)
+        let dmg = 0, rate = 0;
+        for (const s of sups) { const st = s.auraStats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE) { dmg += st.dmgBonus; rate += st.rateBonus; } }
         t.auraDmg = 1 + Math.min(2, dmg); t.auraRate = 1 / (1 + Math.min(2, rate));
       }
     }
@@ -209,6 +220,8 @@
     placeSelected(c, r) {
       const type = this.buildType; if (!type) return;
       const isTrap = !!CFG.TRAPS[type], def = isTrap ? CFG.TRAPS[type] : CFG.TOWERS[type];
+      // DUNG HỢP: bấm xây tháp lên 1 THÁP đã có (còn lõi Dung Hợp) -> dung hợp thay vì xây mới
+      if (!isTrap && this.hasCore("dungHop") && !this.dungHopUsed) { const b = this.towerAt(c, r); if (b && b.ready && !b.fused) { this.fuseTower(b, type); return; } }
       const cost = this.buyCost(def.cost);   // Black Friday: rẻ hơn
       if (this.gold < cost) return;
       if (this.mirror) {   // 2v2 đồng đội: kiểm tra chỗ trên bàn chung, trừ vàng CỦA MÌNH, gửi lệnh cho chủ-bàn đặt
@@ -263,13 +276,15 @@
         if (t && this._moveTower(t, cmd.c, cmd.r)) this.emit();
       } else if (cmd.act === "raise") {   // đồng đội nâng ô trên bàn chung
         this.raised.add(cmd.c + "," + cmd.r); this.computeAirFlow(); this.emit();
+      } else if (cmd.act === "fuse") {   // đồng đội dung hợp tháp bàn chung
+        const b = this.towerAt(cmd.c, cmd.r); if (b && !b.fused) { b.fuse(cmd.type); b.startWork("build", CFG.workTime(CFG.TOWERS[cmd.type].cost, this.wave)); this.recomputeAuras(); this.emit(); }
       }
     }
     /* ---- 2v2: ảnh chụp ĐẦY ĐỦ bàn để đồng đội VẼ LẠI (chủ-bàn -> mirror) ---- */
     boardSnapshot() {
       return {
         lv: this.lives, w: this.wave, go: this.gameOver ? 1 : 0,
-        tw: this.towers.map((t) => [t.col, t.row, t.type, t.level, t.ready ? 1 : 0, t.action || 0, +t.buildTimer.toFixed(2), +t.angle.toFixed(3), t.buffTime > 0 ? 1 : 0]),
+        tw: this.towers.map((t) => [t.col, t.row, t.type, t.level, t.ready ? 1 : 0, t.action || 0, +t.buildTimer.toFixed(2), +t.angle.toFixed(3), t.buffTime > 0 ? 1 : 0, t.fuseType || 0]),
         tr: this.traps.map((t) => [t.col, t.row, t.type]),
         en: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.fly ? 1 : 0, e.boss ? 1 : 0, e.freezeTime > 0 ? 1 : 0, e.slowTime > 0 ? 1 : 0, e.burnTime > 0 ? 1 : 0, +e.angle || 0]),
       };
@@ -279,7 +294,7 @@
       this.lives = snap.lv; this.wave = snap.w; this.gameOver = !!snap.go;
       this.towers = []; this.blockSet = new Set(); this.occupied = new Set();
       const keepSel = this.selected && this.selected.col != null ? [this.selected.col, this.selected.row, this.selected.trap ? 1 : 0] : null;
-      for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
+      for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; if (a[9]) t.fuse(a[9]); t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
       this.traps = snap.tr.map((a) => { const t = new STM.Trap(a[2], a[0], a[1]); this.occupied.add(a[0] + "," + a[1]); return t; });
       this.enemies = snap.en.map((a) => { const d = CFG.ENEMIES[a[2]]; const e = new STM.Enemy(d, 1, 1, this, !!a[6]); e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3]; e.freezeTime = a[7] ? 1 : 0; if (a[8]) { e.slowTime = 1; e.slowMult = 0.5; } e.burnTime = a[9] ? 1 : 0; e.angle = a[10] || 0; e.remain = 1; return e; });
       // giữ lại lựa chọn tháp theo ô (để bảng chi tiết không mất khi bàn cập nhật)
@@ -434,8 +449,9 @@
       return {
         mapId: this.map.id, wave: this.wave, gold: this.gold, sp: this.sp, lives: this.lives, score: this.score,
         learned: [...this.learned], skillCd: { ...this.skillCd },
-        towers: this.towers.map((t) => ({ k: t.type, c: t.col, r: t.row, lv: t.level })),
+        towers: this.towers.map((t) => ({ k: t.type, c: t.col, r: t.row, lv: t.level, fuse: t.fuseType })),
         traps: this.traps.map((t) => ({ k: t.type, c: t.col, r: t.row })),
+        dungHopUsed: this.dungHopUsed,
         // trạng thái động để nối lại đúng "kiểu game online": quái đang chạy, hàng chờ sinh, đồng hồ sinh, buff tốc
         spawnClock: this.spawnClock, raised: [...this.raised],
         spawnQueue: this.spawnQueue.map((s) => ({ at: s.at, w: s.w })),
@@ -461,7 +477,7 @@
       this.skillCd = s.skillCd || {};
       for (const t of s.towers || []) {
         const tw = new STM.Tower(t.k, t.c, t.r); tw.level = t.lv || 1; tw.totalSpent = this._spentFor(tw.def, tw.level);
-        tw.buildTimer = 0; tw.action = null;
+        tw.buildTimer = 0; tw.action = null; if (t.fuse) tw.fuse(t.fuse);
         this.towers.push(tw); this.occupied.add(t.c + "," + t.r); this.blockSet.add(t.c + "," + t.r);
       }
       for (const t of s.traps || []) { const tr = new STM.Trap(t.k, t.c, t.r); this.traps.push(tr); this.occupied.add(t.c + "," + t.r); }
@@ -483,7 +499,7 @@
       // ----- lõi nâng cấp -----
       if (s.coreTiers && s.coreTiers.length === 3) this.coreTiers = s.coreTiers;
       this.cores = (s.cores || []).map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target || null }));
-      this.coreRolls = s.coreRolls || {};
+      this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
       if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;

@@ -245,7 +245,7 @@
     tayBuon: { id: "tayBuon", name: "Tay Buôn", icon: "💰", group: "Kinh tế", impl: true,
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% vàng nhận được từ mọi nguồn.` },
     // --- Tháp ---
-    dungHop: { id: "dungHop", name: "Dung Hợp", icon: "⚗", group: "Tháp", impl: false,
+    dungHop: { id: "dungHop", name: "Dung Hợp", icon: "⚗", group: "Tháp", impl: true,
       tiers: { kimcuong: 1 }, desc: () => "1 lần/ván: xây đè lên 1 tháp để dung hợp — giữ đặc tính tháp gốc, cộng chỉ số & hiệu ứng tháp kia." },
     giaCo: { id: "giaCo", name: "Gia Cố", icon: "🔧", group: "Tháp", impl: true, aim: "tower",
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% chỉ số (ST/tốc/tầm/loang) cho MỘT tháp được chọn (cộng theo cấp).` },
