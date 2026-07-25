@@ -155,13 +155,15 @@
     rong_tinh: { key: "rong_tinh", name: "Rồng Tinh", shape: "dragon", fly: true, color: "#ef5350", hp: 46, speed: 84, reward: 4, armor: 0, radius: 12, cf: 1.0 },
     ac_dieu: { key: "ac_dieu", name: "Ác Điểu", shape: "bird", fly: true, color: "#42a5f5", hp: 36, speed: 122, reward: 4, armor: 0, radius: 10, cf: 1.1 },
     cao_tinh: { key: "cao_tinh", name: "Cáo Tinh", shape: "fox", fly: false, color: "#ff8f2d", hp: 48, speed: 138, reward: 5, armor: 1, radius: 11, cf: 0.9, slowResist: 0.4 },
+    // Cóc Độc: bản thân là loài độc nên KHÁNG ĐỘC — giảm 10% ST độc & rút ngắn thời gian nhiễm (5s -> 3s)
+    coc_doc: { key: "coc_doc", name: "Cóc Độc", shape: "toad", fly: false, color: "#7cb342", hp: 62, speed: 72, reward: 5, armor: 1, radius: 12, cf: 0.9, poisonResist: { dmg: 0.10, dur: 0.4 } },
   };
   // Vòng xoay chủng theo đợt (quái BAY chỉ từ đợt 6 trở đi)
-  const CYCLE = ["bo_ngua", "hai_cot", "trau_dien", "cao_tinh", "yeu_sen", "nguoi_khong_lo", "rong_tinh", "hai_cot", "ac_dieu", "cao_tinh", "trau_dien", "yeu_sen"];
+  const CYCLE = ["bo_ngua", "hai_cot", "trau_dien", "coc_doc", "cao_tinh", "yeu_sen", "nguoi_khong_lo", "rong_tinh", "hai_cot", "coc_doc", "ac_dieu", "cao_tinh", "trau_dien", "yeu_sen"];
   const FLY_FROM = 6;
   function pickType(n) { let t = CYCLE[(n - 1) % CYCLE.length]; if (n < FLY_FROM && ENEMIES[t].fly) t = "hai_cot"; return t; }
   // Chủng để phép Triệu Hồi thả (loại con tách nhỏ). Caster chọn 1 lần -> áp CÙNG chủng cho mọi đối thủ.
-  const SUMMON_TYPES = ["bo_ngua", "hai_cot", "trau_dien", "cao_tinh", "yeu_sen", "nguoi_khong_lo", "rong_tinh", "ac_dieu"];
+  const SUMMON_TYPES = ["bo_ngua", "hai_cot", "trau_dien", "coc_doc", "cao_tinh", "yeu_sen", "nguoi_khong_lo", "rong_tinh", "ac_dieu"];
   function randomSummonType() { return SUMMON_TYPES[(Math.random() * SUMMON_TYPES.length) | 0]; }
   function bossType(n) { const bi = (Math.floor(n / 10) - 1) % CYCLE.length; return CYCLE[(bi + CYCLE.length) % CYCLE.length]; }
   // Thông tin chủng của đợt n (dùng cho banner)

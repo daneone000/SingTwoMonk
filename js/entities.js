@@ -24,13 +24,14 @@
       this.burnDps = 0; this.burnTime = 0; this.poison = []; this.pullCd = 0; this.remain = 1e9;
       this.wingPhase = Math.random() * 6; this.animT = Math.random() * 3;
       this.slowResist = def.slowResist || 0;   // kháng làm chậm (0..1)
+      this.pRes = def.poisonResist || null;    // kháng độc: {dmg, dur} — giảm ST độc & thời gian nhiễm
     }
     get speed() { return this.freezeTime > 0 ? 0 : this.baseSpeed * this.slowMult; }
     applyDamage(d, ig) { const e = ig ? d : Math.max(1, d - this.armor); this.hp -= e; if (this.hp <= 0) this.dead = true; }
     slow(m, d) { const eff = 1 - (1 - m) * (1 - this.slowResist); if (eff < this.slowMult || this.slowTime <= 0) this.slowMult = eff; this.slowTime = Math.max(this.slowTime, d * (1 - this.slowResist * 0.5)); }
     freeze(d) { this.freezeTime = Math.max(this.freezeTime, d); }
     burn(dps, d) { this.burnDps = Math.max(this.burnDps, dps); this.burnTime = Math.max(this.burnTime, d); }
-    addPoison(pct, d, mx) { if (this.poison.length < mx) this.poison.push({ pct, time: d }); else this.poison[0] = { pct, time: d }; }  // pct = % máu HIỆN TẠI / giây
+    addPoison(pct, d, mx) { if (this.pRes) { pct *= (1 - this.pRes.dmg); d *= (1 - this.pRes.dur); } if (this.poison.length < mx) this.poison.push({ pct, time: d }); else this.poison[0] = { pct, time: d }; }  // pct = % máu HIỆN TẠI / giây; kháng độc giảm cả ST & thời gian
     teleportTo(cx, cy) { this.x = cx; this.y = cy; }
 
     update(dt, game) {
@@ -176,6 +177,19 @@
           ctx.fillStyle = "#1a0a00"; ctx.beginPath(); ctx.arc(x + r * 1.12, y + r * .08, r * .11, 0, 7); ctx.fill();
           // mắt ranh mãnh
           ctx.fillStyle = "#1a0a00"; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + r * (.3 + (s > 0 ? .12 : 0)), y - r * .22, r * .1, r * .14, 0, 0, 7); ctx.fill(); }
+          break;
+        }
+        case "toad": { // Cóc Độc: thân bè, mắt lồi trên đỉnh, nốt sần độc, miệng rộng
+          feet();
+          ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y + r * .1, r * 1.15, r * .82, 0, 0, 7); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.stroke();
+          ctx.fillStyle = lt; ctx.beginPath(); ctx.ellipse(x, y + r * .38, r * .68, r * .42, 0, 0, 7); ctx.fill();   // bụng sáng
+          ctx.fillStyle = shade(col, -34); for (let i = 0; i < 6; i++) { const a = i * 1.15 + 0.6; ctx.beginPath(); ctx.arc(x + Math.cos(a) * r * .62, y + Math.sin(a) * r * .38, r * .1, 0, 7); ctx.fill(); }   // nốt sần độc
+          ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y + r * .12, r * .58, 0.12, Math.PI - 0.12); ctx.stroke();   // miệng rộng
+          for (const s of [-1, 1]) {   // mắt lồi trên đỉnh
+            ctx.fillStyle = lt; ctx.beginPath(); ctx.arc(x + s * r * .42, y - r * .58, r * .28, 0, 7); ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 1.4; ctx.stroke();
+            ctx.fillStyle = "#1a2a00"; ctx.beginPath(); ctx.arc(x + s * r * .42, y - r * .52, r * .13, 0, 7); ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(x + s * r * .38, y - r * .58, r * .05, 0, 7); ctx.fill();
+          }
           break;
         }
         case "mantis": { // Bọ Ngựa: thân xanh + hai càng liềm giơ + râu + mắt to
