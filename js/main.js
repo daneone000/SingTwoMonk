@@ -397,7 +397,7 @@
       const cs = b.querySelector(".tw-cost"); const txt = "💰" + cost; if (cs.textContent !== txt) cs.textContent = txt;
     }
     maybeRenderCores(g); updateAfkLive(g);
-    if (g.learned.size !== lastLearned) { renderSkills(g); lastLearned = g.learned.size; }
+    { const sig = g.learned.size + ":" + [...g.learned].sort().join(","); if (sig !== lastLearned) { renderSkills(g); lastLearned = sig; } }   // render lại khi TẬP phép đổi (kể cả đổi phép giữ nguyên số lượng)
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : "";
       const swappable = g.canSwap() && cd > 0; b.classList.toggle("swappable", swappable); if (swappable) b.title = s.name + " — 🎩 đang hồi chiêu: bấm để ĐỔI sang phép khác"; }
     if (!modal.classList.contains("hidden")) renderTree();
