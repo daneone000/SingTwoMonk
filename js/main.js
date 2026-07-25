@@ -272,17 +272,21 @@
   function statsHTML(t) {
     if (t.trap) return `<div>Loại: <b>Dùng 1 lần</b> (kích hoạt là biến mất)</div><div>Bán kính: <b>${t.def.radius}</b></div>`;
     if (t.support && !t.fused) { const s = t.stats; return `<div>Buff ST: <b class="plus">+${Math.round(s.dmgBonus * 100)}%</b></div><div>Buff Tốc: <b class="plus">+${Math.round(s.rateBonus * 100)}%</b></div><div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>`; }
-    const s = t.fused ? t.fstats : t.stats, base = Math.round(s.dmg), bonus = Math.round(t.effDmg() - s.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / (s.rate || 1);
-    // tháp dung hợp: hiện ĐỦ các hiệu ứng đã gộp (chậm + độc...)
+    const s = t.fused ? t.fstats : t.stats, cm = t.coreMul(), om = t.origMul || 1;   // cm=hệ số lõi lên chỉ số; om=Nguyên Bản lên hiệu ứng
+    const base = Math.round(s.dmg), bonus = Math.round(t.effDmg() - s.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / (s.rate || 1);
+    const rngBonus = s.range * cm - s.range, splBonus = (s.splash || 0) * cm - (s.splash || 0);
+    const plus = (b) => b > 0.01 ? ` <span class="plus">+${b.toFixed(1)}</span>` : "";
+    // hiệu ứng (chậm/độc) — Nguyên Bản (origMul) NHÂN đôi hiệu ứng; hiện giá trị đã nhân
+    const effLine = (label, pct, suf) => `<div>${label}: <b class="plus">${Math.round(pct * om * 100)}%${suf || ""}</b>${om > 1 ? ` <span class="plus">(×${om})</span>` : ``}</div>`;
     let eff = "";
-    if ((s.slowPct || 0) > 0) eff += `<div>Làm chậm: <b class="plus">${Math.round(s.slowPct * 100)}%</b></div>`;
-    if ((s.poisonPct || 0) > 0) eff += `<div>Độc: <b class="plus">${Math.round(s.poisonPct * 100)}% máu hiện tại/5s</b></div>`;
+    if ((s.slowPct || 0) > 0) eff += effLine("Làm chậm", s.slowPct);
+    if ((s.poisonPct || 0) > 0) eff += effLine("Độc", s.poisonPct, " máu hiện tại/5s");
     const fuseLine = t.fused ? `<div class="tp-fuse">⚗ Dung hợp <b>${shortName(t.def.name)}</b> + <b>${shortName(t.fuseDef.name)}</b> → bắn ${targetLabel(t.fireTarget)}${t.emitsAura ? " · tự buff + buff quanh" : ""}</div>` : "";
     return fuseLine +
       `<div>Sức Mạnh: <b>${base}</b>${bonus > 0 ? ` <span class="plus">+${bonus}</span>` : ``}</div>` +
-      `<div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>` +
+      `<div>Tầm Xa: <b>${s.range.toFixed(1)}</b>${plus(rngBonus)}</div>` +
       `<div>Tốc độ bắn: <b>${sps.toFixed(2)}</b>/s${spsBonus > 0.01 ? ` <span class="plus">+${spsBonus.toFixed(2)}</span>` : ``}</div>` +
-      (s.splash ? `<div>Bắn Loang: <b>${s.splash.toFixed(1)}</b></div>` : `<div>Cấp: <b>${t.level}/${t.def.lv.length}</b></div>`) + eff;
+      (s.splash ? `<div>Bắn Loang: <b>${s.splash.toFixed(1)}</b>${plus(splBonus)}</div>` : `<div>Cấp: <b>${t.level}/${t.def.lv.length}</b></div>`) + eff;
   }
   // Xem trước nâng cấp: cấp kế sẽ +chỉ số gì (để cân nhắc)
   function upgradePreviewHTML(t) {
