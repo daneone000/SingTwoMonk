@@ -107,7 +107,7 @@ Các lõi hiện có (Phase 1):
 | Kinh tế | 💤 **AFK** (Bạc) | Không xây/nâng/bán **3 đợt liền** → nhận **gấp đôi** vàng của 3 đợt đó |
 | Kinh tế | 💰 **Tay Buôn** | **+5/10/15%** vàng từ mọi nguồn |
 | Tháp | 🔧 **Gia Cố** | **+5/10/15%** chỉ số (ST/tốc/tầm/loang) một tháp chọn (cộng theo cấp) |
-| Tháp | ⭐ **Nguyên Bản** (Bạc) | Tháp **đã max cấp** được **+100%** chỉ số & hiệu ứng |
+| Tháp | ⭐ **Nguyên Bản** (Bạc) | Tháp **chưa nâng cấp (cấp 1)** được **+100%** chỉ số & hiệu ứng (nâng lên cấp 2 là mất) |
 | Phép | ⚡ **Nhanh Nhẹn** | Giảm **5/10/15%** hồi chiêu mọi phép |
 | Phép | 🎰 **Tham Lam** | Mở thêm **1/2/3 ô phép** (học được nhiều phép hơn) |
 

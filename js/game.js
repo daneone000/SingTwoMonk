@@ -99,7 +99,8 @@
     recomputeCores() {
       let nb = this.coreValue("nguyenBan");
       if (this.t2 && this.netMatch.mateCoreValue) nb = Math.max(nb, this.netMatch.mateCoreValue("nguyenBan"));   // 2v2 bàn chung: đồng đội có Nguyên Bản cũng áp
-      for (const t of this.towers) t.origMul = (nb && t.maxLevel && !t.support) ? (1 + nb / 100) : 1;
+      // Nguyên Bản: buff tháp CHƯA nâng cấp (cấp 1). Nâng lên cấp 2+ là mất buff.
+      for (const t of this.towers) t.origMul = (nb && t.level === 1 && !t.support) ? (1 + nb / 100) : 1;
     }
 
     /* ------------------- flow-field ------------------- */
