@@ -293,11 +293,12 @@
       if (!t) { const nx = g.nextWavePreview(); tp.innerHTML = `<div class="tp-empty">🏰 Chọn tháp/bẫy trên bản đồ để xem chi tiết &amp; nâng cấp/bán. &nbsp;•&nbsp; Đợt sau: <b>${nx.name}</b> ×${nx.count}${nx.boss ? " (BOSS)" : nx.fly ? " (bay)" : ""}</div>`; return; }
       tp.innerHTML = `<div class="tp-icon" style="background:${t.def.color}">${t.def.glyph}</div>` +
         `<div class="tp-main"><div class="tp-title">${t.def.name}: ${targetText(t.def)} <span class="lv" id="tpLv"></span></div><div class="tp-stats" id="tpStats"></div><div class="tp-prev" id="tpPrev"></div></div>` +
-        `<div class="tp-actions"><button class="tp-up" id="tpUp"></button><button class="tp-sell" id="tpSell"></button><button class="tp-move hidden" id="tpMove">↔ Dời</button></div>`;
+        `<div class="tp-actions"><button class="tp-up" id="tpUp"></button><button class="tp-sell" id="tpSell"></button><button class="tp-move hidden" id="tpMove">↔ Dời</button><button class="tp-raise hidden" id="tpRaise">⛰ Nâng ô</button></div>`;
       // pointerdown: kích hoạt NGAY lúc nhấn (tránh emit làm nút disabled giữa mousedown→mouseup nuốt click, hay gặp ở PvP/Edge)
       $("tpUp").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.upgradeSelected(); };
       $("tpSell").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.sellSelected(); };
       $("tpMove").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.startMoveTower(game.selected); };   // Back King Xây
+      $("tpRaise").onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.raiseTile(game.selected); };   // Trùm Bản Đồ
     }
     if (!t) return;
     // cập nhật phần ĐỘNG tại chỗ (đổi text/disabled, không thay nút)
@@ -314,6 +315,7 @@
     if (!t.trap && t.action === "sell") { sb.textContent = "Đang tháo dỡ…"; sb.disabled = true; }
     else { sb.textContent = `Bán +${g.gainGold(t.sellValue)}💰`; sb.disabled = false; }
     { const mv = $("tpMove"); if (mv) { mv.classList.toggle("hidden", !g.hasCore("backKingXay")); mv.classList.toggle("on", g.pendingMove === t); mv.textContent = g.pendingMove === t ? "↔ Chọn ô…" : "↔ Dời"; } }
+    { const rb = $("tpRaise"); if (rb) { const show = g.hasCore("trumBanDo") && !t.trap; rb.classList.toggle("hidden", !show); if (show) { const raised = g.raised.has(t.col + "," + t.row); rb.textContent = raised ? "⛰ Đã nâng" : `⛰ Nâng −${CFG.RAISE_SP}KN`; rb.disabled = raised || g.sp < CFG.RAISE_SP; rb.classList.toggle("on", raised); } } }
   }
 
   /* ---------- HUD ---------- */

@@ -14,7 +14,7 @@
       this.gold = CFG.START_GOLD; this.sp = CFG.START_SP; this.lives = CFG.START_LIVES;
       this.score = 0; this.wave = 0;
       this.enemies = []; this.towers = []; this.traps = []; this.projectiles = []; this.effects = [];
-      this.blockSet = new Set(); this.occupied = new Set();
+      this.blockSet = new Set(); this.occupied = new Set(); this.raised = new Set();   // raised: ô đã nâng cao (Trùm Bản Đồ) chặn quái BAY
       this.spawnQueue = []; this.gameOver = false; this.victory = false;
       this.started = false; this.spawnClock = 0; this.waveTimer = 0;  // đợt quái ra ĐỊNH KỲ
       this.speed = 1; this.paused = false; this.autoNext = true;       // tự gọi đợt định kỳ
@@ -103,6 +103,7 @@
       this.occupied.delete(oc + "," + orr); if (!isTrap) this.blockSet.delete(oc + "," + orr);
       t.col = c; t.row = r; t.x = (c + .5) * TILE; t.y = (r + .5) * TILE;
       this.occupied.add(c + "," + r); if (!isTrap) this.blockSet.add(c + "," + r);
+      if (this.raised.has(oc + "," + orr)) { this.raised.delete(oc + "," + orr); this.raised.add(c + "," + r); }   // ô nâng dời theo tháp
       for (const co of this.cores) if (co.target && co.target.c === oc && co.target.r === orr) co.target = { c, r };   // Gia Cố trỏ theo ô -> cập nhật
       if (!isTrap) { this.computeFlow(); this.recomputeAuras(); }
       return true;
@@ -111,6 +112,14 @@
       const t = this.pendingMove; if (!t) return false;
       if (this.mirror) { const okc = this.canMoveTo(t, c, r); this.pendingMove = null; if (okc) this.netMatch.sendCmd({ act: "move", fc: t.col, fr: t.row, c, r }); this.emit(); return okc; }
       const done = this._moveTower(t, c, r); this.pendingMove = null; this.emit(); return done;
+    }
+    // Trùm Bản Đồ: nâng cao ô của 1 tháp (10 KN) để chặn quái BAY (bay phải né ô đã nâng).
+    canRaise(t) { return this.hasCore("trumBanDo") && t && !t.trap && !this.raised.has(t.col + "," + t.row) && this.sp >= CFG.RAISE_SP; }
+    raiseTile(t) {
+      if (!this.canRaise(t)) return false;
+      this.sp -= CFG.RAISE_SP;
+      if (this.mirror) { this.netMatch.sendCmd({ act: "raise", c: t.col, r: t.row }); this.emit(); return true; }
+      this.raised.add(t.col + "," + t.row); this.computeAirFlow(); this.emit(); return true;
     }
     // đánh dấu "có hành động" cho lõi AFK (xây/nâng/bán của CHÍNH mình)
     _coreActed() { if (this.hasCore("afk")) this._curWaveActed = true; }
@@ -151,8 +160,19 @@
       while (h < q.length) { const { c, r } = q[h++]; for (const [dc, dr] of dirs) { const nc = c + dc, nr = r + dr; if (!this.walkable(nc, nr, blocks)) continue; if (dist[nr][nc] > dist[r][c] + 1) { dist[nr][nc] = dist[r][c] + 1; q.push({ c: nc, r: nr }); } } }
       return dist;
     }
-    computeFlow() { this.dist = this.computeFlowWith(this.blockSet); }
+    computeFlow() { this.dist = this.computeFlowWith(this.blockSet); this.computeAirFlow(); }
     distAt(c, r) { return this.inBounds(c, r) ? this.dist[r][c] : INF; }
+    // ----- flow-field cho quái BAY: chỉ né ô ĐÃ NÂNG (raised); bay qua được nham/nước -----
+    walkableAir(c, r) { return this.inBounds(c, r) && !this.raised.has(c + "," + r); }
+    computeAirFlow() {
+      const dist = Array.from({ length: CFG.ROWS }, () => new Array(CFG.COLS).fill(INF)); const q = [];
+      for (const e of this.map.exits) { if (!this.walkableAir(e.c, e.r)) continue; dist[e.r][e.c] = 0; q.push(e); }
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]; let h = 0;
+      while (h < q.length) { const { c, r } = q[h++]; for (const [dc, dr] of dirs) { const nc = c + dc, nr = r + dr; if (!this.walkableAir(nc, nr)) continue; if (dist[nr][nc] > dist[r][c] + 1) { dist[nr][nc] = dist[r][c] + 1; q.push({ c: nc, r: nr }); } } }
+      this.distAir = dist;
+    }
+    distAirAt(c, r) { return this.inBounds(c, r) ? this.distAir[r][c] : INF; }
+    nextAirCell(c, r) { const cur = this.distAirAt(c, r); if (cur === 0 || cur === INF) return null; let best = null, bd = cur; for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nc = c + dc, nr = r + dr; if (!this.walkableAir(nc, nr)) continue; const d = this.distAirAt(nc, nr); if (d < bd) { bd = d; best = { c: nc, r: nr }; } } return best; }
     nextCell(c, r) { const cur = this.distAt(c, r); if (cur === 0 || cur === INF) return null; let best = null, bd = cur; for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nc = c + dc, nr = r + dr; if (!this.walkable(nc, nr)) continue; const d = this.distAt(nc, nr); if (d < bd) { bd = d; best = { c: nc, r: nr }; } } return best; }
     // ô ngẫu nhiên xa đích hơn (đẩy lùi) cho Bẫy Hút
     randomBackCell(c, r, back) {
@@ -241,6 +261,8 @@
       } else if (cmd.act === "move") {   // đồng đội dời tháp trên bàn chung
         const t = this.towerAt(cmd.fc, cmd.fr) || this.traps.find((x) => x.col === cmd.fc && x.row === cmd.fr);
         if (t && this._moveTower(t, cmd.c, cmd.r)) this.emit();
+      } else if (cmd.act === "raise") {   // đồng đội nâng ô trên bàn chung
+        this.raised.add(cmd.c + "," + cmd.r); this.computeAirFlow(); this.emit();
       }
     }
     /* ---- 2v2: ảnh chụp ĐẦY ĐỦ bàn để đồng đội VẼ LẠI (chủ-bàn -> mirror) ---- */
@@ -415,7 +437,7 @@
         towers: this.towers.map((t) => ({ k: t.type, c: t.col, r: t.row, lv: t.level })),
         traps: this.traps.map((t) => ({ k: t.type, c: t.col, r: t.row })),
         // trạng thái động để nối lại đúng "kiểu game online": quái đang chạy, hàng chờ sinh, đồng hồ sinh, buff tốc
-        spawnClock: this.spawnClock,
+        spawnClock: this.spawnClock, raised: [...this.raised],
         spawnQueue: this.spawnQueue.map((s) => ({ at: s.at, w: s.w })),
         enemies: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [
           Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.isBoss ? 1 : 0,
@@ -446,7 +468,8 @@
       // khôi phục quái đang chạy + hàng chờ sinh + đồng hồ sinh (để catchUp mô phỏng tiếp)
       this.spawnClock = s.spawnClock || 0;
       this.spawnQueue = (s.spawnQueue || []).map((q) => ({ at: q.at, w: q.w }));
-      this.computeFlow();   // cần dist trước khi dựng quái (Enemy dùng flow-field)
+      this.raised = new Set(s.raised || []);
+      this.computeFlow();   // cần dist trước khi dựng quái (+ air flow né ô nâng) (Enemy dùng flow-field)
       for (const a of s.enemies || []) {
         const d = CFG.ENEMIES[a[2]]; if (!d) continue;
         const e = new STM.Enemy(d, a[6] || 1, a[7] || 1, this, !!a[5]);
@@ -566,7 +589,7 @@
       for (const t of this.towers) t.update(pdt, this);
       // tháp đang "bán/phá" hết giờ -> gỡ khỏi sân (+ hoàn vàng nếu do người chơi bán)
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
-      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; } this.computeFlow(); this.recomputeAuras(); this.emit(); }
+      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; } this.computeFlow(); this.recomputeAuras(); this.emit(); }
       if (this._towerDone) { this._towerDone = false; this.recomputeAuras(); this.emit(); }   // xây/nâng xong -> cập nhật aura
       for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);
@@ -583,6 +606,7 @@
       if (this.terrain) ctx.drawImage(this.terrain, 0, 0); else this.drawMapSimple(ctx);
       this.drawLavaGlow(ctx);
       this.drawGates(ctx);
+      this.drawRaised(ctx);
       for (const t of this.traps) t.draw(ctx, t === this.selected);
       this.drawPreview(ctx);
       for (const t of this.towers) t.draw(ctx, t === this.selected);
@@ -725,6 +749,22 @@
       ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
       ctx.fill(); ctx.stroke();
       ctx.globalAlpha = 1; ctx.fillStyle = urgent ? "#ffe08a" : "#d3f2d0"; ctx.fillText(txt, px + 4, py + 1);
+      ctx.restore();
+    }
+    // Ô ĐÃ NÂNG (Trùm Bản Đồ): bệ đá cao nổi lên (chặn quái bay) — vẽ dưới chân tháp
+    drawRaised(ctx) {
+      if (!this.raised || !this.raised.size) return;
+      ctx.save();
+      for (const key of this.raised) {
+        const p = key.split(","), c = +p[0], r = +p[1], x = c * TILE, y = r * TILE;
+        ctx.fillStyle = "rgba(0,0,0,.4)"; ctx.fillRect(x + 3, y + TILE - 4, TILE - 6, 6);           // bóng đáy
+        ctx.fillStyle = "#5b5344"; ctx.fillRect(x + 2, y + 4, TILE - 4, TILE - 6);                    // thân bệ
+        ctx.fillStyle = "#8f846a"; ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 12);                   // mặt trên sáng
+        ctx.strokeStyle = "#d6c79a"; ctx.lineWidth = 1.5; ctx.strokeRect(x + 2.5, y + 2.5, TILE - 5, TILE - 12);
+        ctx.strokeStyle = "rgba(255,240,200,.6)"; ctx.lineWidth = 2; ctx.lineCap = "round";           // mũi tên "nâng"
+        const mx = x + TILE / 2, my = y + 9;
+        ctx.beginPath(); ctx.moveTo(mx - 5, my + 3); ctx.lineTo(mx, my - 2); ctx.lineTo(mx + 5, my + 3); ctx.stroke();
+      }
       ctx.restore();
     }
     drawPreview(ctx) {

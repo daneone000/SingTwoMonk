@@ -44,6 +44,20 @@
       if (this.dead) { game.onEnemyKilled(this); return; }
       let mv = this.speed * dt * (game.enemyHaste || 1);
       if (this.fly) {
+        if (game.raised && game.raised.size) {   // có ô NÂNG -> bay theo lưới né ô nâng (Trùm Bản Đồ)
+          const c = Math.floor(this.x / TILE), r = Math.floor(this.y / TILE);
+          if (!game.inBounds(c, r)) {             // còn ngoài lưới (mới sinh phía trên) -> bay vào cổng Sinh
+            const e = game.map.entries[0], tx = (e.c + .5) * TILE, ty = (e.r + .5) * TILE, dx = tx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy);
+            this.remain = Math.min(game.distAirAt(e.c, e.r), 9999) + d / TILE;
+            if (d <= mv) { this.x = tx; this.y = ty; } else { this.x += (dx / d) * mv; this.y += (dy / d) * mv; } return;
+          }
+          if (game.isExitCell(c, r)) { this.leaked = true; game.onEnemyLeak(this); return; }
+          const nxt = game.nextAirCell(c, r); this.remain = Math.min(game.distAirAt(c, r), 9999);   // kẹp hữu hạn -> tháp vẫn nhắm được quái bay bị kẹt
+          if (!nxt) return;                       // bị chặn kín bởi ô nâng -> đứng im (chờ tháp diệt)
+          const tx = (nxt.c + .5) * TILE, ty = (nxt.r + .5) * TILE, dx = tx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy);
+          if (d <= mv) { this.x = tx; this.y = ty; } else { this.x += (dx / d) * mv; this.y += (dy / d) * mv; } return;
+        }
+        // mặc định: bay THẲNG tới cổng Tử
         const ex = game.map.tuPix.x, ey = game.map.tuPix.y, dx = ex - this.x, dy = ey - this.y, d = Math.hypot(dx, dy);
         this.remain = d;
         if (d <= mv) { this.leaked = true; game.onEnemyLeak(this); return; }

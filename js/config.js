@@ -263,7 +263,7 @@
     thamLam: { id: "thamLam", name: "Tham Lam", icon: "🎰", group: "Phép", impl: true,
       tiers: { bac: 1, vang: 2, kimcuong: 3 }, desc: (v) => `Mở khoá thêm ${v} ô phép (học được nhiều phép hơn).` },
     // --- Bản đồ ---
-    trumBanDo: { id: "trumBanDo", name: "Trùm Bản Đồ", icon: "🗺", group: "Bản đồ", impl: false,
+    trumBanDo: { id: "trumBanDo", name: "Trùm Bản Đồ", icon: "🗺", group: "Bản đồ", impl: true,
       tiers: { vang: 1 }, desc: () => "Dùng 10 KN nâng cao ô đất đã xây tháp để chặn cả quái BAY." },
   };
   const CORE_ORDER = ["blackFriday", "afk", "tayBuon", "giaCo", "nguyenBan", "nhanhNhen", "thamLam", "dungHop", "backKingXay", "kePhaLuat", "vuaPhep", "trumBanDo"];
@@ -274,7 +274,7 @@
 
   STM.CFG = {
     TILE, COLS, ROWS, CELL, MARGIN, buildMap, MAPS, curMap, setMap, getMapId,
-    CORES, CORE_ORDER, CORE_TIERS, CORE_TIER_INFO, CORE_UNLOCK_SP, coresAtTier, coreVal, MAX_CORES: 3,
+    CORES, CORE_ORDER, CORE_TIERS, CORE_TIER_INFO, CORE_UNLOCK_SP, coresAtTier, coreVal, MAX_CORES: 3, RAISE_SP: 10,
     GRID_W: TILE * COLS, GRID_H: TILE * ROWS,
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,

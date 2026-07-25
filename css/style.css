@@ -398,3 +398,9 @@ body.netplay #btnPause { display: none; }
 .tp-move { background: #2e4a6a; color: #cfe0ff; }
 .tp-move.on { background: #c9862b; color: #1a120a; }
 .tp-move.hidden { display: none; }
+
+/* Trùm Bản Đồ — nút nâng ô */
+.tp-raise { background: #3a5a3a; color: #d0f0d0; }
+.tp-raise.on { background: #6b7a3f; color: #1a120a; }
+.tp-raise:disabled { opacity: .5; }
+.tp-raise.hidden { display: none; }
