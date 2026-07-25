@@ -32,7 +32,7 @@
       this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
       this.pendingMove = null;               // Back King Xây: tháp đang chờ dời sang ô mới
       this.dungHopUsed = false;              // Dung Hợp: đã dùng (1 lần/ván) chưa
-      this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null;
+      this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0;
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
     // 2v2: netMatch chế độ đội? mirror = đồng đội KHÔNG mô phỏng (chỉ xem bàn của chủ-bàn)
@@ -133,6 +133,17 @@
     }
     // đánh dấu "có hành động" cho lõi AFK (xây/nâng/bán của CHÍNH mình)
     _coreActed() { if (this.hasCore("afk")) this._curWaveActed = true; }
+    // thông tin hiển thị cho lõi AFK: còn mấy đợt sạch, vàng chờ nhân đôi, tổng đã nhận
+    afkInfo() {
+      const acted = this._curWaveActed;
+      return {
+        clean: this._afkClean,
+        need: acted ? 3 : Math.max(1, 3 - this._afkClean),      // số đợt sạch còn cần (kể cả đợt đang chạy)
+        acted,
+        pending: Math.round(this._afkGold + (acted ? 0 : this._curWaveGold)),   // vàng sẽ được thưởng (×2) khi đủ chuỗi
+        earned: this._afkEarned || 0,                           // tổng vàng đã nhận từ AFK cả ván
+      };
+    }
     // chốt đợt vừa qua cho AFK khi sang đợt mới
     _afkOnWave(n) {
       if (this.hasCore("afk") && this._afkPrevWave != null) {
@@ -140,7 +151,7 @@
         else {
           this._afkClean++; this._afkGold += this._curWaveGold;
           if (this._afkClean >= 3) {
-            const bonus = Math.round(this._afkGold); this.gold += bonus; if (this._earn) this._earn.gold += bonus;
+            const bonus = Math.round(this._afkGold); this.gold += bonus; if (this._earn) this._earn.gold += bonus; this._afkEarned += bonus;
             this._afkClean = 0; this._afkGold = 0; if (this.onCoreLog) this.onCoreLog("💤 AFK: +" + bonus + " vàng (3 đợt không động tháp)");
           }
         }
@@ -464,7 +475,7 @@
         sWaveTimer: this.netMatch ? (this.netMatch.waveTimer || 0) : this.waveTimer,   // server đếm ngược tới đợt kế lúc lưu (để tính khoảng offline)
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
         coreTiers: this.coreTiers, coreRolls: this.coreRolls,
-        afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave },
+        afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -501,7 +512,7 @@
       this.cores = (s.cores || []).map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target || null }));
       this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
-      if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; }
+      if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }

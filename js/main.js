@@ -211,6 +211,13 @@
   const coreSlotsEl = $("coreSlots"), coreModal = $("coreModal"), coreCardsEl = $("coreCards"), coreHeadEl = $("coreHead");
   const corePendingEl = $("corePending"), corePendingTx = $("corePendingTx"), TIER = CFG.CORE_TIER_INFO;
   let coreSig = "";
+  function afkText(g) {   // dòng mô tả AFK sống động: còn mấy đợt sạch + vàng chờ + tổng đã nhận
+    const i = g.afkInfo();
+    const earned = `Tổng đã nhận: <b style="color:var(--gold)">${i.earned}</b>💰`;
+    if (i.acted) return `💤 Đã động tháp đợt này → chuỗi về 0, cần <b>3</b> đợt sạch liền. ${earned}`;
+    return `💤 Còn <b>${i.need}</b> đợt sạch → thưởng <b style="color:var(--gold)">${i.pending}</b>💰 (đợt sạch: ${i.clean}/3). ${earned}`;
+  }
+  function updateAfkLive(g) { if (!g.hasCore("afk")) return; const el = coreSlotsEl.querySelector(".core-afk"); if (el) el.innerHTML = afkText(g); }
   function maybeRenderCores(g) {
     const nx = g.cores.length, cost = g.coreUnlockSp(nx);
     const sig = nx + "|" + (g.sp >= cost ? 1 : 0) + "|" + (g.pendingCore ? g.pendingCore.id : "") + "|" + g.coreTiers.join(",") + "|" + g.cores.map((c) => c.id + c.tier).join(",") + "|" + (g.dungHopUsed ? 1 : 0);
@@ -224,7 +231,8 @@
         const def = CFG.CORES[core.id], cti = TIER[core.tier];
         el.className = "core-slot filled"; el.style.setProperty("--tc", cti.color);
         const extra = core.id === "dungHop" ? (g.dungHopUsed ? " · <span style='color:#ff9b9b'>đã dùng</span>" : " · <span style='color:#8bff9c'>sẵn sàng (xây đè lên tháp)</span>") : "";
-        el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b><small>${def.desc(core.value)}${extra}</small></span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
+        const small = core.id === "afk" ? `<small class="core-afk">${afkText(g)}</small>` : `<small>${def.desc(core.value)}${extra}</small>`;
+        el.innerHTML = `<span class="core-ic">${def.icon}</span><span class="core-tx"><b>${def.name}</b>${small}</span><span class="core-badge" style="background:${cti.color}">${cti.name}</span>`;
       } else if (i === g.cores.length) {
         const cost = g.coreUnlockSp(i), canOpen = g.slotOpenable(i), label = i === 0 ? "Chọn lõi" : `Mở · ${cost} KN`;
         el.className = "core-slot open" + (canOpen ? " ready" : ""); el.style.setProperty("--tc", ti.color);
@@ -346,7 +354,7 @@
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
     for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) { const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k]; b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < g.buyCost(def.cost)); }
-    maybeRenderCores(g);
+    maybeRenderCores(g); updateAfkLive(g);
     if (g.learned.size !== lastLearned) { renderSkills(g); lastLearned = g.learned.size; }
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : ""; }
     if (!modal.classList.contains("hidden")) renderTree();
