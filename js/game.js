@@ -542,11 +542,18 @@
     canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (this.hasCore("kePhaLuat")) return true; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }   // Kẻ Phá Luật: bỏ ràng buộc nhánh
     // Vua Phép Thuật: đổi phép đã học -> phép khác (miễn phí, không giới hạn số lần; hồi chiêu vẫn chạy thực nhờ skillCd giữ theo key).
     canSwap() { return !!this.hasCore("vuaPhep"); }
+    // Toàn bộ phép trong `set` phải NỐI LIỀN MẠCH từ gốc Mưa Lửa (đi theo cạnh cha->con, cả 2 đầu đều học).
+    _connectedFromRoot(set) {
+      if (!set.has("muaLua")) return false;
+      const reach = new Set(["muaLua"]); let changed = true;
+      while (changed) { changed = false; for (const k of set) { if (reach.has(k)) continue; if (CFG.SKILLS[k].parents.some((p) => reach.has(p))) { reach.add(k); changed = true; } } }
+      return reach.size === set.size;
+    }
     canSwapTo(oldKey, newKey) {
       if (!this.hasCore("vuaPhep") || !this.learned.has(oldKey) || this.learned.has(newKey) || !CFG.SKILLS[newKey]) return false;
       if (this.hasCore("kePhaLuat")) return true;                    // Kẻ Phá Luật: bỏ ràng buộc nhánh
-      const s = CFG.SKILLS[newKey]; if (!s.parents.length) return true;
-      const rest = new Set(this.learned); rest.delete(oldKey); return s.parents.some((p) => rest.has(p));   // nhánh tính theo phép CÒN LẠI
+      const set = new Set(this.learned); set.delete(oldKey); set.add(newKey);
+      return this._connectedFromRoot(set);   // đổi xong MỌI phép vẫn nối liền từ Mưa Lửa (Mưa Lửa không đổi được; không để phép mồ côi)
     }
     swapSkill(oldKey, newKey) {
       if (!this.canSwapTo(oldKey, newKey)) return false;
