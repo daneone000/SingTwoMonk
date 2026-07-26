@@ -4,3 +4,8 @@ node_modules/
 *.swp
 .vscode/
 .idea/
+
+# auto-deploy webhook (local config, not upstream)
+deploy-webhook.js
+.env
+start_server.sh

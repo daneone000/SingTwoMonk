@@ -223,7 +223,7 @@ function handleMsg(c, msg) {
       }
       // 2) VÀO MỚI
       if (c.slot) break;                       // đã ở trong phòng rồi
-      if (room.started) { send({ sock: c.sock }, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
+      if (room.started && !room.over) { send({ sock: c.sock }, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
       if (slots.size >= room.MAX) { send({ sock: c.sock }, { t: "reject", why: "Phòng đã đủ " + room.MAX + " người." }); break; }
       const sid = makeSid(), pid = nextPid++;
       const slot = { sid, pid, name: nm || ("Người " + pid), alive: true, connected: true, sock: c.sock, graceTimer: null, pvpQueue: [] };
