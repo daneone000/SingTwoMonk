@@ -160,7 +160,7 @@ function teamDead(team) {
   if (left.length <= 1) endMatch2v2(left[0]); else lobbyUpdate();
 }
 function endMatch(winner) {
-  room.over = true; if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
+  room.started = false; room.over = true; if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
   // xếp hạng: người trụ cuối trước, rồi gục muộn -> gục sớm
   const rank = [];
   if (winner) rank.push(winner.pid);
@@ -169,7 +169,7 @@ function endMatch(winner) {
   broadcast({ t: "end", winner: winner ? winner.pid : null, ranking: rank, names, wave: room.wave });
 }
 function endMatch2v2(winTeam) {
-  room.over = true; if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
+  room.started = false; room.over = true; if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null; }
   // thứ tự đội: đội thắng trước, rồi đội gục muộn -> sớm
   const teamOrder = [];
   if (winTeam != null) teamOrder.push(winTeam);
