@@ -303,14 +303,28 @@
     applyBoard(snap) {
       if (!snap) return;
       this.lives = snap.lv; this.wave = snap.w; this.gameOver = !!snap.go;
-      this.towers = []; this.blockSet = new Set(); this.occupied = new Set();
       const keepSel = this.selected && this.selected.col != null ? [this.selected.col, this.selected.row, this.selected.trap ? 1 : 0] : null;
-      for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; if (a[9]) t.fuse(a[9]); t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
-      this.traps = snap.tr.map((a) => { const t = new STM.Trap(a[2], a[0], a[1]); this.occupied.add(a[0] + "," + a[1]); return t; });
+      // Chữ ký BỐ CỤC tháp/bẫy: chỉ dựng lại tháp + tính lại flow-field/aura khi bố cục ĐỔI
+      // (đại đa số khung chỉ quái di chuyển) -> đồng đội hết lag vì bỏ BFS + cấp phát object mỗi khung.
+      const sig = snap.tw.map((a) => a[0] + "," + a[1] + "," + a[2] + "," + a[3] + "," + (a[9] || 0)).join("|")
+        + "#" + snap.tr.map((a) => a[0] + "," + a[1] + "," + a[2]).join("|");
+      const layoutChanged = sig !== this._boardSig;
+      if (layoutChanged) {
+        this._boardSig = sig;
+        this.towers = []; this.blockSet = new Set(); this.occupied = new Set();
+        for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; if (a[9]) t.fuse(a[9]); t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
+        this.traps = snap.tr.map((a) => { const t = new STM.Trap(a[2], a[0], a[1]); this.occupied.add(a[0] + "," + a[1]); return t; });
+      } else {
+        // bố cục giữ nguyên: chỉ cập nhật trạng thái ĐỘNG của tháp (góc quay, đồng hồ xây, buff) để hoạt ảnh mượt
+        for (let i = 0; i < snap.tw.length; i++) { const a = snap.tw[i], t = this.towers[i]; if (!t) continue; t.buildTimer = a[6]; t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; }
+      }
       this.enemies = snap.en.map((a) => { const d = CFG.ENEMIES[a[2]]; const e = new STM.Enemy(d, 1, 1, this, !!a[6]); e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3]; e.freezeTime = a[7] ? 1 : 0; if (a[8]) { e.slowTime = 1; e.slowMult = 0.5; } e.burnTime = a[9] ? 1 : 0; e.angle = a[10] || 0; e.remain = 1; return e; });
       // giữ lại lựa chọn tháp theo ô (để bảng chi tiết không mất khi bàn cập nhật)
       if (keepSel) this.selected = keepSel[2] ? this.traps.find((t) => t.col === keepSel[0] && t.row === keepSel[1]) : this.towerAt(keepSel[0], keepSel[1]);
-      this.computeFlow(); this.recomputeAuras(); this.emit();
+      // Chỉ làm mới HUD (nặng: dựng lại shop/cây phép/bảng tháp) khi BỐ CỤC đổi. Khung chỉ có quái
+      // di chuyển KHÔNG gọi updateHUD — canvas vẫn vẽ quái 60fps ở loop(), số liệu HUD (mạng/vàng)
+      // đã được làm mới định kỳ 200ms trong step() + theo sự kiện (reward/clock). -> đồng đội hết lag.
+      if (layoutChanged) { this.computeFlow(); this.recomputeAuras(); this.emit(); }
     }
     // Phép ĐỊA CHẤN (đối kháng) — ở chế độ 2+ người, thi triển sẽ gọi hàm này trên MỖI đối thủ
     // (chọn 1 tháp của họ): cấp1 -> phá hủy (chờ như bán), cấp2+ -> tụt 1 cấp (chờ như nâng).

@@ -216,8 +216,9 @@ function handleMsg(c, msg) {
           players: joinedList(), map: room.map, over: room.over, coreTiers: room.coreTiers,
           mode: room.mode, team: slot.team, authority: !!slot.authority,
           pvp: slot.pvpQueue || [],   // phép PvP đối thủ giáng vào lúc offline -> client phát lại khi tua bù
+          reward: { gold: slot.pendGold || 0, sp: slot.pendSp || 0 },   // 2v2 đồng đội: vàng/KN chủ-bàn chia trong lúc offline -> cộng bù khi nối lại
           teammate: room.mode === "2v2" && mate ? { pid: mate.pid, name: mate.name, authority: !!mate.authority } : null }); }
-        slot.pvpQueue = [];   // đã bàn giao -> dọn hàng đợi
+        slot.pvpQueue = []; slot.pendGold = 0; slot.pendSp = 0;   // đã bàn giao -> dọn hàng đợi
         lobbyUpdate();
         break;
       }
@@ -249,7 +250,9 @@ function handleMsg(c, msg) {
     /* ---- 2v2 ---- */
     case "board": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "board", s: o.s }); break;        // chủ-bàn -> đồng đội (xem bàn chung)
     case "cmd": if (c.slot) send(authorityOf(c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;        // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
-    case "reward": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "reward", gold: o.gold, sp: o.sp }); break; // chủ-bàn chia vàng/KN cho đồng đội
+    case "reward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot);   // chủ-bàn chia vàng/KN cho đồng đội
+      if (m) { if (m.connected && m.sock) send(m, { t: "reward", gold: o.gold, sp: o.sp }); else if (m.alive) { m.pendGold = (m.pendGold || 0) + (o.gold || 0); m.pendSp = (m.pendSp || 0) + (o.sp || 0); } }   // đồng đội offline -> đệm lại, cộng bù khi nối lại
+    } break;
     case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp, cores: o.cores }); break; // khoe phép + lõi đã chọn cho đồng đội
     case "teamspell": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamspell", key: o.key, data: o.data }); } break;   // phép PvP -> bàn đội địch (chủ-bàn offline -> đệm)
     case "teamvacuum": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamvacuum", data: o.data }); } break;               // Bẫy Hút -> bàn đội địch (chủ-bàn offline -> đệm)

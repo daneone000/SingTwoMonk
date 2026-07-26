@@ -86,12 +86,15 @@
           if (o.map) STM.CFG.setMap(o.map);
           if (o.mode === "2v2") {
             this.setup2v2(o);
-            const sv = this.isAuthority ? STM.loadBoard() : null;   // chủ-bàn khôi phục bàn; đồng đội chờ snapshot mới
+            const sv = STM.loadBoard();   // chủ-bàn LẪN đồng đội đều tự lưu (đồng đội lưu ví/KN/phép/lõi của mình)
             if (this.isAuthority && sv) {
               g.restore(sv); g.versus = true; g.netMatch = this; g.name = this.myName;
               g._earn = { gold: 0, sp: 0 };
               g.catchUp({ wave: o.wave, waveTimer: o.waveTimer, sWaveTimer: (sv && sv.sWaveTimer) || 0 }, o.pvp);   // chủ-bàn tua tiếp từ trạng thái đã lưu (quái chạy tiếp + phép PvP đã đệm)
               if (g._earn.gold || g._earn.sp) this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp });   // chia vàng/KN bù cho đồng đội (cộng bằng nhau)
+            } else if (!this.isAuthority && sv) {
+              g.restore(sv); g.versus = true; g.netMatch = this; g.name = this.myName;   // đồng đội: khôi phục VÍ/KN/PHÉP/LÕI của MÌNH; bàn chung sẽ do chủ-bàn đẩy lại
+              if (o.reward && (o.reward.gold || o.reward.sp)) { const got = g.gainGold(o.reward.gold || 0); g.gold += got; g.sp += o.reward.sp || 0; }   // cộng bù vàng/KN chủ-bàn đã chia lúc mình offline
             } else { g.reset("endless"); g.started = o.wave > 0; g.versus = true; g.netMatch = this; g.name = this.myName; }
             if (o.coreTiers && o.coreTiers.length === 3) g.coreTiers = o.coreTiers;
             g.wave = o.wave;
@@ -177,6 +180,9 @@
             if (g._earn && (g._earn.gold || g._earn.sp)) { this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp }); g._earn = { gold: 0, sp: 0 }; }
             if ((this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
           }
+        } else {
+          // đồng đội (mirror): tự lưu VÍ/KN/PHÉP/LÕI của mình (~2s) để F5 không bị reset
+          if (!g.gameOver && (this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
         }
         // cả hai: khoe phép đã học + điểm KN cho đồng đội (~1.3/s)
         if ((this._skT = (this._skT + 1 || 1) % 8) === 0) this.sendSkills();
