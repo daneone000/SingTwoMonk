@@ -19,10 +19,27 @@ const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".json": "application/json", ".sh": "text/plain" };
 
 /* ----------------------------- HTTP tĩnh ----------------------------- */
+// Chống CACHE cũ (Cloudflare/trình duyệt): gắn ?v=<mtime> vào MỌI file js/css trong index.html.
+// index.html luôn phục vụ tươi (no-cache) nên token đổi theo file -> deploy mới là client tải lại ngay,
+// KHÔNG kẹt sau bản JS cũ đã bị CDN cache.
+function assetVersion() {
+  let mx = 0;
+  for (const d of ["js", "css"]) { try { for (const f of fs.readdirSync(path.join(ROOT, d))) { const st = fs.statSync(path.join(ROOT, d, f)); if (st.mtimeMs > mx) mx = st.mtimeMs; } } catch (e) {} }
+  return Math.floor(mx).toString(36);
+}
+function serveIndex(res) {
+  fs.readFile(path.join(ROOT, "index.html"), "utf8", (err, html) => {
+    if (err) { res.writeHead(404); res.end("not found"); return; }
+    const v = assetVersion();
+    html = html.replace(/((?:src|href)="(?:js|css)\/[^"?]+)"/g, '$1?v=' + v + '"');   // js/x.js -> js/x.js?v=TOKEN
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache, must-revalidate" });
+    res.end(html);
+  });
+}
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
   if (p === "/_stm") { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ stm: 1, lan: true })); return; }  // marker để client biết đây LÀ máy chủ LAN
-  if (p === "/") p = "/index.html";
+  if (p === "/" || p === "/index.html") { serveIndex(res); return; }
   const file = path.normalize(path.join(ROOT, p));
   if (!file.startsWith(ROOT)) { res.writeHead(403); res.end("forbidden"); return; }
   fs.readFile(file, (err, data) => {
