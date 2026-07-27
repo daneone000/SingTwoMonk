@@ -76,8 +76,11 @@
 
         <!-- 2v2: phép đồng đội đã học (CHỈ XEM) -->
         <div id="mateSkills" class="mate-skills hidden">
-          <div class="mate-head">🤝 Phép đồng đội <b id="mateName"></b> <small>(chỉ xem)</small></div>
+          <div class="mate-head">🤝 Đồng đội <b id="mateName"></b> <small>(chỉ xem)</small></div>
+          <div class="mate-sub">Phép đã học</div>
           <div id="mateGrid" class="mate-grid"></div>
+          <div class="mate-sub">Lõi đã chọn</div>
+          <div id="mateCoresEl" class="mate-grid"></div>
         </div>
 
         <!-- LÕI NÂNG CẤP (giống Augment TFT) — 3 ô -->
@@ -168,6 +171,13 @@
           <p class="vs-note">Chơi cùng người thật trong <b>mạng LAN</b>. Máy chủ phải chạy <code>node server.js</code>. Các máy khác mở địa chỉ hiện ở cửa sổ máy chủ rồi vào cùng phòng này.<br>🌍 <b>Bạn bè ở xa?</b> Dùng <b>LAN ảo (ZeroTier)</b> để họ join từ bất cứ đâu — xem <code>HUONGDAN-LAN-AO.md</code>.</p>
           <div class="vs-name-row"><span class="vs-tag me">Tên bạn</span><input id="vsLanName" class="vs-inp" maxlength="14" value="kvandiep"></div>
           <p class="vs-note" id="vsLanAddr" style="margin-top:8px"></p>
+        </div>
+        <div id="vsLanRooms" class="hidden">
+          <div class="vs-lobby-head">Danh sách phòng <span id="vsRoomsCount"></span>
+            <button id="vsRoomCreate" class="vs-room-create">＋ Tạo phòng mới</button>
+          </div>
+          <div id="vsRoomsList" class="vs-lobby"></div>
+          <p class="vs-note" id="vsRoomsMsg" style="margin-top:8px">Chọn một phòng để vào, hoặc tạo phòng mới.</p>
         </div>
         <div id="vsLanLobby" class="hidden">
           <div class="vs-lobby-head">Phòng chờ <span id="vsLobbyCount">(0)</span></div>

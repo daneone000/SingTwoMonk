@@ -36,9 +36,12 @@
       this.game = game; this.client = client; this.myName = myName;
       this.net = true;
       this.myPid = null; this.isHost = false;
+      this.roomId = null;            // phòng đang ở (server gán qua welcome)
+      this.rooms = []; this.onRooms = null;   // danh sách phòng để duyệt
       this.players = [];             // [{pid,name,host,alive}]
       this.names = {};               // pid -> name
       this.snaps = {};               // pid -> snapshot (đối thủ)
+      this.oppCores = {};            // pid -> lõi đối thủ đã chọn (ffa; để hiện ở ô đối thủ)
       this.wave = 0; this.waveTimer = 0; this._alive = 1;
       this.started = false; this.over = false; this.winner = null; this.ranking = [];
       this.onLobby = null; this.onStart = null; this.onEnd = null; this.onChange = null;
@@ -54,10 +57,15 @@
       // gắn vào game
       game.reset("endless"); game.versus = true; game.netMatch = this; game.name = myName;
     }
-    join() { this.client.send({ t: "join", name: this.myName, sid: this.sid || undefined }); }
+    join() { this.client.send({ t: "join", name: this.myName, sid: this.sid || undefined }); }   // KẾT NỐI LẠI theo sid (server tự tìm đúng phòng)
+    requestRooms() { this.client.send({ t: "list" }); }                                          // xin danh sách phòng để duyệt
+    joinRoom(id) { this.client.send({ t: "join", name: this.myName, room: id }); }                // vào 1 phòng đã chọn
+    createRoom() { this.client.send({ t: "create", name: this.myName }); }                        // tạo phòng mới (làm chủ phòng)
+    leaveRoom() { this.started = false; this.myPid = null; this.client.send({ t: "leave" }); }    // rời phòng -> quay về danh sách (vẫn kết nối)
     startMatch(mode) { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId(), mode: mode || "ffa" }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }
     sendSpell(key, data) { this.client.send({ t: "spell", key, data }); }
+    sendPCores() { if (this.mode !== "2v2") this.client.send({ t: "pcores", cores: this.game.cores.map((c) => ({ id: c.id, tier: c.tier })) }); }   // khoe lõi cho đối thủ (ffa)
     sendVacuum(data) { this.client.send({ t: "vacuum", data }); }   // Bẫy Hút: server chọn 1 đối thủ ngẫu nhiên
     // 2v2
     sendCmd(c) { this.client.send({ t: "cmd", c }); }               // đồng đội -> chủ-bàn: xây/nâng/bán/phép bàn
@@ -74,8 +82,9 @@
     handle(o) {
       const g = this.game, map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
       switch (o.t) {
+        case "rooms": this.rooms = o.rooms || []; if (this.onRooms) this.onRooms(this); break;   // danh sách phòng (khi đang duyệt)
         case "welcome":
-          this.myPid = o.pid; this.isHost = o.host; if (o.sid) this.sid = o.sid;
+          this.myPid = o.pid; this.isHost = o.host; if (o.sid) this.sid = o.sid; if (o.room != null) this.roomId = o.room;
           STM.saveSession({ sid: this.sid, host: (typeof location !== "undefined" ? location.host : ""), name: this.myName, active: true });
           break;
         case "reject": if (this.onReject) this.onReject(o.why); break;
@@ -143,6 +152,7 @@
         case "wave": this.wave = o.n; g.receiveWave(o.n); if (this.onChange) this.onChange(); break;
         case "clock": this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; if (this.onChange) this.onChange(); break;
         case "snap": this.snaps[o.pid] = o.s; break;                    // minimap đối thủ
+        case "pcores": this.oppCores[o.pid] = o.cores || []; if (this.onChange) this.onChange(); break;   // lõi đối thủ đã chọn (ffa)
         case "spell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;  // đối thủ đánh mình (trieuHoi kèm chủng chung)
         case "vacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;   // đối thủ hút quái sang sân mình
         case "eliminated": { const p = this.players.find((x) => x.pid === o.pid); if (p) p.alive = false; if (this.onChange) this.onChange(); break; }
@@ -161,6 +171,7 @@
         const g = this.game;
         if (!this._sentDead && g.gameOver) { this._sentDead = true; this.client.send({ t: "dead" }); }
         if (!g.gameOver) this.client.send({ t: "snap", s: g.snapshot() });
+        if ((this._pcT = (this._pcT + 1 || 1) % 10) === 0) this.sendPCores();   // khoe lõi đã chọn cho đối thủ (~2s)
         // lưu sân định kỳ (~2s) để F5/mất mạng còn khôi phục được
         if (!g.gameOver && (this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
         if (this.onChange) this.onChange();       // làm mới minimap/đồng hồ dù local đã chết
@@ -206,6 +217,7 @@
       return this.players.filter((p) => p.pid !== this.myPid).map((p) => {
         const snap = this.snaps[p.pid];
         return { pid: p.pid, name: p.name, wave: snap ? snap.w : 0, lives: snap ? snap.lv : 10, dead: (snap && snap.go) || p.alive === false,
+          cores: this.oppCores[p.pid] || [],   // lõi đối thủ đã chọn
           draw: (cx, sz) => STM.drawMiniSnap(cx, sz, snap, this.game.map) };
       });
     }

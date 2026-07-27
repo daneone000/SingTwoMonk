@@ -258,7 +258,7 @@
       const def = CFG.CORES[it.id], c = TIER[it.tier], card = document.createElement("button");
       card.className = "core-card"; card.style.setProperty("--tc", c.color);
       card.innerHTML = `<span class="cc-badge" style="background:${c.color}">${c.name}</span><span class="cc-ic">${def.icon}</span><span class="cc-name">${def.name}</span><span class="cc-group">${def.group}</span><span class="cc-desc">${def.desc(it.value)}</span>`;
-      card.onclick = () => { if (game.pickCore(it.id)) { coreModal.classList.add("hidden"); log("Đã chọn lõi: " + def.name + " (" + c.name + ")", "good"); if (it.id === "dungHop") log("⚗ Dung Hợp: chọn 1 loại tháp ở cửa hàng rồi bấm XÂY ĐÈ lên 1 tháp đã có (1 lần/ván).", "ev"); game.emit(); } };
+      card.onclick = () => { if (game.pickCore(it.id)) { coreModal.classList.add("hidden"); log("Đã chọn lõi: " + def.name + " (" + c.name + ")", "good"); if (it.id === "dungHop") log("⚗ Dung Hợp: chọn 1 loại tháp ở cửa hàng rồi bấm XÂY ĐÈ lên 1 tháp đã có (1 lần/ván).", "ev"); if (net) { net.sendPCores(); net.sendCores(); }   /* khoe lõi vừa chọn cho đối thủ (ffa) / đồng đội (2v2) ngay */ game.emit(); } };
       coreCardsEl.appendChild(card);
     });
     coreModal.classList.remove("hidden");
@@ -472,19 +472,29 @@
   $("vsAgain").onclick = () => { vsResult.classList.add("hidden"); if (net) net.playAgain(); else { buildNameInputs(); showTab("AI"); vsModal.classList.remove("hidden"); } };
 
   /* ---------- chuyển tab AI / LAN + luồng mạng ---------- */
+  const esc = (s) => (s == null ? "" : String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m])));
   let curTab = "AI";
+  // 3 trạng thái của tab Mạng LAN: "connect" (nhập tên/kiểm tra máy chủ) | "rooms" (duyệt phòng) | "lobby" (đã trong 1 phòng)
+  let lanState = "connect";
+  function setLanView(state) {
+    lanState = state;
+    $("vsLanConnect").classList.toggle("hidden", state !== "connect");
+    $("vsLanRooms").classList.toggle("hidden", state !== "rooms");
+    $("vsLanLobby").classList.toggle("hidden", state !== "lobby");
+    $("vsLanJoin").classList.toggle("hidden", state !== "connect");
+    $("vsLanStart").classList.toggle("hidden", state !== "lobby" || !(net && net.isHost));
+    $("vsLanLeave").classList.toggle("hidden", state === "connect");
+    $("vsLanLeave").textContent = state === "rooms" ? "Ngắt kết nối" : "Rời phòng";
+    // trong phòng LAN: chỉ CHỦ PHÒNG được chọn bản đồ (bản đồ theo chủ phòng)
+    $("vsMaps").classList.toggle("locked", state === "lobby" && !(net && net.isHost));
+  }
   function showTab(tab) {
-    curTab = tab; const lan = tab === "LAN", conn = !!(net && net.myPid != null);
+    curTab = tab; const lan = tab === "LAN";
     $("vsTabAI").classList.toggle("on", !lan); $("vsTabLAN").classList.toggle("on", lan);
     $("vsPanelAI").classList.toggle("hidden", lan); $("vsPanelLAN").classList.toggle("hidden", !lan);
     $("vsStart").classList.toggle("hidden", lan);
-    $("vsLanConnect").classList.toggle("hidden", !lan || conn);
-    $("vsLanLobby").classList.toggle("hidden", !lan || !conn);
-    $("vsLanJoin").classList.toggle("hidden", !lan || conn);
-    $("vsLanStart").classList.toggle("hidden", !lan || !conn || !(net && net.isHost));
-    $("vsLanLeave").classList.toggle("hidden", !lan || !conn);
-    // trong phòng LAN: chỉ CHỦ PHÒNG được chọn bản đồ (bản đồ theo chủ phòng)
-    $("vsMaps").classList.toggle("locked", lan && conn && !(net && net.isHost));
+    if (lan) setLanView(lanState);
+    else { $("vsLanJoin").classList.add("hidden"); $("vsLanStart").classList.add("hidden"); $("vsLanLeave").classList.add("hidden"); }
   }
   $("vsTabAI").onclick = () => showTab("AI");
   $("vsTabLAN").onclick = () => showTab("LAN");
@@ -510,8 +520,8 @@
     for (const v of match.opponentViews()) {
       const el = document.createElement("div"); el.className = "opp vs";
       el.innerHTML = `<canvas class="omini" width="118" height="118"></canvas>` +
-        `<div class="omap"><span class="oname">${v.name}</span><small class="ostat">Đợt ${v.wave} · 💀${v.lives}</small></div>`;
-      box.appendChild(el); oppCanvas[v.pid] = { cv: el.querySelector(".omini"), stat: el.querySelector(".ostat"), el };
+        `<div class="omap"><span class="oname">${v.name}</span><small class="ostat">Đợt ${v.wave} · 💀${v.lives}</small><div class="opp-cores"></div></div>`;
+      box.appendChild(el); oppCanvas[v.pid] = { cv: el.querySelector(".omini"), stat: el.querySelector(".ostat"), cores: el.querySelector(".opp-cores"), coreSig: "", el };
     }
     oppKey = match.opponentViews().map((v) => v.pid).join(",");
   }
@@ -524,7 +534,14 @@
       const cx = o.cv.getContext("2d"); cx.clearRect(0, 0, o.cv.width, o.cv.height); v.draw(cx, o.cv.width);
       o.stat.textContent = `Đợt ${v.wave} · 💀${v.lives}`;
       o.el.classList.toggle("dead", v.dead);
+      if (o.cores) { const sig = (v.cores || []).map((c) => c.id + c.tier).join(","); if (sig !== o.coreSig) { o.coreSig = sig; o.cores.innerHTML = coreChips(v.cores); } }   // lõi đối thủ (chỉ vẽ lại khi đổi)
     }
+  }
+  // dãy icon lõi (dùng chung: ô đối thủ + panel đồng đội). empty = chữ khi chưa chọn lõi nào.
+  function coreChips(cores, empty) {
+    if (!cores || !cores.length) return empty ? `<span class="mate-empty">${empty}</span>` : "";
+    return cores.map((c) => { const d = CFG.CORES[c.id]; if (!d) return ""; const ti = CFG.CORE_TIER_INFO[c.tier] || CFG.CORE_TIER_INFO.bac;
+      return `<span class="core-chip" style="border-color:${ti.color};color:${ti.color}" title="${d.name} · ${ti.name}">${d.icon}</span>`; }).join("");
   }
 
   function startVersus(players) {
@@ -541,6 +558,7 @@
   function endVersus() {
     reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
     if (net) { net.leave(); net = null; }
+    lanState = "connect";
     if (!match) return; match = null;
     document.body.classList.remove("versus", "netplay", "team2v2");
     $("mateSkills").classList.add("hidden");
@@ -549,6 +567,33 @@
 
   /* ---------- MẠNG LAN ---------- */
   let net = null;
+  // Danh sách phòng (nhiều phòng cùng lúc) — hiện tên người đã join sẵn mỗi phòng.
+  function renderRooms(m) {
+    const rs = m.rooms || [];
+    $("vsRoomsCount").textContent = `(${rs.length})`;
+    if (!rs.length) {
+      $("vsRoomsList").innerHTML = `<div class="vs-empty-team">Chưa có phòng nào — bấm “＋ Tạo phòng mới” để mở phòng.</div>`;
+      $("vsRoomsMsg").textContent = "Chưa có phòng nào đang mở. Tạo phòng mới để bắt đầu.";
+      return;
+    }
+    $("vsRoomsList").innerHTML = rs.map((r) => {
+      const names = r.players.length
+        ? r.players.map((p) => `<b>${esc(p.name)}</b>${p.host ? " 👑" : ""}`).join(", ")
+        : "— chưa có ai —";
+      const badge = r.mode === "2v2" ? "2v2" : "Cá nhân";
+      const full = r.count >= r.max, playing = r.started && !r.over;
+      const right = playing ? `<span class="vs-room-state playing">Đang chơi</span>`
+        : full ? `<span class="vs-room-state full">Đủ người</span>`
+          : `<button class="vs-room-join" data-room="${r.id}">Vào</button>`;
+      return `<div class="vs-room-row"><div class="vs-room-main"><span class="vs-room-name">${esc(r.name)}</span> <span class="vs-room-badge">${badge}</span> <span class="vs-room-ct">${r.count}/${r.max}</span></div>` +
+        `<div class="vs-room-players">${names}</div>${right}</div>`;
+    }).join("");
+    $("vsRoomsList").querySelectorAll(".vs-room-join").forEach((b) => {
+      b.onclick = () => { if (net) { net.joinRoom(+b.dataset.room); $("vsRoomsMsg").innerHTML = "⏳ Đang vào phòng…"; } };
+    });
+    $("vsRoomsMsg").textContent = "Chọn một phòng để vào, hoặc tạo phòng mới.";
+  }
+  $("vsRoomCreate").onclick = () => { if (net) { net.createRoom(); $("vsRoomsMsg").innerHTML = "⏳ Đang tạo phòng…"; } };
   function renderLobby(m) {
     const mode = m.lobbyMode || "ffa";
     $("vsLobbyCount").textContent = `(${m.players.length}/${mode === "2v2" ? 4 : 5})`;
@@ -583,10 +628,9 @@
   let reconnecting = false, reconnTries = 0, reconnTimer = null;
   const lanUrl = () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/";
   function lanFailHint() {
-    $("vsLanConnect").classList.remove("hidden"); $("vsLanLobby").classList.add("hidden");
-    $("vsLanAddr").innerHTML = `❌ <b>Không kết nối được máy chủ</b> tại <b>${location.host}</b>.<br>Kiểm tra: ① máy chủ đã chạy <code>node server.js</code> chưa · ② bạn mở ĐÚNG địa chỉ đó chưa (không phải <code>file://</code> hay server tĩnh khác) · ③ tường lửa/khác mạng LAN.`;
-    $("vsLanJoin").classList.remove("hidden"); $("vsLanLeave").classList.add("hidden");
     if (net) { net.leave(); net = null; }
+    setLanView("connect");
+    $("vsLanAddr").innerHTML = `❌ <b>Không kết nối được máy chủ</b> tại <b>${location.host}</b>.<br>Kiểm tra: ① máy chủ đã chạy <code>node server.js</code> chưa · ② bạn mở ĐÚNG địa chỉ đó chưa (không phải <code>file://</code> hay server tĩnh khác) · ③ tường lửa/khác mạng LAN.`;
   }
   function reconnBanner(on, txt) { const b = $("netReconnect"); b.classList.toggle("hidden", !on); if (on && txt) b.querySelector("span").textContent = txt; }
 
@@ -596,13 +640,14 @@
     let opened = false;
     const client = new STM.NetClient(lanUrl(),
       (o) => net && net.handle(o),
-      () => { opened = true; net.join(); },
+      () => { opened = true; if (net.sid) net.join(); else net.requestRooms(); },   // có sid -> KẾT NỐI LẠI; không -> duyệt danh sách phòng
       () => onLanClose(opened, opts));
     net = new STM.NetMatch(game, client, name);
     net.sid = opts.sid || (STM.loadSession() && STM.loadSession().sid) || null;
-    net.onReject = (why) => { STM.clearSession(); reconnecting = false; reconnBanner(false); $("vsLanMsg").textContent = "Bị từ chối: " + why; if (net) { net.leave(); net = null; } if (!opts.silent) showTab("LAN"); else { endVersus(); openMenu(); } };
+    net.onReject = (why) => { reconnecting = false; reconnBanner(false); if (!opts.silent) { $("vsRoomsMsg").textContent = "Bị từ chối: " + why; if (net) net.requestRooms(); setLanView("rooms"); showTab("LAN"); } else { STM.clearSession(); if (net) { net.leave(); net = null; } endVersus(); openMenu(); } };
     net.onKick = (why) => { reconnecting = false; reconnBanner(false); if (net) { net.leave(); net = null; } endVersus(); log(why || "Phiên đã mở ở nơi khác.", "warn"); openMenu(); };
-    net.onLobby = (m) => { reconnecting = false; reconnBanner(false); renderLobby(m); if (!(opts.silent && !m.started)) showTab("LAN"); if (opts.silent && !m.started) { vsModal.classList.remove("hidden"); document.body.classList.remove("versus", "netplay"); } };
+    net.onRooms = (m) => { reconnecting = false; reconnBanner(false); renderRooms(m); if (lanState !== "lobby") { setLanView("rooms"); if (curTab === "LAN") showTab("LAN"); } };
+    net.onLobby = (m) => { reconnecting = false; reconnBanner(false); renderLobby(m); if (!opts.silent && !m.started) { setLanView("lobby"); showTab("LAN"); } if (opts.silent && !m.started) { vsModal.classList.remove("hidden"); document.body.classList.remove("versus", "netplay"); setLanView("lobby"); } };
     net.onStart = (m) => startVersusNet(m);
     net.onResume = (m) => resumeVersusNet(m);
     net.onEnd = (m) => showResult(m);
@@ -615,7 +660,7 @@
     const sess = STM.loadSession();
     if (net.started && !net.over && sess && sess.active) { scheduleReconnect(sess); }   // rớt giữa trận -> tự nối lại
     else if (!wasOpened && !opts.silent) { lanFailHint(); }
-    else if (!opts.silent) { $("vsLanMsg").textContent = "Mất kết nối máy chủ."; }
+    else if (!opts.silent) { $(lanState === "rooms" ? "vsRoomsMsg" : "vsLanMsg").textContent = "Mất kết nối máy chủ."; }
   }
   function scheduleReconnect(sess) {
     if (reconnecting) return; reconnecting = true; reconnTries = 0;
@@ -636,16 +681,19 @@
   $("vsLanJoin").onclick = () => {
     if (location.protocol === "file:") { $("vsLanAddr").innerHTML = `⚠ Bạn đang mở bằng <b>file://</b> (double-click). Chế độ LAN CẦN máy chủ: chạy <code>node server.js</code> (hoặc <code>./run.sh</code>) rồi mở <b>http://&lt;IP&gt;:8090/</b> hiện ở cửa sổ máy chủ.`; return; }
     const name = ($("vsLanName").value || "").trim() || PLAYER;
-    STM.clearSession();                          // vào phòng mới -> bỏ phiên cũ, xin sid mới
-    // hiện ngay trạng thái "đang kết nối" ở khu lobby
-    $("vsLanConnect").classList.add("hidden"); $("vsLanLobby").classList.remove("hidden");
-    $("vsLobbyCount").textContent = ""; $("vsLobbyList").innerHTML = "";
-    $("vsLanMsg").innerHTML = `⏳ Đang kết nối tới <b>${location.host}</b>…`;
-    $("vsLanStart").classList.add("hidden"); $("vsLanLeave").classList.remove("hidden");
-    openLan(name, {});
+    STM.clearSession();                          // kết nối mới -> bỏ phiên cũ, duyệt danh sách phòng
+    // hiện ngay trạng thái "đang kết nối" ở khu duyệt phòng
+    $("vsRoomsCount").textContent = ""; $("vsRoomsList").innerHTML = "";
+    $("vsRoomsMsg").innerHTML = `⏳ Đang kết nối tới <b>${location.host}</b>…`;
+    setLanView("rooms");
+    openLan(name, {});                           // onOpen (không sid) -> tự requestRooms()
   };
   $("vsLanStart").onclick = () => { if (net) net.startMatch(net.lobbyMode || "ffa"); };
-  $("vsLanLeave").onclick = () => { reconnecting = false; reconnBanner(false); STM.clearSession(); endVersus(); showTab("LAN"); };
+  $("vsLanLeave").onclick = () => {
+    reconnecting = false; reconnBanner(false);
+    if (lanState === "lobby" && net) { net.leaveRoom(); }        // rời phòng -> quay về danh sách (VẪN kết nối)
+    else { STM.clearSession(); endVersus(); setLanView("connect"); showTab("LAN"); }   // ở danh sách -> ngắt hẳn
+  };
 
   // 2v2: bật/tắt lớp thân + panel phép đồng đội
   function apply2v2Chrome(m) {
@@ -661,6 +709,7 @@
     $("mateGrid").innerHTML = sk.length
       ? sk.map((k) => { const s = CFG.SKILLS[k]; return s ? `<div class="mate-sk" title="${s.name} — ${s.desc}">${s.glyph}</div>` : ""; }).join("")
       : `<span class="mate-empty">Đồng đội chưa học phép nào.</span>`;
+    $("mateCoresEl").innerHTML = coreChips(match.mateCores, "Đồng đội chưa chọn lõi nào.");   // lõi đồng đội đã chọn (chỉ xem)
   }
 
   function resumeVersusNet(m) {

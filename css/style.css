@@ -332,6 +332,22 @@ body.versus #startWave:disabled { opacity: 1; }
 .vs-join-team:hover { border-color: var(--gold); background: linear-gradient(180deg, #4a5a34, #2f3b22); }
 .vs-empty-team { font-size: 11.5px; color: var(--dim); padding: 6px 10px; border: 1px dashed var(--gold-d); border-radius: 8px; }
 
+/* danh sách phòng (nhiều phòng cùng lúc) */
+.vs-lobby-head .vs-room-create { float: right; padding: 4px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 700; border: 2px solid var(--gold-d); background: linear-gradient(180deg, #4a5a34, #2f3b22); color: #ffe9a8; }
+.vs-lobby-head .vs-room-create:hover { border-color: var(--gold); }
+.vs-room-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--gold-d); font-size: 13px; }
+.vs-room-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vs-room-name { font-weight: 700; color: #ffe7b0; }
+.vs-room-badge { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: #3a4a5a; color: #bfe0ff; }
+.vs-room-ct { font-size: 11.5px; color: var(--dim); font-weight: 600; }
+.vs-room-players { grid-column: 1 / 2; font-size: 11.5px; color: #cdd6c2; }
+.vs-room-players b { color: #eaf3df; font-weight: 700; }
+.vs-room-join { grid-row: 1 / 3; grid-column: 2; align-self: center; padding: 6px 16px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 800; border: 2px solid var(--gold-d); background: linear-gradient(180deg, #4a5a34, #2f3b22); color: #ffe9a8; }
+.vs-room-join:hover { border-color: var(--gold); }
+.vs-room-state { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 7px; }
+.vs-room-state.playing { background: #5a3a1c; color: #ffcf99; }
+.vs-room-state.full { background: #4a2a2a; color: #ff9a9a; }
+
 .rk-team { font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; }
 .rk-team.t0 { background: #234a66; color: #9fd4ff; } .rk-team.t1 { background: #5a2a1c; color: #ffb499; }
 
@@ -340,6 +356,12 @@ body.versus #startWave:disabled { opacity: 1; }
 .mate-skills.hidden { display: none; }
 .mate-head { font-size: 12px; color: #bfe0ff; margin-bottom: 5px; } .mate-head b { color: #fff; } .mate-head small { color: var(--dim); }
 .mate-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.mate-sub { font-size: 10.5px; color: var(--dim); margin: 6px 0 3px; text-transform: uppercase; letter-spacing: .04em; }
+.mate-sub:first-of-type { margin-top: 2px; }
+/* dãy icon lõi (ô đối thủ + panel đồng đội) */
+.core-chip { display: inline-grid; place-items: center; width: 26px; height: 26px; font-size: 15px; border-radius: 7px; border: 1.5px solid var(--gold-d); background: radial-gradient(circle at 40% 30%, #22262e, #12151b); }
+.opp-cores { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.opp-cores .core-chip { width: 20px; height: 20px; font-size: 12px; border-radius: 5px; }
 .mate-sk { width: 34px; height: 34px; display: grid; place-items: center; font-size: 18px; border-radius: 8px; border: 1px solid #4a9fe0; background: radial-gradient(circle at 40% 30%, #2a3a4a, #14202c); }
 .mate-empty { font-size: 11.5px; color: var(--dim); }
 /* thân trận 2v2 */

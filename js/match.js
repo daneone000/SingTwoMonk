@@ -65,6 +65,7 @@
     opponentViews() {
       return this.games.filter((g) => g !== this.host).map((g) => ({
         pid: g.pid, name: g.name + (g.ai ? " 🤖" : ""), wave: g.wave, lives: g.lives, dead: g.gameOver,
+        cores: g.cores.map((c) => ({ id: c.id, tier: c.tier })),   // lõi đối thủ đã chọn (để hiện ở ô đối thủ)
         draw: (cx, sz) => g.renderMini(cx, 0, 0, sz),
       }));
     }
