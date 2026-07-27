@@ -691,8 +691,11 @@
   $("vsLanStart").onclick = () => { if (net) net.startMatch(net.lobbyMode || "ffa"); };
   $("vsLanLeave").onclick = () => {
     reconnecting = false; reconnBanner(false);
-    if (lanState === "lobby" && net) { net.leaveRoom(); }        // rời phòng -> quay về danh sách (VẪN kết nối)
-    else { STM.clearSession(); endVersus(); setLanView("connect"); showTab("LAN"); }   // ở danh sách -> ngắt hẳn
+    if (lanState === "lobby" && net) {                            // rời phòng -> quay về danh sách (VẪN kết nối)
+      net.leaveRoom();
+      $("vsRoomsList").innerHTML = ""; $("vsRoomsMsg").textContent = "Đang tải danh sách phòng…";
+      setLanView("rooms");                                        // chuyển màn NGAY; gói "rooms" trả về sẽ đổ danh sách (onRooms không còn bị chặn vì lanState≠"lobby")
+    } else { STM.clearSession(); endVersus(); setLanView("connect"); showTab("LAN"); }   // ở danh sách -> ngắt hẳn
   };
 
   // 2v2: bật/tắt lớp thân + panel phép đồng đội
