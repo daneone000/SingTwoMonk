@@ -17,6 +17,29 @@
       g._aiT = 0;
       this.learn(g); this.cast(g); this.spend(g);
     },
+    // Bot ĐỒNG ĐỘI (2v2 LAN, CHUNG bàn với NGƯỜI): học phép + chọn LÕI + thi triển phép + NÂNG CẤP.
+    // KHÔNG xây (khỏi phá mê cung của người). g là 1 Game "mirror" -> mọi hành động tự route qua netMatch.
+    mateUpdate(g, dt) {
+      g._mateT = (g._mateT || 0) + dt;
+      if (g._mateT < CFG.VS_AI_PERIOD) return;
+      g._mateT = 0;
+      this.learn(g);       // học phép (rẻ trước)
+      this.pickCores(g);   // mở & chọn lõi bằng KN
+      this.cast(g);        // phép thủ (cụm quái) + phép PvP (quấy đối thủ)
+      this.mateUpgrade(g); // CHỈ nâng cấp tháp bàn chung (không xây)
+    },
+    // chọn lõi: ô 1 miễn phí; ô 2/3 tốn KN -> chỉ mở khi đã học kha khá phép (khỏi giành KN với học phép)
+    pickCores(g) {
+      if (g.pendingCore) { const t = g.towers.find((x) => !x.trap); if (t) g.applyCoreToTower(t); return; }   // lõi cần gắn tháp -> gắn 1 tháp bất kỳ
+      const slot = g.nextCoreSlot(); if (slot < 0) return;
+      if (slot >= 1 && g.learned.size < 3) return;   // ô 2/3 tốn KN -> học vài phép trước đã
+      const off = (g.coreOffer && g.coreOffer.slot === slot) ? g.coreOffer : g.openCore(slot);   // openCore tự kiểm tra đủ KN
+      if (off && off.items && off.items.length) g.pickCore(off.items[0].id);
+    },
+    mateUpgrade(g) {
+      const t = this.pickUpgrade(g.towers, (tw) => g.gold >= tw.upgradeCost);
+      if (t) { g.selected = t; g.upgradeSelected(); g.selected = null; }
+    },
 
     // chọn tháp NÊN nâng: sẵn sàng, chưa max, không đang bận; cấp thấp trước, ưu tiên DPS chính, rẻ trước
     pickUpgrade(towers, affordable) {

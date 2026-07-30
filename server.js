@@ -208,7 +208,7 @@ function setupBots(R) {
   ENGINE.CFG.setMap(R.map);   // bàn bot dựng đúng bản đồ phòng
   for (const s of R.slots.values()) {
     if (!s.bot) continue;
-    s._aiT = 0; s._mateT = 0; s.botGold = ENGINE.CFG.START_GOLD; s.botSp = 0; s.board = null; s.game = null;
+    s._aiT = 0; s._mateT = 0; s._skT = 0; s.board = null; s.game = null; s.mind = null;
     if (s.authority) {   // cả đội là bot -> server mô phỏng bàn chung
       const g = new ENGINE.Game(ENGINE._canvas());
       g.reset("endless"); g.versus = true; g.name = s.name; g.pid = s.pid;
@@ -216,6 +216,17 @@ function setupBots(R) {
       if (R.coreTiers && R.coreTiers.length === 3) g.coreTiers = R.coreTiers;
       g.onCastPvp = (key, data) => routeBotPvp(s, key, data);
       s.game = g;
+    } else {   // chung đội với NGƯỜI -> "trí não" mirror: học phép/lõi + phép + nâng cấp, KHÔNG xây
+      const bg = new ENGINE.Game(ENGINE._canvas());
+      bg.reset("endless"); bg.versus = true; bg.name = s.name; bg.pid = s.pid;
+      bg.netMatch = {   // giả lập NetMatch của đồng đội (mirror) -> mọi hành động tự gửi lệnh như client thật
+        mode: "2v2", isAuthority: false, myPid: s.pid,
+        sendCmd: (cc) => { const a = authorityOf(R, s.team); if (a) send(a, { t: "cmd", from: s.pid, c: cc }); },   // nâng/gắn-lõi -> chủ-bàn NGƯỜI
+        sendTeamSpell: (key, data) => routeBotPvp(s, key, data),                                                    // phép PvP -> bàn đội địch
+        sendTeamVacuum: () => {}, sendVacuum: () => {}, sendSpell: () => {}, sendPCores: () => {}, sendCores: () => {}, sendSkills: () => {},
+      };
+      if (R.coreTiers && R.coreTiers.length === 3) bg.coreTiers = R.coreTiers;
+      s.mind = bg;
     }
   }
 }
@@ -233,26 +244,14 @@ function stepBots(R, dt, newWave) {
       const snap = g.snapshot();
       for (const e of R.slots.values()) if (e.connected && e.team !== s.team) send(e, { t: "snap", pid: s.pid, team: s.team, s: snap });
       if (g.gameOver) { teamDead(R, s.team); continue; }
-    } else if (!s.authority) {   // bot ĐỒNG ĐỘI (chung đội với NGƯỜI): CHỈ nâng cấp tháp bàn chung bằng ví riêng
-      botTeammateStep(s, dt);
+    } else if (s.mind) {   // bot ĐỒNG ĐỘI (chung đội NGƯỜI): học phép/lõi + phép + nâng cấp (KHÔNG xây)
+      const auth = authorityOf(R, s.team); if (!auth || !auth.connected) continue;   // chủ-bàn NGƯỜI phải online
+      s.mind.step(dt);                 // chạy hồi chiêu phép của bot
+      ENGINE.AI.mateUpdate(s.mind, dt);
+      // đẩy phép + lõi đã học cho panel NGƯỜI (chỉ xem) + để chủ-bàn tính lại aura (Nguyên Bản đồng đội...) — ~1/giây
+      if ((s._skT = (s._skT + 1) % 4) === 0) send(auth, { t: "skills", pid: s.pid, learned: [...s.mind.learned], sp: s.mind.sp, cores: s.mind.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value })) });
     }
   }
-}
-// bot đồng đội: đọc ảnh bàn chung (chủ-bàn NGƯỜI gửi), chọn tháp nâng được, gửi lệnh "up" cho chủ-bàn.
-function botTeammateStep(s, dt) {
-  s._mateT = (s._mateT || 0) + dt; if (s._mateT < ENGINE.CFG.VS_AI_PERIOD) return; s._mateT = 0;
-  const auth = authorityOf(s.R, s.team); if (!auth || !auth.connected) return;
-  const snap = s.board; if (!snap || !snap.tw) return;
-  const CFG = ENGINE.CFG; let best = null;
-  for (const a of snap.tw) {
-    const type = a[2], level = a[3], ready = a[4], action = a[5]; if (!ready || action) continue;
-    const def = CFG.TOWERS[type]; if (!def || def.support || level >= def.lv.length) continue;
-    const cost = CFG.upgradeCost(def, level); if (cost <= 0 || cost > s.botGold) continue;
-    if (!best || level < best.level || (level === best.level && cost < best.cost)) best = { c: a[0], r: a[1], level, cost };
-  }
-  if (!best) return;
-  s.botGold -= best.cost;
-  send(auth, { t: "cmd", from: s.pid, c: { act: "up", c: best.c, r: best.r } });
 }
 
 function startMatch(R, mapId, mode) {
@@ -326,7 +325,7 @@ function endMatch2v2(R, winTeam) {
 function resetRoom(R) {
   R.started = false; R.over = false; R.wave = 0; R.deathOrder = [];
   if (R.tickTimer) { clearInterval(R.tickTimer); R.tickTimer = null; }
-  for (const s of R.slots.values()) if (s.bot) { s.game = null; s.board = null; s.botGold = 0; s.botSp = 0; s.alive = true; }   // dọn bàn bot -> ván sau dựng mới
+  for (const s of R.slots.values()) if (s.bot) { s.game = null; s.mind = null; s.board = null; s.alive = true; }   // dọn bàn/trí não bot -> ván sau dựng mới
 }
 // Gỡ hẳn 1 người khỏi phòng (rời CHỦ ĐỘNG hoặc hết giờ giữ chỗ). Phòng trống -> xoá phòng.
 function leaveRoom(slot) {
@@ -427,10 +426,10 @@ function handleMsg(c, msg) {
       if (others.length) deliverPvp(others[(Math.random() * others.length) | 0], { t: "vacuum", from: c.slot.pid, data: o.data });
     } break;
     /* ---- 2v2 ---- */
-    case "board": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m) { if (m.bot) m.board = o.s; else send(m, { t: "board", s: o.s }); } } break;   // chủ-bàn -> đồng đội (bot: lưu ảnh bàn để nâng cấp)
+    case "board": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m) { if (m.bot) { m.board = o.s; if (m.mind) m.mind.applyBoard(o.s); } else send(m, { t: "board", s: o.s }); } } break;   // chủ-bàn -> đồng đội (bot: nạp bàn để quyết định phép/nâng)
     case "cmd": if (c.slot) send(authorityOf(R, c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;      // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "reward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot);   // chủ-bàn chia vàng/KN cho đồng đội
-      if (m) { if (m.bot) { m.botGold = (m.botGold || 0) + (o.gold || 0); m.botSp = (m.botSp || 0) + (o.sp || 0); }   // bot đồng đội: dồn vào ví riêng (chỉ nâng cấp)
+      if (m) { if (m.bot) { if (m.mind) { m.mind.gold += (o.gold || 0); m.mind.sp += (o.sp || 0); } }   // bot đồng đội: dồn vào ví/KN riêng (nâng cấp + học phép/lõi)
         else if (m.connected && m.sock) send(m, { t: "reward", gold: o.gold, sp: o.sp }); else if (m.alive) { m.pendGold = (m.pendGold || 0) + (o.gold || 0); m.pendSp = (m.pendSp || 0) + (o.sp || 0); } }
     } break;
     case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp, cores: o.cores }); break; // khoe phép + lõi đã chọn cho đồng đội
