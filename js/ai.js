@@ -37,8 +37,15 @@
       if (off && off.items && off.items.length) g.pickCore(off.items[0].id);
     },
     mateUpgrade(g) {
-      const t = this.pickUpgrade(g.towers, (tw) => g.gold >= tw.upgradeCost);
-      if (t) { g.selected = t; g.upgradeSelected(); g.selected = null; }
+      // đồng đội máy: KHÔNG nâng THÁP TÊN (để người tự lo); tháp NĂNG LƯỢNG (hỗ trợ) ưu tiên THẤP NHẤT
+      const cands = g.towers.filter((t) => t.ready && !t.action && !t.maxLevel && t.type !== "ten" && g.gold >= t.upgradeCost);
+      if (!cands.length) return;
+      cands.sort((a, b) =>
+        (a.support ? 1 : 0) - (b.support ? 1 : 0)              // tháp đánh trước, năng lượng sau cùng
+        || a.level - b.level                                   // cấp thấp nâng trước (đồng đều)
+        || (DPS_RANK[a.type] ?? 5) - (DPS_RANK[b.type] ?? 5)
+        || a.upgradeCost - b.upgradeCost);
+      g.selected = cands[0]; g.upgradeSelected(); g.selected = null;
     },
 
     // chọn tháp NÊN nâng: sẵn sàng, chưa max, không đang bận; cấp thấp trước, ưu tiên DPS chính, rẻ trước
