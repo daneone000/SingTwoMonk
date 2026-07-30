@@ -146,7 +146,7 @@
           break;
         /* ---- 2v2 ---- */
         case "board": g.applyBoard(o.s); break;                                    // chủ-bàn -> đồng đội: vẽ lại bàn chung
-        case "cmd": if (this.isAuthority) { g.applyCmd(o.c); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh
+        case "cmd": if (this.isAuthority) { g.applyCmd(o.c); this.pushBoard(); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh + ĐẨY BÀN NGAY (đồng đội thấy xây/nâng tức thì, hết delay)
         case "reward": { const got = g.gainGold(o.gold || 0); g.gold += got; g._curWaveGold += got; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; } // chủ-bàn chia vàng/KN (người nhận tự áp Tay Buôn; tính cả cho AFK)
         case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; this.mateCores = o.cores || []; if (this.isAuthority) g.recomputeAuras(); if (this.onChange) this.onChange(); break;
         case "teamspell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình
@@ -179,6 +179,8 @@
         if (this.onChange) this.onChange();       // làm mới minimap/đồng hồ dù local đã chết
       }, 200);
     }
+    // 2v2 chủ-bàn: đẩy BÀN CHUNG cho đồng đội NGAY (gọi thêm khi vừa áp lệnh xây/nâng -> hết delay).
+    pushBoard() { if (this.isAuthority && this.mode === "2v2" && this.game && !this.game.gameOver) this.client.send({ t: "board", s: this.game.boardSnapshot() }); }
     // 2v2: chủ-bàn đẩy bàn (cho đồng đội) + minimap (cho đội địch) + chia vàng/KN; đồng đội chỉ khoe phép.
     _begin2v2() {
       if (this._pushT) return;
@@ -188,19 +190,19 @@
         if (this.isAuthority) {
           if (!this._sentDead && g.gameOver) { this._sentDead = true; this.client.send({ t: "dead" }); }
           if (!g.gameOver) {
-            this.client.send({ t: "board", s: g.boardSnapshot() });      // đồng đội vẽ bàn chung
-            if ((this._boardT = (this._boardT + 1) % 3) === 0) this.client.send({ t: "snap", s: g.snapshot() });   // minimap cho đội địch (~4/s)
+            this.pushBoard();      // đồng đội vẽ bàn chung — nhịp nhanh 90ms cho mượt (xây tháp bớt delay)
+            if ((this._boardT = (this._boardT + 1) % 5) === 0) this.client.send({ t: "snap", s: g.snapshot() });   // minimap cho đội địch (~2/s)
             if (g._earn && (g._earn.gold || g._earn.sp)) { this.client.send({ t: "reward", gold: g._earn.gold, sp: g._earn.sp }); g._earn = { gold: 0, sp: 0 }; }
-            if ((this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
+            if ((this._saveT = (this._saveT + 1) % 17) === 0) STM.saveBoard(g.serialize());
           }
         } else {
-          // đồng đội (mirror): tự lưu VÍ/KN/PHÉP/LÕI của mình (~2s) để F5 không bị reset
-          if (!g.gameOver && (this._saveT = (this._saveT + 1) % 10) === 0) STM.saveBoard(g.serialize());
+          // đồng đội (mirror): tự lưu VÍ/KN/PHÉP/LÕI của mình (~1.5s) để F5 không bị reset
+          if (!g.gameOver && (this._saveT = (this._saveT + 1) % 17) === 0) STM.saveBoard(g.serialize());
         }
-        // cả hai: khoe phép đã học + điểm KN cho đồng đội (~1.3/s)
-        if ((this._skT = (this._skT + 1 || 1) % 8) === 0) this.sendSkills();
+        // cả hai: khoe phép đã học + điểm KN cho đồng đội (~1.2/s)
+        if ((this._skT = (this._skT + 1 || 1) % 13) === 0) this.sendSkills();
         if (this.onChange) this.onChange();
-      }, 150);
+      }, 90);
     }
     _stopPush() { if (this._pushT) { clearInterval(this._pushT); this._pushT = null; } }
     leave() { this._stopPush(); STM.clearSession(); this.client.close(); }

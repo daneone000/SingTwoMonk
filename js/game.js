@@ -238,7 +238,9 @@
       if (this.gold < cost) return;
       if (this.mirror) {   // 2v2 đồng đội: kiểm tra chỗ trên bàn chung, trừ vàng CỦA MÌNH, gửi lệnh cho chủ-bàn đặt
         if (!(isTrap ? this.isLandFree(c, r) : this.canPlaceTower(c, r))) return;
-        this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "build", type, c, r }); this.emit(); return;
+        this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "build", type, c, r });
+        this._predictBuild(type, c, r, isTrap);   // DỰ ĐOÁN: hiện tháp NGAY khỏi chờ bàn chung về (mượt khi xây); bàn chung sẽ xác nhận/gỡ
+        this.emit(); return;
       }
       if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= cost; this.selected = t; }
       else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this.computeFlow(); this.recomputeAuras(); }
@@ -310,15 +312,19 @@
       const sig = snap.tw.map((a) => a[0] + "," + a[1] + "," + a[2] + "," + a[3] + "," + (a[9] || 0)).join("|")
         + "#" + snap.tr.map((a) => a[0] + "," + a[1] + "," + a[2]).join("|");
       const layoutChanged = sig !== this._boardSig;
+      const snapOcc = new Set(); for (const a of snap.tw) snapOcc.add(a[0] + "," + a[1]); for (const a of snap.tr) snapOcc.add(a[0] + "," + a[1]);
       if (layoutChanged) {
+        const preds = [...this.towers, ...this.traps].filter((t) => t._pred);   // GIỮ dự đoán tháp mình vừa xây (chưa được bàn chung xác nhận)
         this._boardSig = sig;
         this.towers = []; this.blockSet = new Set(); this.occupied = new Set();
         for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; if (a[9]) t.fuse(a[9]); t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
         this.traps = snap.tr.map((a) => { const t = new STM.Trap(a[2], a[0], a[1]); this.occupied.add(a[0] + "," + a[1]); return t; });
+        this._readdPreds(preds, snapOcc);   // dự đoán chưa vào bàn chung & chưa quá hạn -> hiện tiếp (khỏi nhấp nháy)
       } else {
         // bố cục giữ nguyên: chỉ cập nhật trạng thái ĐỘNG của tháp (góc quay, đồng hồ xây, buff) để hoạt ảnh mượt
         for (let i = 0; i < snap.tw.length; i++) { const a = snap.tw[i], t = this.towers[i]; if (!t) continue; t.buildTimer = a[6]; t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; }
       }
+      this._cullPreds(snapOcc);   // dự đoán đã được bàn chung xác nhận (hoặc quá hạn) -> bỏ bản dự đoán
       this.enemies = snap.en.map((a) => { const d = CFG.ENEMIES[a[2]]; const e = new STM.Enemy(d, 1, 1, this, !!a[6]); e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3]; e.freezeTime = a[7] ? 1 : 0; if (a[8]) { e.slowTime = 1; e.slowMult = 0.5; } e.burnTime = a[9] ? 1 : 0; e.angle = a[10] || 0; e.remain = 1; return e; });
       // giữ lại lựa chọn tháp theo ô (để bảng chi tiết không mất khi bàn cập nhật)
       if (keepSel) this.selected = keepSel[2] ? this.traps.find((t) => t.col === keepSel[0] && t.row === keepSel[1]) : this.towerAt(keepSel[0], keepSel[1]);
@@ -326,6 +332,27 @@
       // di chuyển KHÔNG gọi updateHUD — canvas vẫn vẽ quái 60fps ở loop(), số liệu HUD (mạng/vàng)
       // đã được làm mới định kỳ 200ms trong step() + theo sự kiện (reward/clock). -> đồng đội hết lag.
       if (layoutChanged) { this.computeFlow(); this.recomputeAuras(); this.emit(); }
+    }
+    /* ---- 2v2 đồng đội: DỰ ĐOÁN xây tháp (hiện ngay khi bấm, khỏi chờ bàn chung về) ---- */
+    _predictBuild(type, c, r, isTrap) {
+      if (this.occupied.has(c + "," + r)) return;
+      if (isTrap) { const t = new STM.Trap(type, c, r); t._pred = Date.now(); this.traps.push(t); this.occupied.add(c + "," + r); this.selected = t; }
+      else { const t = new STM.Tower(type, c, r); t._pred = Date.now(); t.startWork("build", CFG.workTime(0.01, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.selected = t; }
+    }
+    _readdPreds(preds, snapOcc) {   // sau khi dựng lại bàn từ bàn chung: giữ lại dự đoán CHƯA được xác nhận & còn hạn (<2.5s)
+      const now = Date.now();
+      for (const p of preds) {
+        const k = p.col + "," + p.row;
+        if (now - p._pred > 2500 || snapOcc.has(k) || this.occupied.has(k)) continue;
+        if (p.trap) this.traps.push(p); else { this.towers.push(p); this.blockSet.add(k); }
+        this.occupied.add(k);
+      }
+    }
+    _cullPreds(snapOcc) {   // bỏ dự đoán khi bàn chung ĐÃ có tháp đó (xác nhận) hoặc quá 2.5s không thấy (bị từ chối)
+      const now = Date.now();
+      const drop = (t) => { if (!t._pred) return false; const k = t.col + "," + t.row; if (snapOcc.has(k) || now - t._pred > 2500) { this.occupied.delete(k); this.blockSet.delete(k); if (this.selected === t) this.selected = null; return true; } return false; };
+      this.towers = this.towers.filter((t) => !drop(t));
+      this.traps = this.traps.filter((t) => !drop(t));
     }
     // Phép ĐỊA CHẤN (đối kháng) — ở chế độ 2+ người, thi triển sẽ gọi hàm này trên MỖI đối thủ
     // (chọn 1 tháp của họ): cấp1 -> phá hủy (chờ như bán), cấp2+ -> tụt 1 cấp (chờ như nâng).
