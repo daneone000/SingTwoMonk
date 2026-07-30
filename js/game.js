@@ -535,6 +535,7 @@
       while (this.spawnQueue.length && this.spawnQueue[0].at <= this.spawnClock) { const s = this.spawnQueue.shift(), w = s.w; this.enemies.push(new STM.Enemy(CFG.ENEMIES[w.type], w.hpMul, w.rwMul, this, w.boss)); }
     }
     onEnemyKilled(e) {
+      if (this.mirror) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); return; }   // đồng đội: vàng/KN do chủ-bàn chia (không tính lại ở mirror)
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
       // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
       const base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : e.reward;
@@ -550,7 +551,7 @@
       }
       this.emit();
     }
-    onEnemyLeak(e) { this.lives -= 1; const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
+    onEnemyLeak(e) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.mirror) return; /* đồng đội: mạng/thua do chủ-bàn quyết (áp qua board) */ this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
 
     /* ------------------------- CÂY PHÉP ------------------------- */
     canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (this.hasCore("kePhaLuat")) return true; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }   // Kẻ Phá Luật: bỏ ràng buộc nhánh
@@ -614,9 +615,16 @@
     /* --------------------------- vòng lặp --------------------------- */
     step(dt) {
       if (this.paused || this.gameOver || this.victory) return;
-      if (this.mirror) {   // 2v2 đồng đội: chỉ vẽ bàn từ snapshot; chạy hồi chiêu phép của MÌNH + làm mới HUD
+      if (this.mirror) {   // 2v2 đồng đội: DỰ ĐOÁN cục bộ để MƯỢT như chủ-bàn (quái chạy + tháp bắn ĐẠN),
+        // bàn thật do chủ-bàn áp lại qua "board" mỗi ~150ms (sửa sai lệch); phép/HUD chạy như thường.
         dt *= this.speed;
+        const pdt = dt * CFG.GAME_PACE;
         for (const k in this.skillCd) if (this.skillCd[k] > 0) this.skillCd[k] = Math.max(0, this.skillCd[k] - dt);
+        for (const t of this.towers) if (t.buildTimer > 0) { t.buildTimer -= dt; if (t.buildTimer <= 0 && t.action !== "sell") t.action = null; }
+        for (const e of this.enemies.slice()) e.update(pdt, this);   // di chuyển mượt (burnDps=0 -> không sát thương)
+        for (const t of this.towers) t.update(pdt, this);            // tháp bắn: sinh đạn để HIỂN THỊ (đạn không trừ máu ở mirror)
+        for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
+        for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);   // hiệu ứng flash phép tự tắt (hết ám màu)
         this._uiT = (this._uiT || 0) + dt; if (this._uiT >= 0.2) { this._uiT = 0; this.emit(); }
         return;
       }

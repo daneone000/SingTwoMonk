@@ -449,6 +449,7 @@
       this.x += (dx / d) * s; this.y += (dy / d) * s;
     }
     hit(game) {
+      if (game.mirror) { if (this.splash > 0) game.effects.push(new BlastFx(this.tx, this.ty, this.splash * TILE, this.projColor)); return; }   // đồng đội: đạn chỉ để NHÌN, không trừ máu (máu do chủ-bàn áp qua board)
       if (this.splash > 0) {   // NỔ LAN: trúng mọi quái đúng loại trong bán kính
         const r = this.splash * TILE;
         for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, this.tx, this.ty) <= r + e.radius) this.applyTo(e); }
