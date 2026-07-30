@@ -61,6 +61,8 @@
     requestRooms() { this.client.send({ t: "list" }); }                                          // xin danh sách phòng để duyệt
     joinRoom(id) { this.client.send({ t: "join", name: this.myName, room: id }); }                // vào 1 phòng đã chọn
     createRoom() { this.client.send({ t: "create", name: this.myName }); }                        // tạo phòng mới (làm chủ phòng)
+    addBot() { this.client.send({ t: "addbot" }); }                                                // 2v2: chủ phòng thêm 1 máy (điền chỗ trống)
+    delBot(sid) { this.client.send({ t: "delbot", sid }); }                                        // 2v2: chủ phòng bỏ 1 máy
     leaveRoom() { this.started = false; this.myPid = null; this.client.send({ t: "leave" }); }    // rời phòng -> quay về danh sách (vẫn kết nối)
     startMatch(mode) { if (this.isHost) this.client.send({ t: "start", map: STM.CFG.getMapId(), mode: mode || "ffa" }); }
     playAgain() { if (this.isHost) this.client.send({ t: "again" }); }

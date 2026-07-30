@@ -87,7 +87,27 @@ const rooms = new Map();     // roomId -> phòng
 const browsers = new Set();  // connection đang XEM danh sách phòng (chưa vào phòng nào)
 
 // Hằng số ván đấu (dùng CHUNG cho mọi phòng)
-const VS_START_DELAY = 30, WAVE_INTERVAL = 15, WAVE_INTERVAL_LATE = 20, LATE_WAVE = 30, MAX = 5, GRACE = 60, MAX_ROOMS = 24;
+const VS_START_DELAY = 30, WAVE_INTERVAL = 15, WAVE_INTERVAL_LATE = 20, LATE_WAVE = 30, MAX = 5, MAX_2V2 = 4, GRACE = 60, MAX_ROOMS = 24;
+
+/* ---- Bộ máy game HEADLESS: MÁY CHỦ mô phỏng bàn của BOT trong 2v2 ----
+ * Nạp đúng js/config+entities+game+ai (cùng logic với client) trong sandbox có window/document/canvas ảo.
+ * Nếu nạp lỗi -> ENGINE=null, tính năng bot tự tắt (server vẫn chạy bình thường). */
+const vm = require("vm");
+let ENGINE = null;
+(function loadEngine() {
+  try {
+    const ctx2d = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => (t[k] = v, true) });
+    const canvas = () => ({ width: 0, height: 0, getContext: () => ctx2d(), style: {}, addEventListener() {}, removeEventListener() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0 }) });
+    const win = {};
+    const doc = { createElement: () => canvas(), getElementById: () => null, addEventListener() {}, body: { appendChild() {} } };
+    const sandbox = { window: win, document: doc, requestAnimationFrame: () => 0, cancelAnimationFrame() {}, setInterval: () => 0, clearInterval() {}, setTimeout: () => 0, clearTimeout() {}, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, console, Math, Date, JSON, performance: { now: () => Date.now() } };
+    sandbox.globalThis = sandbox; win.document = doc;
+    vm.createContext(sandbox);
+    for (const f of ["config.js", "entities.js", "game.js", "ai.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, "js", f), "utf8"), sandbox, { filename: "js/" + f });
+    ENGINE = win.STM; ENGINE._canvas = canvas;
+  } catch (e) { ENGINE = null; console.log("  ⚠ Không nạp được bộ máy bot 2v2: " + (e && e.message) + " — bot tạm tắt."); }
+})();
+const BOTS_OK = !!ENGINE;
 
 function makeSid() { return crypto.randomBytes(9).toString("hex"); }
 function sendSock(sock, obj) { try { sock.write(encodeText(JSON.stringify(obj))); } catch (e) {} }
@@ -114,7 +134,7 @@ function destroyRoom(R) { if (R.tickTimer) { clearInterval(R.tickTimer); R.tickT
 
 function slotList(R) { return [...R.slots.values()].sort((a, b) => a.pid - b.pid); }
 function joinedList(R) {
-  return slotList(R).map((s) => ({ pid: s.pid, name: s.name, host: s.sid === R.hostSid, alive: s.alive, connected: s.connected, team: s.team, authority: !!s.authority }));
+  return slotList(R).map((s) => ({ pid: s.pid, name: s.name, host: s.sid === R.hostSid, alive: s.alive, connected: s.connected || !!s.bot, team: s.team, authority: !!s.authority, bot: !!s.bot, sid: s.bot ? s.sid : undefined }));
 }
 /* ---- 2v2: đội, chủ-bàn (authority), đồng đội, đối thủ ---- */
 function teammateOf(slot) { const R = slot.R; return [...R.slots.values()].find((s) => s !== slot && s.team === slot.team) || null; }
@@ -123,7 +143,8 @@ function enemyAuthority(slot) { return authorityOf(slot.R, slot.team === 0 ? 1 :
 function aliveTeams(R) { const t = new Set(); for (const s of R.slots.values()) if (s.alive) t.add(s.team); return [...t]; }
 function teamCount(R, t) { let n = 0; for (const s of R.slots.values()) if (s.team === t) n++; return n; }
 // chủ-bàn = người vào sớm nhất (pid nhỏ nhất) trong mỗi đội
-function assignAuthorities(R) { for (const tm of [0, 1]) slotList(R).filter((s) => s.team === tm).forEach((s, i) => { s.authority = i === 0; }); }
+// Chỉ định CHỦ-BÀN mỗi đội: ƯU TIÊN người thật (bot chỉ làm chủ-bàn khi cả đội là bot).
+function assignAuthorities(R) { for (const tm of [0, 1]) { const mem = slotList(R).filter((s) => s.team === tm); mem.sort((a, b) => (a.bot ? 1 : 0) - (b.bot ? 1 : 0)); mem.forEach((s, i) => { s.authority = i === 0; }); } }
 // gán đội CÂN BẰNG cho ai chưa có đội (giữ nguyên đội đã chọn thủ công)
 function autoBalanceTeams(R) { for (const s of slotList(R)) if (s.team !== 0 && s.team !== 1) { s.team = teamCount(R, 0) <= teamCount(R, 1) ? 0 : 1; } }
 function clearTeams(R) { for (const s of R.slots.values()) { s.team = undefined; s.authority = false; } }
@@ -139,7 +160,7 @@ function lobbyUpdate(R) {
 function roomInfo(R) {
   return { id: R.id, name: R.name, mode: R.mode, count: R.slots.size, max: MAX, started: R.started, over: R.over,
     host: (R.slots.get(R.hostSid) || {}).name || null,
-    players: slotList(R).map((s) => ({ name: s.name, host: s.sid === R.hostSid })) };
+    players: slotList(R).map((s) => ({ name: s.name, host: s.sid === R.hostSid, bot: !!s.bot })) };
 }
 function roomsList() { return [...rooms.values()].map(roomInfo); }
 function roomsUpdate() { const msg = { t: "rooms", rooms: roomsList() }; for (const c of browsers) sendSock(c.sock, msg); }
@@ -151,11 +172,87 @@ function bufferPvp(slot, msg) {
   const kind = (msg.t === "vacuum" || msg.t === "teamvacuum") ? "vacuum" : "spell";
   slot.pvpQueue.push({ wave: slot.R.wave, kind, key: msg.key, data: msg.data });
 }
-// gửi phép PvP tới 1 sân: còn kết nối -> gửi ngay; offline mà còn sống (đang giữ chỗ) -> đệm lại
+// gửi phép PvP tới 1 sân: bot-chủ-bàn (server mô phỏng) -> áp thẳng; người còn kết nối -> gửi ngay; offline còn sống -> đệm
 function deliverPvp(slot, msg) {
   if (!slot) return;
+  if (slot.bot && slot.game) { applyPvpToGame(slot.game, msg); return; }
   if (slot.connected && slot.sock) send(slot, msg);
   else if (slot.alive) bufferPvp(slot, msg);
+}
+function applyPvpToGame(g, msg) {
+  const map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
+  if (msg.t === "teamspell" || msg.t === "spell") { if (map[msg.key]) g[map[msg.key]](msg.data && msg.data.type); }
+  else if (msg.t === "teamvacuum" || msg.t === "vacuum") g.spawnTransferred(msg.data);
+}
+
+/* ------------------------------ BOT 2v2 (LAN) ------------------------------ */
+const BOT_NAMES = ["Hắc Long", "Thiết Diện", "Cuồng Phong", "Bạch Hổ", "U Minh", "Phong Vân"];
+function botName(R) { const used = new Set([...R.slots.values()].map((s) => s.name)); for (const n of BOT_NAMES) if (!used.has(n)) return n; return "Máy " + nextPid; }
+function humanSlots(R) { return [...R.slots.values()].filter((s) => !s.bot); }
+// Host thêm 1 bot vào phòng 2v2 (điền chỗ trống). Trả false nếu không hợp lệ.
+function addBot(R) {
+  if (!BOTS_OK || R.mode !== "2v2" || R.started || R.slots.size >= MAX_2V2) return false;
+  const sid = makeSid(), pid = nextPid++;
+  const slot = { sid, pid, R, name: botName(R), alive: true, connected: false, sock: null, graceTimer: null, pvpQueue: [], bot: true };
+  R.slots.set(sid, slot); allSlots.set(sid, slot);
+  autoBalanceTeams(R);
+  return true;
+}
+function removeBot(R, sid) { const s = R.slots.get(sid); if (!s || !s.bot || R.started) return false; R.slots.delete(sid); allSlots.delete(sid); return true; }
+function removeAllBots(R) { for (const s of [...R.slots.values()]) if (s.bot) { R.slots.delete(s.sid); allSlots.delete(s.sid); } }
+// bot CHỦ-BÀN casts phép PvP -> giáng lên bàn đội địch
+function routeBotPvp(slot, key, data) { const a = enemyAuthority(slot); if (a && a.alive) deliverPvp(a, { t: "teamspell", key, data }); }
+// Dựng "bộ não/bàn" cho bot khi trận bắt đầu.
+function setupBots(R) {
+  if (!BOTS_OK) return;
+  ENGINE.CFG.setMap(R.map);   // bàn bot dựng đúng bản đồ phòng
+  for (const s of R.slots.values()) {
+    if (!s.bot) continue;
+    s._aiT = 0; s._mateT = 0; s.botGold = ENGINE.CFG.START_GOLD; s.botSp = 0; s.board = null; s.game = null;
+    if (s.authority) {   // cả đội là bot -> server mô phỏng bàn chung
+      const g = new ENGINE.Game(ENGINE._canvas());
+      g.reset("endless"); g.versus = true; g.name = s.name; g.pid = s.pid;
+      g.gold = ENGINE.CFG.START_GOLD * 2; g.teamGoldMul = 1.5;   // bàn 2 máy: vốn gấp đôi + thưởng ×1.5 để đua kịp người + đồng đội
+      if (R.coreTiers && R.coreTiers.length === 3) g.coreTiers = R.coreTiers;
+      g.onCastPvp = (key, data) => routeBotPvp(s, key, data);
+      s.game = g;
+    }
+  }
+}
+// Bước mô phỏng bot mỗi nhịp server (dt giây). newWave: đợt vừa tăng -> nạp đợt cho bàn bot.
+function stepBots(R, dt, newWave) {
+  if (!BOTS_OK) return;
+  for (const s of [...R.slots.values()]) {
+    if (R.over) return;
+    if (!s.bot || !s.alive) continue;
+    if (s.game) {   // bot CHỦ-BÀN: mô phỏng bàn + AI + gửi minimap cho đội địch
+      const g = s.game;
+      if (newWave) g.receiveWave(R.wave);
+      const SUB = 1 / 20; for (let t = 0; t + 1e-9 < dt; t += SUB) g.step(Math.min(SUB, dt - t));
+      ENGINE.AI.update(g, dt);
+      const snap = g.snapshot();
+      for (const e of R.slots.values()) if (e.connected && e.team !== s.team) send(e, { t: "snap", pid: s.pid, team: s.team, s: snap });
+      if (g.gameOver) { teamDead(R, s.team); continue; }
+    } else if (!s.authority) {   // bot ĐỒNG ĐỘI (chung đội với NGƯỜI): CHỈ nâng cấp tháp bàn chung bằng ví riêng
+      botTeammateStep(s, dt);
+    }
+  }
+}
+// bot đồng đội: đọc ảnh bàn chung (chủ-bàn NGƯỜI gửi), chọn tháp nâng được, gửi lệnh "up" cho chủ-bàn.
+function botTeammateStep(s, dt) {
+  s._mateT = (s._mateT || 0) + dt; if (s._mateT < ENGINE.CFG.VS_AI_PERIOD) return; s._mateT = 0;
+  const auth = authorityOf(s.R, s.team); if (!auth || !auth.connected) return;
+  const snap = s.board; if (!snap || !snap.tw) return;
+  const CFG = ENGINE.CFG; let best = null;
+  for (const a of snap.tw) {
+    const type = a[2], level = a[3], ready = a[4], action = a[5]; if (!ready || action) continue;
+    const def = CFG.TOWERS[type]; if (!def || def.support || level >= def.lv.length) continue;
+    const cost = CFG.upgradeCost(def, level); if (cost <= 0 || cost > s.botGold) continue;
+    if (!best || level < best.level || (level === best.level && cost < best.cost)) best = { c: a[0], r: a[1], level, cost };
+  }
+  if (!best) return;
+  s.botGold -= best.cost;
+  send(auth, { t: "cmd", from: s.pid, c: { act: "up", c: best.c, r: best.r } });
 }
 
 function startMatch(R, mapId, mode) {
@@ -166,7 +263,7 @@ function startMatch(R, mapId, mode) {
   R.map = mapId || R.map || null;                // bản đồ do CHỦ PHÒNG chọn, áp cho mọi máy
   { const T = ["bac", "vang", "kimcuong"]; R.coreTiers = [0, 0, 0].map(() => T[(Math.random() * 3) | 0]); }   // cấp bậc lõi ngẫu nhiên, CHUNG cho mọi người trong phòng
   for (const s of R.slots.values()) { s.alive = true; s.pvpQueue = []; if (R.mode !== "2v2") { s.team = 0; s.authority = false; } }
-  if (R.mode === "2v2") assignAuthorities(R);     // giữ đội đã chọn ở phòng chờ, chỉ định chủ-bàn
+  if (R.mode === "2v2") { assignAuthorities(R); setupBots(R); }     // giữ đội đã chọn ở phòng chờ, chỉ định chủ-bàn + dựng bàn bot
   for (const s of R.slots.values()) send(s, {
     t: "start", mode: R.mode, players: joinedList(R), map: R.map, coreTiers: R.coreTiers,
     team: s.team, authority: !!s.authority,
@@ -179,7 +276,10 @@ function startMatch(R, mapId, mode) {
 function serverTick(R) {
   if (R.over) return;
   R.waveTimer -= 0.25;
-  if (R.waveTimer <= 0) { R.wave++; broadcast(R, { t: "wave", n: R.wave }); R.waveTimer = interval(R); }
+  let newWave = false;
+  if (R.waveTimer <= 0) { R.wave++; newWave = true; broadcast(R, { t: "wave", n: R.wave }); R.waveTimer = interval(R); }
+  stepBots(R, 0.25, newWave);   // MÁY CHỦ mô phỏng bàn bot + AI (2v2 có bot)
+  if (R.over) return;
   broadcast(R, { t: "clock", wave: R.wave, waveTimer: Math.max(0, R.waveTimer), alive: aliveSlots(R).length });
 }
 function playerDead(slot) {
@@ -226,6 +326,7 @@ function endMatch2v2(R, winTeam) {
 function resetRoom(R) {
   R.started = false; R.over = false; R.wave = 0; R.deathOrder = [];
   if (R.tickTimer) { clearInterval(R.tickTimer); R.tickTimer = null; }
+  for (const s of R.slots.values()) if (s.bot) { s.game = null; s.board = null; s.botGold = 0; s.botSp = 0; s.alive = true; }   // dọn bàn bot -> ván sau dựng mới
 }
 // Gỡ hẳn 1 người khỏi phòng (rời CHỦ ĐỘNG hoặc hết giờ giữ chỗ). Phòng trống -> xoá phòng.
 function leaveRoom(slot) {
@@ -237,8 +338,9 @@ function leaveRoom(slot) {
     else playerDead(slot);
   }
   R.slots.delete(slot.sid); allSlots.delete(slot.sid);
-  if (slot.sid === R.hostSid) R.hostSid = (slotList(R)[0] || {}).sid || null;
-  if (R.slots.size === 0) { resetRoom(R); destroyRoom(R); roomsUpdate(); }   // phòng trống hẳn -> xoá khỏi danh sách
+  if (slot.sid === R.hostSid) R.hostSid = (humanSlots(R)[0] || {}).sid || null;   // chủ phòng phải là NGƯỜI (bot không làm chủ)
+  // hết NGƯỜI (chỉ còn bot) hoặc trống hẳn -> dọn bot + xoá phòng
+  if (R.slots.size === 0 || humanSlots(R).length === 0) { removeAllBots(R); resetRoom(R); destroyRoom(R); roomsUpdate(); }
   else lobbyUpdate(R);
 }
 // người rớt mạng/F5 không quay lại trong thời gian giữ chỗ -> coi như thất thủ / rời phòng
@@ -299,13 +401,20 @@ function handleMsg(c, msg) {
       const RR = (o.room != null) ? rooms.get(o.room) : null;
       if (!RR) { send({ sock: c.sock }, { t: "reject", why: "Phòng không còn tồn tại." }); break; }
       if (RR.started) { send({ sock: c.sock }, { t: "reject", why: "Trận đã bắt đầu — chờ ván sau." }); break; }
-      if (RR.slots.size >= MAX) { send({ sock: c.sock }, { t: "reject", why: "Phòng đã đủ " + MAX + " người." }); break; }
+      const cap = RR.mode === "2v2" ? MAX_2V2 : MAX;
+      if (RR.slots.size >= cap) {
+        const bot = RR.mode === "2v2" ? [...RR.slots.values()].find((s) => s.bot) : null;   // 2v2 đầy vì có bot -> NGƯỜI vào thế chỗ 1 bot
+        if (bot) removeBot(RR, bot.sid);
+        else { send({ sock: c.sock }, { t: "reject", why: "Phòng đã đủ " + cap + " người." }); break; }
+      }
       enterRoom(c, RR, nm);
       break;
     }
     case "leave": { if (c.slot) { const slot = c.slot; c.slot = null; leaveRoom(slot); c.browsing = true; browsers.add(c); sendSock(c.sock, { t: "rooms", rooms: roomsList() }); } break; }   // rời phòng -> quay về danh sách (vẫn giữ kết nối)
-    case "setmode": if (c.slot && c.slot.sid === R.hostSid && !R.started) { R.mode = o.mode === "2v2" ? "2v2" : "ffa"; if (R.mode === "2v2") autoBalanceTeams(R); else clearTeams(R); lobbyUpdate(R); } break;
+    case "setmode": if (c.slot && c.slot.sid === R.hostSid && !R.started) { R.mode = o.mode === "2v2" ? "2v2" : "ffa"; if (R.mode === "2v2") autoBalanceTeams(R); else { removeAllBots(R); clearTeams(R); } lobbyUpdate(R); } break;   // rời 2v2 -> bỏ hết bot
     case "setteam": if (c.slot && !R.started && R.mode === "2v2" && (o.team === 0 || o.team === 1)) { c.slot.team = o.team; lobbyUpdate(R); } break;
+    case "addbot": if (c.slot && c.slot.sid === R.hostSid && R.mode === "2v2" && !R.started) { if (addBot(R)) lobbyUpdate(R); else send(c.slot, { t: "reject", why: BOTS_OK ? "Phòng 2v2 đã đủ 4 (không thêm máy được)." : "Máy chủ chưa bật được bot." }); } break;
+    case "delbot": if (c.slot && c.slot.sid === R.hostSid && R.mode === "2v2" && !R.started && o.sid) { if (removeBot(R, o.sid)) lobbyUpdate(R); } break;
     case "start": if (c.slot && c.slot.sid === R.hostSid && !R.started) { const m = o.mode === "2v2" ? "2v2" : "ffa"; if (m === "2v2" ? R.slots.size === 4 : R.slots.size >= 2) startMatch(R, o.map, m); } break;
     case "snap": if (c.slot) {   // minimap: 2v2 chỉ CHỦ-BÀN gửi, cho đội KHÁC xem; ffa gửi mọi người
       if (R.mode === "2v2") { if (c.slot.authority) for (const s of R.slots.values()) if (s.connected && s.team !== c.slot.team) send(s, { t: "snap", pid: c.slot.pid, team: c.slot.team, s: o.s }); }
@@ -318,10 +427,11 @@ function handleMsg(c, msg) {
       if (others.length) deliverPvp(others[(Math.random() * others.length) | 0], { t: "vacuum", from: c.slot.pid, data: o.data });
     } break;
     /* ---- 2v2 ---- */
-    case "board": if (c.slot && c.slot.authority) send(teammateOf(c.slot), { t: "board", s: o.s }); break;        // chủ-bàn -> đồng đội (xem bàn chung)
+    case "board": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m) { if (m.bot) m.board = o.s; else send(m, { t: "board", s: o.s }); } } break;   // chủ-bàn -> đồng đội (bot: lưu ảnh bàn để nâng cấp)
     case "cmd": if (c.slot) send(authorityOf(R, c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;      // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "reward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot);   // chủ-bàn chia vàng/KN cho đồng đội
-      if (m) { if (m.connected && m.sock) send(m, { t: "reward", gold: o.gold, sp: o.sp }); else if (m.alive) { m.pendGold = (m.pendGold || 0) + (o.gold || 0); m.pendSp = (m.pendSp || 0) + (o.sp || 0); } }   // đồng đội offline -> đệm lại, cộng bù khi nối lại
+      if (m) { if (m.bot) { m.botGold = (m.botGold || 0) + (o.gold || 0); m.botSp = (m.botSp || 0) + (o.sp || 0); }   // bot đồng đội: dồn vào ví riêng (chỉ nâng cấp)
+        else if (m.connected && m.sock) send(m, { t: "reward", gold: o.gold, sp: o.sp }); else if (m.alive) { m.pendGold = (m.pendGold || 0) + (o.gold || 0); m.pendSp = (m.pendSp || 0) + (o.sp || 0); } }
     } break;
     case "skills": if (c.slot) send(teammateOf(c.slot), { t: "skills", pid: c.slot.pid, learned: o.learned, sp: o.sp, cores: o.cores }); break; // khoe phép + lõi đã chọn cho đồng đội
     case "teamspell": if (c.slot) { const a = enemyAuthority(c.slot); if (a && a.alive) deliverPvp(a, { t: "teamspell", key: o.key, data: o.data }); } break;   // phép PvP -> bàn đội địch (chủ-bàn offline -> đệm)

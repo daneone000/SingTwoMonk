@@ -608,17 +608,23 @@
         const mem = m.players.filter((p) => p.team === tm);
         html += `<div class="vs-team-hd t${tm}">${tm === 0 ? "🔵 Đội A" : "🔴 Đội B"} <span class="vs-team-ct">(${mem.length}/2)</span>` +
           (myTeam === tm ? ` <span class="vs-you">— đội của bạn</span>` : ` <button class="vs-join-team" data-team="${tm}">Chuyển sang đây</button>`) + `</div>`;
-        html += mem.length ? mem.map((p, j) => `<div class="vs-lobby-row team${tm}${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${j === 0 ? "🛠 Chủ-bàn" : "🤝 Đồng đội"}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}${p.host ? " 👑" : ""}</div>`).join("") : `<div class="vs-empty-team">— trống —</div>`;
+        html += mem.length ? mem.map((p, j) => {
+          const rm = (m.isHost && p.bot) ? ` <button class="vs-del-bot" data-sid="${esc(p.sid)}" title="Bỏ máy">✕</button>` : "";
+          return `<div class="vs-lobby-row team${tm}${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${j === 0 ? "🛠 Chủ-bàn" : "🤝 Đồng đội"}</span> <b>${esc(p.name)}</b>${p.bot ? " 🤖" : ""}${p.pid === m.myPid ? " (bạn)" : ""}${p.host ? " 👑" : ""}${rm}</div>`;
+        }).join("") : `<div class="vs-empty-team">— trống —</div>`;
       });
+      if (m.isHost && m.players.length < 4) html += `<button class="vs-add-bot" id="vsAddBot">＋ Thêm máy (bot)</button>`;
       $("vsLobbyList").innerHTML = html;
       $("vsLobbyList").querySelectorAll(".vs-join-team").forEach((b) => { b.onclick = () => { if (net) net.client.send({ t: "setteam", team: +b.dataset.team }); }; });
+      const ab = $("vsAddBot"); if (ab) ab.onclick = () => { if (net) net.addBot(); };
+      $("vsLobbyList").querySelectorAll(".vs-del-bot").forEach((b) => { b.onclick = () => { if (net) net.delBot(b.dataset.sid); }; });
     } else {
       $("vsLobbyList").innerHTML = m.players.map((p, i) =>
         `<div class="vs-lobby-row${p.pid === m.myPid ? " me" : ""}"><span class="vs-tag ${p.pid === m.myPid ? "me" : "ai"}">${p.host ? "👑 Chủ" : "Người " + (i + 1)}</span> <b>${p.name}</b>${p.pid === m.myPid ? " (bạn)" : ""}</div>`).join("");
     }
     $("vsLanStart").classList.toggle("hidden", !m.isHost);
     $("vsLanStart").disabled = !m.canStart;
-    const need = mode === "2v2" ? "Cần ĐÚNG 4 người (2 đội × 2) để bắt đầu." : "Cần ít nhất 2 người để bắt đầu.";
+    const need = mode === "2v2" ? "Cần ĐÚNG 4 (2 đội × 2). Thiếu người? Bấm ＋ Thêm máy (bot) để điền chỗ." : "Cần ít nhất 2 người để bắt đầu.";
     $("vsLanMsg").textContent = m.isHost ? (m.canStart ? "Đủ người — bấm Bắt đầu khi sẵn sàng." : need) : "Chờ chủ phòng bắt đầu…";
   }
   // chủ phòng đổi kiểu trận

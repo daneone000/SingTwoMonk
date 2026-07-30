@@ -24,6 +24,7 @@
       // ----- đối kháng -----
       this.versus = false; this.ai = false; this.name = "Người Chơi"; this.pid = 0; this.match = null; this.netMatch = null;
       this.enemyHaste = 1; this.hasteTime = 0; this._aiT = 0; this._earn = null;   // _earn: cộng dồn vàng/KN để chia cho đồng đội (2v2, chủ-bàn)
+      this.teamGoldMul = 1;   // hệ số vàng theo đội (server đặt =1.5 cho BÀN BOT 2v2 để đua kịp người)
       // ----- LÕI NÂNG CẤP -----
       this.cores = [];                       // [{id,tier,value,target?}] tối đa 3
       this.coreTiers = [0, 1, 2].map(() => CFG.CORE_TIERS[(Math.random() * CFG.CORE_TIERS.length) | 0]);   // solo random; đối kháng: net ghi đè bằng seed server
@@ -433,6 +434,7 @@
       const map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
       // Triệu Hồi: caster chọn 1 chủng -> mọi đối thủ nhận CÙNG chủng (vị trí vẫn ngẫu nhiên trên từng sân)
       const data = key === "trieuHoi" ? { type: CFG.randomSummonType() } : null;
+      if (this.onCastPvp) { this.onCastPvp(key, data); return; }   // bot chạy trên SERVER: định tuyến phép sang bàn đội địch qua phòng
       if (this.netMatch) { if (this.netMatch.mode === "2v2") this.netMatch.sendTeamSpell(key, data); else this.netMatch.sendSpell(key, data); return; }
       this.opponents().forEach((g) => g[map[key]](data && data.type));
     }
@@ -538,7 +540,8 @@
       if (this.mirror) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); return; }   // đồng đội: vàng/KN do chủ-bàn chia (không tính lại ở mirror)
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
       // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
-      const base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : e.reward;
+      // 2v2-vs-MÁY: bàn đội MÁY (2 máy chung bàn) ăn ×1.5 để đua kịp; các bàn khác giữ nguyên
+      const base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : Math.round(e.reward * (this.teamGoldMul || 1));
       const got = this.gainGold(base);   // Tay Buôn: +% vàng
       this.gold += got; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
       this._curWaveGold += got;          // AFK: gom vàng đợt hiện tại
