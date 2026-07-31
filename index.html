@@ -22,8 +22,8 @@
       <div class="top-right">
         <button id="btnMenu" class="mode-sel menu-sel" title="Menu chính (chọn chế độ chơi)">☰</button>
         <button id="modeEndless" class="mode-sel" title="Sinh tồn vô tận">☠</button>
-        <button id="modeCampaign" class="mode-sel" title="Chiến dịch">🗺</button>
         <button id="modeVersus" class="mode-sel" title="Đối kháng (tối đa 5 người)">⚔</button>
+        <button id="modeDesign" class="mode-sel" title="Sân thử nghiệm — thử bố cục tháp tự do">🧪</button>
         <button id="btnRestart" class="close-btn" title="Chơi lại">✖</button>
       </div>
     </header>
@@ -51,6 +51,17 @@
           <button id="btnSpeed">⏩ x1</button>
           <button id="btnAuto" class="on">Tự động: BẬT</button>
           <button id="btnTree2">🌟 Học phép (F2)</button>
+        </div>
+
+        <!-- SÂN THỬ: thanh công cụ (chỉ hiện ở chế độ Design) -->
+        <div id="designBar" class="design-bar">
+          <span class="db-title">🧪 Sân thử</span>
+          <label class="db-lb">Đợt <input id="dbWave" type="number" min="1" max="60" value="1" class="db-wave"></label>
+          <button id="dbSpawn" class="db-btn">🐾 Thả đợt</button>
+          <button id="dbAuto" class="db-btn">▶ Thả liên tục</button>
+          <button id="dbClearMobs" class="db-btn">🧹 Xóa quái</button>
+          <button id="dbClearTowers" class="db-btn danger">💣 Xóa hết tháp</button>
+          <span class="db-hint">Vàng &amp; KN vô hạn · quái lọt KHÔNG trừ mạng</span>
         </div>
       </section>
 
@@ -106,13 +117,13 @@
           <span class="mm-ic">☠</span>
           <span class="mm-tx"><b>Sinh Tồn Vô Tận</b><small>Chơi một mình, quái mạnh dần không giới hạn</small></span>
         </button>
-        <button class="menu-btn" id="mmCampaign">
-          <span class="mm-ic">🗺</span>
-          <span class="mm-tx"><b>Chiến Dịch</b><small>40 đợt có hồi kết — trụ hết là chiến thắng</small></span>
-        </button>
         <button class="menu-btn" id="mmAI">
           <span class="mm-ic">🤖</span>
           <span class="mm-tx"><b>Đối Kháng với Máy</b><small>Tối đa 5 sân: bạn + 4 AI, cùng chuỗi đợt quái</small></span>
+        </button>
+        <button class="menu-btn" id="mmDesign">
+          <span class="mm-ic">🧪</span>
+          <span class="mm-tx"><b>Sân Thử Nghiệm</b><small>Vàng &amp; KN vô hạn — tự thả quái, xóa tháp, thử bố cục mê cung</small></span>
         </button>
         <button class="menu-btn hot" id="mmLan">
           <span class="mm-ic">🌐</span>

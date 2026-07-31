@@ -243,7 +243,7 @@
     blackFriday: { id: "blackFriday", name: "Black Friday", icon: "🏷", group: "Kinh tế", impl: true,
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Giá xây/nâng tháp & bẫy rẻ hơn ${v}%.` },
     afk: { id: "afk", name: "AFK", icon: "💤", group: "Kinh tế", impl: true,
-      tiers: { bac: 1 }, desc: () => "Không xây/nâng/bán suốt 3 đợt liên tiếp → nhận gấp đôi tổng vàng của 3 đợt đó." },
+      tiers: { bac: 1 }, desc: () => "Không xây/nâng/bán qua nhiều đợt liền → nhận gấp đôi tổng vàng các đợt đó. Ngưỡng thưởng tăng dần 3 → 2 → 1 đợt, sau 3 lần thì lõi ngừng." },
     tayBuon: { id: "tayBuon", name: "Tay Buôn", icon: "💰", group: "Kinh tế", impl: true,
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Tăng ${v}% vàng nhận được từ mọi nguồn.` },
     // --- Tháp ---
@@ -287,7 +287,10 @@
     VS2V2_GOLD_MUL: 0.75,
     DEFAULT_KEYS, DEFAULT_SLOT_KEYS,
     SKILLS, SKILL_TREE_ORDER, SKILL_EDGES,
-    START_GOLD: 35, START_SP: 0, START_LIVES: 10, MAX_SKILLS: 6, CAMPAIGN_WAVES: 30,
+    START_GOLD: 35, START_SP: 0, START_LIVES: 10, MAX_SKILLS: 6,
+    AFK_THRESHOLDS: [3, 2, 1],   // lõi AFK: số đợt sạch cần cho mỗi lần thưởng (3→2→1); hết mảng -> lõi vô hiệu
+    DESIGN_GOLD: 99999, DESIGN_SP: 999,   // Sân thử nghiệm (mode "design"): vàng & KN vô hạn để thử bố cục tháp
+    DESIGN_MAX_WAVE: 60,
     WAVE_BONUS: 0, SP_PER_KILL: 1, SP_PER_BOSS: 10, SELL_RATE: 0.5,
     BOSS_HP: 24, BOSS_RADIUS: 1.7, BOSS_REWARD: 7, BOSS_SPEED: 0.8,
   };

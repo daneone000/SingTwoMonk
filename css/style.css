@@ -111,6 +111,20 @@ body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif; color:
 .controls .primary { background: linear-gradient(180deg, #2e7d32, #1b5e20); }
 #btnAuto.on { background: linear-gradient(180deg, #1565c0, #0d47a1); }
 
+/* SÂN THỬ (design) — thanh công cụ dưới trận địa */
+.design-bar { display: none; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding: 7px 9px;
+  border: 2px solid var(--gold-d); border-radius: 9px; background: linear-gradient(180deg, #2b2136, #1c1626); }
+body.design .design-bar { display: flex; }
+.db-title { font-family: var(--serif); font-weight: 800; color: #c9b8ff; font-size: 13px; }
+.db-lb { font-size: 12px; color: var(--txt); display: flex; align-items: center; gap: 4px; }
+.db-wave { width: 48px; padding: 5px 4px; border-radius: 6px; border: 2px solid var(--gold-d); background: #14100c; color: var(--gold); font-weight: 700; text-align: center; }
+.db-btn { padding: 7px 10px; border-radius: 7px; cursor: pointer; border: 2px solid var(--gold-d); background: var(--stone-d); color: var(--txt); font-size: 12px; font-weight: 600; }
+.db-btn:hover { border-color: var(--gold); }
+.db-btn.on { background: linear-gradient(180deg, #6a3fb0, #47257e); }
+.db-btn.danger { border-color: #a4432b; }
+.db-btn.danger:hover { border-color: #ff7a55; }
+.db-hint { font-size: 11px; color: #b0a08a; margin-left: auto; }
+
 /* ==== right: portrait ==== */
 .col-right { gap: 4px; }
 .portrait { padding: 4px 6px; text-align: center; display: flex; align-items: center; gap: 8px; }

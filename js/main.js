@@ -213,11 +213,13 @@
   const coreSlotsEl = $("coreSlots"), coreModal = $("coreModal"), coreCardsEl = $("coreCards"), coreHeadEl = $("coreHead");
   const corePendingEl = $("corePending"), corePendingTx = $("corePendingTx"), TIER = CFG.CORE_TIER_INFO;
   let coreSig = "";
-  function afkText(g) {   // dòng mô tả AFK sống động: còn mấy đợt sạch + vàng chờ + tổng đã nhận
+  function afkText(g) {   // dòng mô tả AFK sống động: bậc hiện tại, còn mấy đợt sạch, vàng chờ, tổng đã nhận
     const i = g.afkInfo();
     const earned = `Tổng đã nhận: <b style="color:var(--gold)">${i.earned}</b>💰`;
-    if (i.acted) return `💤 Đã động tháp đợt này → chuỗi về 0, cần <b>3</b> đợt sạch liền. ${earned}`;
-    return `💤 Còn <b>${i.need}</b> đợt sạch → thưởng <b style="color:var(--gold)">${i.pending}</b>💰 (đợt sạch: ${i.clean}/3). ${earned}`;
+    if (i.disabled) return `💤 Lõi AFK đã cạn (đã thưởng ${i.total}/${i.total} lần) — không còn thưởng nữa. ${earned}`;
+    const tierTx = `lần ${i.stage + 1}/${i.total}: cần <b>${i.threshold}</b> đợt sạch`;
+    if (i.acted) return `💤 Đã động tháp đợt này → chuỗi về 0 (${tierTx}). ${earned}`;
+    return `💤 Còn <b>${i.need}</b> đợt sạch → thưởng <b style="color:var(--gold)">${i.pending}</b>💰 (${tierTx}, đã sạch ${i.clean}/${i.threshold}). ${earned}`;
   }
   function updateAfkLive(g) { if (!g.hasCore("afk")) return; const el = coreSlotsEl.querySelector(".core-afk"); if (el) el.innerHTML = afkText(g); }
   function maybeRenderCores(g) {
@@ -386,7 +388,6 @@
     }
     else if (g.gameOver || g.victory) { sw.textContent = "— Kết thúc —"; sw.disabled = true; }
     else if (!g.started) { sw.textContent = "▶ Bắt đầu"; sw.disabled = false; }
-    else if (g.campaignDone) { sw.textContent = "— Hết đợt —"; sw.disabled = true; }
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
@@ -416,12 +417,21 @@
   $("startWave").onclick = () => game.startWave();
   $("btnPause").onclick = () => { if (net) return; game.paused = !game.paused; game.emit(); };
   $("btnSpeed").onclick = () => { game.speed = game.speed === 1 ? 2 : game.speed === 2 ? 3 : 1; game.emit(); };
-  function syncAuto() { $("btnAuto").classList.toggle("on", game.autoNext); $("btnAuto").textContent = "Tự động: " + (game.autoNext ? "BẬT" : "TẮT"); }
+  function syncAuto() { $("btnAuto").classList.toggle("on", game.autoNext); $("btnAuto").textContent = "Tự động: " + (game.autoNext ? "BẬT" : "TẮT"); syncDbAuto(); }
   $("btnAuto").onclick = () => { game.autoNext = !game.autoNext; syncAuto(); };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; log("Ván mới: " + (mode === "campaign" ? "Chiến Dịch" : "Sinh Tồn Vô Tận") + " — bản đồ " + CFG.curMap().name, "good"); }
+
+  /* ---------- SÂN THỬ (design): thả/xóa quái & tháp tự do ---------- */
+  function dbWaveVal() { const v = parseInt($("dbWave").value, 10); return Math.max(1, Math.min(60, isNaN(v) ? 1 : v)); }
+  $("dbSpawn").onclick = () => { const n = dbWaveVal(); game.spawnWaveAt(n); log("🐾 Thả đợt " + n + " để thử.", "ev"); };
+  $("dbAuto").onclick = () => { game.autoNext = !game.autoNext; if (game.autoNext && !game.started) game.spawnWaveAt(dbWaveVal()); syncAuto(); };
+  $("dbClearMobs").onclick = () => { game.clearEnemies(); log("🧹 Đã xóa hết quái.", "ev"); };
+  $("dbClearTowers").onclick = () => { game.clearBoard(); log("💣 Đã xóa hết tháp — vẽ lại mê cung.", "ev"); };
+  function syncDbAuto() { const b = $("dbAuto"); if (!b) return; b.classList.toggle("on", game.autoNext); b.textContent = game.autoNext ? "⏸ Dừng thả" : "▶ Thả liên tục"; }
+  const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận" };
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
   $("modeEndless").onclick = () => newGame("endless");
-  $("modeCampaign").onclick = () => newGame("campaign");
-  $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame("endless"); };
+  $("modeDesign").onclick = () => newGame("design");
+  $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame(game.mode || "endless"); };
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
@@ -548,7 +558,7 @@
     endVersus();
     match = new STM.Match(game, players);
     match.onEnd = (m) => showResult(m);
-    document.body.classList.add("versus");
+    document.body.classList.remove("design"); document.body.classList.add("versus");
     syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = "";
     buildOppList();
     log("Trận đối kháng bắt đầu! " + players.length + " người chơi.", "good");
@@ -560,7 +570,7 @@
     if (net) { net.leave(); net = null; }
     lanState = "connect";
     if (!match) return; match = null;
-    document.body.classList.remove("versus", "netplay", "team2v2");
+    document.body.classList.remove("versus", "netplay", "team2v2", "design");
     $("mateSkills").classList.add("hidden");
     $("oppList").innerHTML = OPP.map((n) => `<div class="opp"><div class="oface">?</div><div class="omap"><span class="oname">${n}</span><small>Đối kháng<br>(chọn ⚔ để chơi)</small></div></div>`).join("");
   }
@@ -725,7 +735,7 @@
     reconnecting = false; reconnBanner(false); if (reconnTimer) clearTimeout(reconnTimer);
     vsModal.classList.add("hidden");
     match = m;
-    document.body.classList.add("versus", "netplay");
+    document.body.classList.remove("design"); document.body.classList.add("versus", "netplay");
     apply2v2Chrome(m);
     lastLearned = -1; treeSel = null; prevWave = m.wave; prevLives = game.lives; prevEnd = false;
     buildOppList();
@@ -752,7 +762,7 @@
   function startVersusNet(m) {
     vsModal.classList.add("hidden");
     match = m;                       // NetMatch cũng có opponentViews/aliveN/resultRows/wave/waveTimer/over
-    document.body.classList.add("versus", "netplay");
+    document.body.classList.remove("design"); document.body.classList.add("versus", "netplay");
     apply2v2Chrome(m);
     lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; logBox.innerHTML = "";
     buildOppList();
@@ -813,7 +823,7 @@
   function openVsTab(tab) { closeMenu(); buildNameInputs(); refreshLanAddr(); showTab(tab); vsModal.classList.remove("hidden"); }
   $("btnMenu").onclick = openMenu;
   $("mmEndless").onclick = () => { closeMenu(); newGame("endless"); };
-  $("mmCampaign").onclick = () => { closeMenu(); newGame("campaign"); };
+  $("mmDesign").onclick = () => { closeMenu(); newGame("design"); };
   $("mmAI").onclick = () => openVsTab("AI");
   $("mmLan").onclick = () => openVsTab("LAN");
   $("mmRules").onclick = () => rules.classList.remove("hidden");   // đọc luật xong vẫn quay lại menu

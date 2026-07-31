@@ -33,12 +33,15 @@
       this.pendingCore = null;               // lõi chờ chọn mục tiêu (vd Gia Cố -> chọn tháp)
       this.pendingMove = null;               // Back King Xây: tháp đang chờ dời sang ô mới
       this.dungHopUsed = false;              // Dung Hợp: đã dùng (1 lần/ván) chưa
-      this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0;
+      this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0; this._afkStage = 0;
+      if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
     // 2v2: netMatch chế độ đội? mirror = đồng đội KHÔNG mô phỏng (chỉ xem bàn của chủ-bàn)
     get t2() { return this.netMatch && this.netMatch.mode === "2v2" ? this.netMatch : null; }
     get mirror() { const m = this.t2; return !!(m && !m.isAuthority); }
+    // Sân thử nghiệm: vàng/KN vô hạn, quái lọt KHÔNG trừ mạng, tự thả/xóa quái & tháp để thử bố cục mê cung
+    get sandbox() { return this.mode === "design"; }
 
     /* ------------------------- LÕI NÂNG CẤP ------------------------- */
     hasCore(id) { return this.cores.find((c) => c.id === id) || null; }
@@ -134,26 +137,32 @@
     }
     // đánh dấu "có hành động" cho lõi AFK (xây/nâng/bán của CHÍNH mình)
     _coreActed() { if (this.hasCore("afk")) this._curWaveActed = true; }
-    // thông tin hiển thị cho lõi AFK: còn mấy đợt sạch, vàng chờ nhân đôi, tổng đã nhận
+    // ngưỡng đợt sạch của LẦN thưởng hiện tại (theo bậc): 3 -> 2 -> 1, hết mảng = -1 (vô hiệu)
+    afkThreshold() { const T = CFG.AFK_THRESHOLDS; const s = this._afkStage || 0; return s < T.length ? T[s] : -1; }
+    // thông tin hiển thị cho lõi AFK: bậc hiện tại, ngưỡng, còn mấy đợt sạch, vàng chờ nhân đôi, tổng đã nhận
     afkInfo() {
-      const acted = this._curWaveActed;
+      const acted = this._curWaveActed, thr = this.afkThreshold(), disabled = thr < 0;
       return {
-        clean: this._afkClean,
-        need: acted ? 3 : Math.max(1, 3 - this._afkClean),      // số đợt sạch còn cần (kể cả đợt đang chạy)
+        clean: this._afkClean, threshold: thr, disabled,
+        stage: this._afkStage || 0, total: CFG.AFK_THRESHOLDS.length,
+        need: disabled ? 0 : acted ? thr : Math.max(1, thr - this._afkClean),   // số đợt sạch còn cần (kể cả đợt đang chạy)
         acted,
-        pending: Math.round(this._afkGold + (acted ? 0 : this._curWaveGold)),   // vàng sẽ được thưởng (×2) khi đủ chuỗi
+        pending: disabled ? 0 : Math.round(this._afkGold + (acted ? 0 : this._curWaveGold)),   // vàng sẽ được thưởng khi đủ chuỗi
         earned: this._afkEarned || 0,                           // tổng vàng đã nhận từ AFK cả ván
       };
     }
-    // chốt đợt vừa qua cho AFK khi sang đợt mới
+    // chốt đợt vừa qua cho AFK khi sang đợt mới. Bậc thưởng: 3 đợt sạch -> 2 -> 1 -> lõi VÔ HIỆU.
     _afkOnWave(n) {
-      if (this.hasCore("afk") && this._afkPrevWave != null) {
+      const thr = this.afkThreshold();
+      if (this.hasCore("afk") && this._afkPrevWave != null && thr > 0) {
         if (this._curWaveActed) { this._afkClean = 0; this._afkGold = 0; }
         else {
           this._afkClean++; this._afkGold += this._curWaveGold;
-          if (this._afkClean >= 3) {
+          if (this._afkClean >= thr) {
             const bonus = Math.round(this._afkGold); this.gold += bonus; if (this._earn) this._earn.gold += bonus; this._afkEarned += bonus;
-            this._afkClean = 0; this._afkGold = 0; if (this.onCoreLog) this.onCoreLog("💤 AFK: +" + bonus + " vàng (3 đợt không động tháp)");
+            this._afkStage = (this._afkStage || 0) + 1; this._afkClean = 0; this._afkGold = 0;
+            const nxt = this.afkThreshold();
+            if (this.onCoreLog) this.onCoreLog("💤 AFK: +" + bonus + " vàng (" + thr + " đợt không động tháp)" + (nxt < 0 ? " — lõi đã cạn, ngừng thưởng." : " — lần sau cần " + nxt + " đợt."));
           }
         }
       }
@@ -365,10 +374,9 @@
     }
 
     /* ---------------- đợt quái (ĐỊNH KỲ, có thể chồng lấn) ---------------- */
-    get campaignDone() { return this.mode === "campaign" && this.wave >= CFG.CAMPAIGN_WAVES; }
     // Gọi đợt kế: xếp quái vào hàng chờ theo thời gian tuyệt đối (spawnClock), KHÔNG xoá đợt cũ.
     launchWave() {
-      if (this.gameOver || this.victory || this.campaignDone) return;
+      if (this.gameOver || this.victory) return;
       this.wave++; this._afkOnWave(this.wave);   // chốt AFK đợt trước
       const w = CFG.buildWave(this.wave); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
@@ -518,7 +526,7 @@
         sWaveTimer: this.netMatch ? (this.netMatch.waveTimer || 0) : this.waveTimer,   // server đếm ngược tới đợt kế lúc lưu (để tính khoảng offline)
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
         coreTiers: this.coreTiers, coreRolls: this.coreRolls,
-        afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned },
+        afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned, stage: this._afkStage || 0 },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -555,7 +563,7 @@
       this.cores = (s.cores || []).map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target || null }));
       this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
-      if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; }
+      if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; this._afkStage = s.afk.stage || 0; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }
@@ -581,7 +589,22 @@
       }
       this.emit();
     }
-    onEnemyLeak(e) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.mirror) return; /* đồng đội: mạng/thua do chủ-bàn quyết (áp qua board) */ this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
+    onEnemyLeak(e) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.mirror) return; /* đồng đội: mạng/thua do chủ-bàn quyết (áp qua board) */ if (this.sandbox) { this.emit(); return; } /* sân thử: lọt cũng KHÔNG trừ mạng */ this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
+
+    /* --------- SÂN THỬ (design): thả/xóa quái & tháp tự do để thử bố cục --------- */
+    spawnWaveAt(n) {   // thả đúng đàn quái của đợt n (KHÔNG đổi luật kết thúc), lặp lại bao nhiêu lần tùy ý
+      if (this.versus || this.mirror) return;
+      n = Math.max(1, Math.min(CFG.DESIGN_MAX_WAVE, n | 0));
+      this.wave = n; const w = CFG.buildWave(n); let t = this.spawnClock + 0.2;
+      for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
+      this.spawnQueue.sort((a, b) => a.at - b.at); this.started = true; this.emit();
+    }
+    clearEnemies() { this.enemies = []; this.spawnQueue = []; this.projectiles = []; this.emit(); }
+    clearBoard() {   // gỡ toàn bộ tháp/bẫy để vẽ lại mê cung từ đầu
+      this.towers = []; this.traps = []; this.occupied = new Set(); this.blockSet = new Set(); this.raised = new Set();
+      this.selected = null; this.pendingMove = null; this.pendingCore = null; this.buildType = null;
+      this.computeFlow(); this.recomputeAuras(); this.emit();
+    }
 
     /* ------------------------- CÂY PHÉP ------------------------- */
     canLearn(key) { if (this.learned.has(key)) return false; if (this.learned.size >= this.maxSkills()) return false; const s = CFG.SKILLS[key]; if (this.hasCore("kePhaLuat")) return true; if (!s.parents.length) return true; return s.parents.some((p) => this.learned.has(p)); }   // Kẻ Phá Luật: bỏ ràng buộc nhánh
@@ -659,8 +682,9 @@
         return;
       }
       dt *= this.speed;                          // nút tua x1/x2/x3
+      if (this.sandbox) { if (this.gold < 90000) this.gold = CFG.DESIGN_GOLD; if (this.sp < 900) this.sp = CFG.DESIGN_SP; if (this.lives < CFG.START_LIVES) this.lives = CFG.START_LIVES; }   // bơm lại tài nguyên vô hạn
       // ĐỒNG HỒ ĐỢT: đối kháng do MATCH điều khiển (đồng bộ); solo thì tự định kỳ
-      if (!this.versus && this.started && this.autoNext && !this.campaignDone) { this.waveTimer -= dt; if (this.waveTimer <= 0) this.launchWave(); }
+      if (!this.versus && this.started && this.autoNext) { this.waveTimer -= dt; if (this.waveTimer <= 0) this.launchWave(); }
       if (this.hasteTime > 0) { this.hasteTime -= dt; if (this.hasteTime <= 0) this.enemyHaste = 1; }
       // hồi chiêu phép & thời gian xây/nâng/tháp tính theo GIÂY THỰC
       for (const k in this.skillCd) if (this.skillCd[k] > 0) this.skillCd[k] = Math.max(0, this.skillCd[k] - dt);
@@ -668,7 +692,6 @@
       const pdt = dt * CFG.GAME_PACE;            // nhịp gameplay chậm hơn cho dễ theo dõi
       if (this.started) this.spawnClock += pdt;
       this.updateSpawns();
-      if (this.started && this.campaignDone && !this.spawnQueue.length && !this.enemies.length) { this.victory = true; this.emit(); }
       for (const e of this.enemies.slice()) e.update(pdt, this);
       for (const t of this.traps) t.update(pdt, this);
       if (this.traps.some((t) => t.dead)) { for (const t of this.traps) if (t.dead) { this.occupied.delete(t.col + "," + t.row); if (this.selected === t) this.selected = null; } this.traps = this.traps.filter((t) => !t.dead); this.emit(); }
@@ -681,7 +704,7 @@
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);
       // làm mới HUD định kỳ để đồng hồ đếm (xây/nâng/tháo, chờ đợt) chạy mượt
       this._uiT = (this._uiT || 0) + dt;
-      if (this._uiT >= 0.2) { this._uiT = 0; if ((this.selected && !this.selected.trap && this.selected.buildTimer > 0) || (this.started && (this.versus || (this.autoNext && !this.campaignDone)))) this.emit(); }
+      if (this._uiT >= 0.2) { this._uiT = 0; if ((this.selected && !this.selected.trap && this.selected.buildTimer > 0) || (this.started && (this.versus || this.autoNext))) this.emit(); }
     }
 
     /* ----------------------------- vẽ ----------------------------- */
@@ -818,7 +841,7 @@
     waveCountdown() {
       if (this.netMatch) return (this.netMatch.started && !this.netMatch.over) ? { sec: this.netMatch.waveTimer, n: this.netMatch.wave + 1 } : null;
       if (this.match) return this.match.over ? null : { sec: this.match.waveTimer, n: this.match.wave + 1 };
-      if (this.started && this.autoNext && !this.campaignDone && !this.gameOver && !this.victory) return { sec: this.waveTimer, n: this.wave + 1 };
+      if (this.started && this.autoNext && !this.gameOver && !this.victory) return { sec: this.waveTimer, n: this.wave + 1 };
       return null;
     }
     drawWaveCountdown(ctx) {
