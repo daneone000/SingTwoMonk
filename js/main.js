@@ -404,7 +404,8 @@
     if (!modal.classList.contains("hidden")) renderTree();
     { const can = hasLearnable(g); $("btnTree").classList.toggle("can-learn", can); $("btnTree2").classList.toggle("can-learn", can); }
     $("btnPause").textContent = g.paused ? "▶ Tiếp" : "⏸ Dừng"; $("btnSpeed").textContent = "⏩ x" + g.speed;
-    canvas.style.cursor = g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
+    canvas.style.cursor = g.pendingPing ? "crosshair" : g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: chờ ping / dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
+    for (const b of coopPingBtns) b.classList.toggle("on", g.pendingPing === b.dataset.kind);
     renderTowerPanel(g);
     if (g.wave !== prevWave && g.wave > 0) { log("Đợt " + g.wave + " bắt đầu", "ev"); prevWave = g.wave; }
     if (g.lives < prevLives) { log("Quái lọt cửa Tử! Còn " + g.lives + " mạng", "warn"); prevLives = g.lives; }
@@ -412,6 +413,26 @@
   }
   game.onChange = updateHUD;
   game.onCoreLog = (m) => log(m, "good");   // lõi AFK báo thưởng vàng
+
+  /* ---------- 2v2: PHỐI HỢP — Ping (đánh dấu ô) + Chat ---------- */
+  const coopPingBtns = [...document.querySelectorAll(".cb-ping")];
+  coopPingBtns.forEach((b) => { b.onclick = () => game.setPing(b.dataset.kind); });
+  game.onPing = (kind, mine) => { const p = CFG.PINGS[kind]; log((mine ? "📍 Bạn đánh dấu: " : "📍 Đồng đội: ") + (p ? p.icon + " " + p.label : kind), mine ? "ev" : "good"); };
+  const coopChat = $("coopChat"), ccText = $("ccText"), ccQuick = $("ccQuick"), bubbleBox = $("coopBubbles");
+  CFG.QUICKCHAT.forEach((m, i) => { const b = document.createElement("button"); b.textContent = m; b.onclick = () => sendChat(i, null); ccQuick.appendChild(b); });
+  $("cbChatToggle").onclick = () => { const nowHidden = coopChat.classList.toggle("hidden"); $("cbChatToggle").classList.toggle("on", !nowHidden); if (!nowHidden) ccText.focus(); };
+  $("ccSend").onclick = () => { const t = ccText.value.trim(); if (t) { sendChat(null, t); ccText.value = ""; } };
+  ccText.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const t = ccText.value.trim(); if (t) { sendChat(null, t); ccText.value = ""; } } });
+  function mateNameOf() { return (match && match.teammate && match.teammate.name) || "Đồng đội"; }
+  function sendChat(i, text) { const msg = text != null ? text : CFG.QUICKCHAT[i]; if (!msg || !net) return; net.sendChat(text != null ? undefined : i, text != null ? text : undefined); showBubble(PLAYER, msg, true); log("💬 Bạn: " + msg, "ev"); }
+  function onChatIn(i, text) { const msg = text != null && text !== "" ? text : CFG.QUICKCHAT[i]; if (!msg) return; showBubble(mateNameOf(), msg, false); log("💬 " + mateNameOf() + ": " + msg, "good"); }
+  function showBubble(name, msg, mine) {
+    if (!bubbleBox) return;
+    const d = document.createElement("div"); d.className = "coop-bubble" + (mine ? " me" : "");
+    d.innerHTML = "<b>" + esc(name) + ":</b> " + esc(msg); bubbleBox.appendChild(d);
+    while (bubbleBox.children.length > 4) bubbleBox.removeChild(bubbleBox.firstChild);
+    setTimeout(() => { d.classList.add("fade"); setTimeout(() => { if (d.parentNode) d.remove(); }, 500); }, 4500);
+  }
 
   /* ---------- điều khiển ---------- */
   $("startWave").onclick = () => game.startWave();
@@ -435,7 +456,7 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.pendingPing = null; game.emit(); return; }
     if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
@@ -445,7 +466,8 @@
       const a = keyMap[kk];
       if (a) { game.setBuild(a); return; }                  // phím tháp/bẫy
       const si = slotKeyMap[kk];
-      if (si != null) { const k = skillInSlot(game, si); if (k) game.armSkill(k); }   // phím ô phép
+      if (si != null) { const k = skillInSlot(game, si); if (k) game.armSkill(k); return; }   // phím ô phép
+      if (kk === "v" && game.t2) game.setPing("build");     // 2v2: phím V đánh dấu "Xây đây"
     }
   });
 
@@ -668,6 +690,7 @@
     net.onResume = (m) => resumeVersusNet(m);
     net.onEnd = (m) => showResult(m);
     net.onChange = () => game.emit();
+    net.onChat = (i, text) => onChatIn(i, text);   // 2v2: nhận chat của đồng đội
     if (!opts.silent) setTimeout(() => { if (net && !opened) { try { net.client.close(); } catch (e) {} lanFailHint(); } }, 4000);
     return () => opened;
   }

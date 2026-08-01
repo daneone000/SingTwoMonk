@@ -72,6 +72,8 @@
     // 2v2
     sendCmd(c) { this.client.send({ t: "cmd", c }); }               // đồng đội -> chủ-bàn: xây/nâng/bán/phép bàn
     sendFx(key, x, y) { if (this.mode === "2v2" && this.isAuthority) this.client.send({ t: "fx", key, x, y }); }   // chủ-bàn -> đồng đội: chỉ HÌNH ẢNH phép bàn (không tác động)
+    sendPing(c, r, kind) { if (this.mode === "2v2") this.client.send({ t: "ping", c, r, kind }); }   // 2v2: đánh dấu ô (2 chiều giữa 2 đồng đội)
+    sendChat(i, text) { if (this.mode === "2v2") this.client.send({ t: "chat", i, text }); }   // 2v2: chat nhanh (chỉ số câu mẫu) hoặc chat tự do (text)
     sendTeamSpell(key, data) { this.client.send({ t: "teamspell", key, data }); }   // phép PvP -> bàn đội địch
     sendTeamVacuum(data) { this.client.send({ t: "teamvacuum", data }); }
     sendSkills() { this.client.send({ t: "skills", learned: [...this.game.learned], sp: this.game.sp, cores: this.game.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value })) }); }
@@ -148,6 +150,8 @@
         /* ---- 2v2 ---- */
         case "board": g.applyBoard(o.s); break;                                    // chủ-bàn -> đồng đội: vẽ lại bàn chung
         case "fx": g.playSpellFx(o.key, o.x, o.y); break;                          // chủ-bàn -> đồng đội: phát HÌNH ẢNH phép bàn (Mưa Lửa/Bão Sét/Khói Độc…)
+        case "ping": g.showPing(o.c, o.r, o.kind, false); break;                    // đồng đội đánh dấu ô -> hiện trên bàn mình
+        case "chat": if (this.onChat) this.onChat(o.i, o.text); break;             // đồng đội gửi chat nhanh/tự do
         case "cmd": if (this.isAuthority) { g.applyCmd(o.c); this.pushBoard(); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh + ĐẨY BÀN NGAY (đồng đội thấy xây/nâng tức thì, hết delay)
         case "reward": { const got = g.gainGold(o.gold || 0); g.gold += got; g._curWaveGold += got; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; } // chủ-bàn chia vàng/KN (người nhận tự áp Tay Buôn; tính cả cho AFK)
         case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; this.mateCores = o.cores || []; if (this.isAuthority) g.recomputeAuras(); if (this.onChange) this.onChange(); break;

@@ -125,6 +125,34 @@ body.design .design-bar { display: flex; }
 .db-btn.danger:hover { border-color: #ff7a55; }
 .db-hint { font-size: 11px; color: #b0a08a; margin-left: auto; }
 
+/* ==== 2v2: thanh PHỐI HỢP (ping + chat) — chỉ hiện ở trận đội ==== */
+.coop-bar, .coop-chat { display: none; }
+body.team2v2 .coop-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding: 6px 9px;
+  border: 2px solid var(--gold-d); border-radius: 9px; background: linear-gradient(180deg, #1f3324, #16241a); }
+body.team2v2 .coop-chat:not(.hidden) { display: block; margin-top: 6px; padding: 7px 9px; border: 2px solid var(--gold-d); border-radius: 9px; background: linear-gradient(180deg, #1c2431, #141a24); }
+.cb-title { font-family: var(--serif); font-weight: 800; color: #8fe0a8; font-size: 13px; }
+.cb-lbl { font-size: 12px; color: var(--txt); }
+.cb-ping, .cb-chat-toggle { padding: 6px 10px; border-radius: 7px; cursor: pointer; border: 2px solid var(--gold-d); background: var(--stone-d); color: var(--txt); font-size: 14px; font-weight: 600; }
+.cb-ping:hover, .cb-chat-toggle:hover { border-color: var(--gold); }
+.cb-ping.on { border-color: #ffe082; box-shadow: 0 0 0 2px rgba(255,224,130,.5) inset; }
+.cb-chat-toggle { margin-left: auto; font-size: 12px; }
+.cb-chat-toggle.on { background: linear-gradient(180deg, #1565c0, #0d47a1); }
+.cc-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.cc-quick button { padding: 5px 9px; border-radius: 14px; cursor: pointer; border: 1px solid var(--gold-d); background: #22302a; color: var(--txt); font-size: 12px; }
+.cc-quick button:hover { border-color: var(--gold); }
+.cc-input { display: flex; gap: 6px; }
+.cc-input input { flex: 1; min-width: 0; padding: 7px 9px; border-radius: 7px; border: 2px solid var(--gold-d); background: #10140e; color: var(--txt); font-size: 13px; }
+.cc-input input:focus { outline: none; border-color: var(--gold); }
+.cc-input button { padding: 7px 14px; border-radius: 7px; cursor: pointer; border: 2px solid var(--gold-d); background: linear-gradient(180deg, #2e7d32, #1b5e20); color: var(--txt); font-weight: 700; }
+/* bong bóng chat nổi trên trận địa */
+.canvas-wrap { position: relative; }
+.coop-bubbles { position: absolute; left: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; max-width: 70%; }
+.coop-bubble { align-self: flex-start; padding: 5px 10px; border-radius: 12px; background: rgba(20,30,22,.9); border: 1px solid var(--gold-d); color: #eaf6ea; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.5); animation: coopBubbleIn .18s ease-out; }
+.coop-bubble b { color: #8fe0a8; }
+.coop-bubble.me b { color: #ffd24a; }
+.coop-bubble.fade { opacity: 0; transition: opacity .5s; }
+@keyframes coopBubbleIn { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
 /* ==== right: portrait ==== */
 .col-right { gap: 4px; }
 .portrait { padding: 4px 6px; text-align: center; display: flex; align-items: center; gap: 8px; }

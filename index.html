@@ -40,7 +40,9 @@
 
       <!-- GIỮA: trận địa + bảng tháp + điều khiển -->
       <section class="col-center">
-        <div class="canvas-wrap ornate"><canvas id="game"></canvas></div>
+        <div class="canvas-wrap ornate"><canvas id="game"></canvas>
+          <div id="coopBubbles" class="coop-bubbles"></div>
+        </div>
 
         <!-- Bảng chi tiết tháp (đáy giữa, đúng bản gốc) -->
         <div id="towerPanel" class="tower-panel hidden"></div>
@@ -62,6 +64,20 @@
           <button id="dbClearMobs" class="db-btn">🧹 Xóa quái</button>
           <button id="dbClearTowers" class="db-btn danger">💣 Xóa hết tháp</button>
           <span class="db-hint">Vàng &amp; KN vô hạn · quái lọt KHÔNG trừ mạng</span>
+        </div>
+
+        <!-- 2v2: thanh PHỐI HỢP (chỉ hiện ở trận đội) -->
+        <div id="coopBar" class="coop-bar">
+          <span class="cb-title">🤝 Phối hợp</span>
+          <span class="cb-lbl">Đánh dấu ô (V):</span>
+          <button class="cb-ping" data-kind="build" title="Ping: Xây đây">🏗</button>
+          <button class="cb-ping" data-kind="danger" title="Ping: Nguy hiểm">⚠</button>
+          <button class="cb-ping" data-kind="watch" title="Ping: Chú ý">👁</button>
+          <button id="cbChatToggle" class="cb-chat-toggle" title="Chat với đồng đội">💬 Chat</button>
+        </div>
+        <div id="coopChat" class="coop-chat hidden">
+          <div class="cc-quick" id="ccQuick"></div>
+          <div class="cc-input"><input id="ccText" maxlength="120" placeholder="Nhắn đồng đội… (Enter để gửi)"><button id="ccSend">Gửi</button></div>
         </div>
       </section>
 

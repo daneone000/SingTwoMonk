@@ -19,6 +19,7 @@
       this.started = false; this.spawnClock = 0; this.waveTimer = 0;  // đợt quái ra ĐỊNH KỲ
       this.speed = 1; this.paused = false; this.autoNext = true;       // tự gọi đợt định kỳ
       this.buildType = null; this.selected = null; this.hover = null; this.pendingSkill = null;
+      this.pendingPing = null;   // 2v2: đang chờ chọn ô để ĐÁNH DẤU (ping) cho đồng đội
       this.skillCd = {}; this.learned = new Set(["muaLua"]);   // Mưa Lửa học sẵn mặc định
       this.frameCount = 0;
       // ----- đối kháng -----
@@ -670,7 +671,7 @@
     }
     learnSkill(key) { const s = CFG.SKILLS[key]; if (!this.canLearn(key) || this.sp < s.learn) return false; this.sp -= s.learn; this.learned.add(key); this.emit(); return true; }
     castable(key) { const s = CFG.SKILLS[key]; if (!this.learned.has(key)) return false; if (s.aim === "pvp" && !this.versus) return false; return (this.skillCd[key] || 0) <= 0; }
-    armSkill(key) { const s = CFG.SKILLS[key]; if (!this.castable(key)) return; if (s.aim === "global" || s.aim === "pvp") { this.castSkill(key); return; } this.pendingSkill = key; this.buildType = null; this.selected = null; this.emit(); }
+    armSkill(key) { const s = CFG.SKILLS[key]; if (!this.castable(key)) return; if (s.aim === "global" || s.aim === "pvp") { this.castSkill(key); return; } this.pendingSkill = key; this.buildType = null; this.selected = null; this.pendingPing = null; this.emit(); }
     castSkill(key, x, y, target, free) {
       const s = CFG.SKILLS[key]; if (!free && !this.castable(key)) return; const D = STM.util.dist;
       // 2v2 đồng đội (mirror) thi triển phép BÀN (không phải PvP): gửi lệnh cho chủ-bàn áp trên bàn chung,
@@ -964,8 +965,8 @@
       const toXY = (ev) => { const b = cv.getBoundingClientRect(); const x = (ev.clientX - b.left) * (cv.width / b.width) - CFG.MARGIN, y = (ev.clientY - b.top) * (cv.height / b.height) - CFG.MARGIN; return { x, y, c: Math.floor(x / TILE), r: Math.floor(y / TILE) }; };
       cv.addEventListener("mousemove", (ev) => { this.hover = toXY(ev); });
       cv.addEventListener("mouseleave", () => { this.hover = null; });
-      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } if (this.pendingMove) { this.applyMoveTower(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
-      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.pendingMove = null; this.emit(); });
+      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingPing) { this.placePing(p.c, p.r); return; } if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } if (this.pendingMove) { this.applyMoveTower(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
+      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.pendingMove = null; this.pendingPing = null; this.emit(); });
     }
     handleSkillClick(p) {
       const s = CFG.SKILLS[this.pendingSkill];
@@ -973,7 +974,11 @@
       else if (s.aim === "tower") { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t) this.castSkill(this.pendingSkill, p.x, p.y, t); }
       else this.castSkill(this.pendingSkill, p.x, p.y);
     }
-    setBuild(type) { this.buildType = this.buildType === type ? null : type; this.selected = null; this.pendingSkill = null; this.emit(); }
+    setBuild(type) { this.buildType = this.buildType === type ? null : type; this.selected = null; this.pendingSkill = null; this.pendingPing = null; this.emit(); }
+    /* ---------- 2v2: PING / đánh dấu ô trên bàn chung ---------- */
+    setPing(kind) { if (!this.t2) return; kind = CFG.PINGS[kind] ? kind : "watch"; this.pendingPing = this.pendingPing === kind ? null : kind; this.buildType = null; this.pendingSkill = null; this.pendingCore = null; this.pendingMove = null; this.selected = null; this.emit(); }
+    placePing(c, r) { const kind = this.pendingPing || "watch"; this.pendingPing = null; this.showPing(c, r, kind, true); if (this.netMatch && this.netMatch.sendPing) this.netMatch.sendPing(c, r, kind); this.emit(); }
+    showPing(c, r, kind, mine) { const k = CFG.PINGS[kind] ? kind : "watch"; this.effects.push(new PingFx(c, r, k)); if (this.onPing) this.onPing(k, !!mine, c, r); }
     emit() { if (this._ff) return; if (this.onChange) this.onChange(this); }   // _ff: đang tua nhanh (nối lại) -> không làm mới UI liên tục
     loop(ts) {
       if (!this.lastTime) this.lastTime = ts; let dt = (ts - this.lastTime) / 1000; this.lastTime = ts; if (dt > .05) dt = .05;
@@ -986,6 +991,8 @@
   }
 
   class BlastRing { constructor(x, y, r, c) { this.x = x; this.y = y; this.r = r; this.color = c; this.t = 0; this.dur = .4; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = this.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(this.x, this.y, this.r * (.4 + .6 * f), 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
+  // 2v2: DẤU PING của đồng đội — vòng nảy + icon, tự tắt sau ~3.5s (hiện trên cả 2 máy qua hệ effects)
+  class PingFx { constructor(c, r, kind) { this.x = (c + .5) * TILE; this.y = (r + .5) * TILE; this.k = CFG.PINGS[kind] || CFG.PINGS.watch; this.t = 0; this.dur = 3.5; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur, pulse = (this.t * 2) % 1; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f); ctx.strokeStyle = this.k.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, TILE * (.28 + .5 * pulse), 0, 7); ctx.stroke(); ctx.fillStyle = this.k.color; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, 7); ctx.fill(); ctx.globalAlpha = Math.max(0, 1 - f) * .95; ctx.font = "16px sans-serif"; ctx.textAlign = "center"; ctx.fillText(this.k.icon, this.x, this.y - TILE * .5); ctx.restore(); ctx.textAlign = "left"; } }
   // Loé sáng toàn sân (phép global: Kiếm Thần / Mê Trận / Dịch Chuyển)
   class FieldFlash { constructor(color, dur) { this.color = color; this.t = 0; this.dur = dur || .5; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - f * 1.2) * .5; ctx.fillStyle = this.color; ctx.fillRect(0, 0, CFG.GRID_W, CFG.GRID_H); ctx.restore(); } }
   // Vệt chém (Kiếm Thần) trên từng quái — lõi trắng + viền màu, đậm & to

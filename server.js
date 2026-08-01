@@ -428,6 +428,8 @@ function handleMsg(c, msg) {
     /* ---- 2v2 ---- */
     case "board": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m) { if (m.bot) { m.board = o.s; if (m.mind) m.mind.applyBoard(o.s); } else send(m, { t: "board", s: o.s }); } } break;   // chủ-bàn -> đồng đội (bot: nạp bàn để quyết định phép/nâng)
     case "fx": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "fx", key: o.key, x: o.x, y: o.y }); } break;   // chủ-bàn -> đồng đội NGƯỜI: chỉ hình ảnh phép bàn (bot khỏi cần)
+    case "ping": if (c.slot) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "ping", c: o.c, r: o.r, kind: o.kind }); } break;   // đánh dấu ô -> đồng đội NGƯỜI (2 chiều)
+    case "chat": if (c.slot) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "chat", i: o.i, text: typeof o.text === "string" ? o.text.slice(0, 120) : undefined }); } break;   // chat -> đồng đội NGƯỜI (cắt 120 ký tự)
     case "cmd": if (c.slot) send(authorityOf(R, c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;      // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "reward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot);   // chủ-bàn chia vàng/KN cho đồng đội
       if (m) { if (m.bot) { if (m.mind) { m.mind.gold += (o.gold || 0); m.mind.sp += (o.sp || 0); } }   // bot đồng đội: dồn vào ví/KN riêng (nâng cấp + học phép/lõi)

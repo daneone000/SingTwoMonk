@@ -300,5 +300,13 @@
     DESIGN_MAX_WAVE: 60,
     WAVE_BONUS: 0, SP_PER_KILL: 1, SP_PER_BOSS: 10, SELL_RATE: 0.5,
     BOSS_HP: 24, BOSS_RADIUS: 1.7, BOSS_REWARD: 7, BOSS_SPEED: 0.8,
+    // 2v2 phối hợp: loại dấu ping trên bàn chung + câu chat mẫu (khớp CHỈ SỐ giữa 2 máy)
+    PINGS: {
+      build: { icon: "🏗", color: "#5ab54a", label: "Xây đây" },
+      danger: { icon: "⚠", color: "#e0592f", label: "Nguy hiểm" },
+      watch: { icon: "👁", color: "#ffd24a", label: "Chú ý" },
+    },
+    PING_ORDER: ["build", "danger", "watch"],
+    QUICKCHAT: ["Cần tháp bay! ✈️", "Sắp thua rồi! 😱", "Để tôi lo phép 🎩", "Dồn góc này 👉", "Tốt lắm! 👍", "Nâng cấp đi! ⬆️"],
   };
 })(window.STM || (window.STM = {}));
