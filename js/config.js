@@ -264,11 +264,18 @@
       tiers: { bac: 5, vang: 10, kimcuong: 15 }, desc: (v) => `Giảm ${v}% thời gian hồi chiêu của mọi phép.` },
     thamLam: { id: "thamLam", name: "Tham Lam", icon: "🎰", group: "Phép", impl: true,
       tiers: { bac: 1, vang: 2, kimcuong: 3 }, desc: (v) => `Mở khoá thêm ${v} ô phép (học được nhiều phép hơn).` },
+    // --- Phòng thủ ---
+    thanhTri: { id: "thanhTri", name: "Thành Trì", icon: "🧱", group: "Phòng thủ", impl: true,
+      tiers: { bac: 3, vang: 5, kimcuong: 8 }, desc: (v) => `Tăng ngay ${v} mạng tối đa (đỡ được nhiều quái lọt hơn).` },
+    taiThiet: { id: "taiThiet", name: "Tái Thiết", icon: "🩹", group: "Phòng thủ", impl: true,
+      tiers: { bac: 1 }, desc: () => "Cứ 5 đợt liền KHÔNG để quái nào lọt cửa Tử → hồi 1 mạng (không vượt mức tối đa)." },
+    laChan: { id: "laChan", name: "Lá Chắn", icon: "🛡", group: "Phòng thủ", impl: true,
+      tiers: { vang: 1 }, desc: () => "Mỗi đợt: quái ĐẦU TIÊN lọt cửa Tử KHÔNG bị trừ mạng." },
     // --- Bản đồ ---
     trumBanDo: { id: "trumBanDo", name: "Trùm Bản Đồ", icon: "🗺", group: "Bản đồ", impl: true,
       tiers: { vang: 1 }, desc: () => "Dùng 10 KN nâng cao ô đất đã xây tháp để chặn cả quái BAY." },
   };
-  const CORE_ORDER = ["blackFriday", "afk", "tayBuon", "giaCo", "nguyenBan", "nhanhNhen", "thamLam", "dungHop", "backKingXay", "kePhaLuat", "vuaPhep", "trumBanDo"];
+  const CORE_ORDER = ["blackFriday", "afk", "tayBuon", "giaCo", "nguyenBan", "nhanhNhen", "thamLam", "thanhTri", "taiThiet", "laChan", "dungHop", "backKingXay", "kePhaLuat", "vuaPhep", "trumBanDo"];
   // các lõi ĐÃ LÀM có mặt ở 1 cấp bậc
   function coresAtTier(tier) { return CORE_ORDER.filter((id) => CORES[id].impl && CORES[id].tiers[tier] != null); }
   const coreVal = (id, tier) => { const c = CORES[id]; return c && c.tiers[tier] != null ? c.tiers[tier] : 0; };

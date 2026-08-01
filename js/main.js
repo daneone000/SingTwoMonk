@@ -273,7 +273,7 @@
   function renderWiki() {
     const TI = CFG.CORE_TIER_INFO;
     let html = `<p class="wiki-intro">Mỗi ván chọn tối đa <b>${CFG.MAX_CORES}</b> lõi — <b>ô 1 miễn phí</b>, ô 2/3 mở bằng <b>${CFG.CORE_UNLOCK_SP[1]}</b>/<b>${CFG.CORE_UNLOCK_SP[2]}</b> Điểm KN. Cấp bậc <b style="color:${TI.bac.color}">Bạc</b> &lt; <b style="color:${TI.vang.color}">Vàng</b> &lt; <b style="color:${TI.kimcuong.color}">Kim Cương</b> (mạnh dần), <b>ngẫu nhiên mỗi ván</b> nhưng <b>giống nhau giữa mọi người chơi</b>. Mở 1 ô → hiện 3 lõi cùng cấp bậc để chọn (riêng mỗi người).</p>`;
-    for (const grp of ["Kinh tế", "Tháp", "Phép", "Bản đồ"]) {
+    for (const grp of ["Kinh tế", "Tháp", "Phòng thủ", "Phép", "Bản đồ"]) {
       const ids = CFG.CORE_ORDER.filter((id) => CFG.CORES[id].group === grp);
       if (!ids.length) continue;
       html += `<div class="wiki-group">${grp}</div>`;

@@ -34,6 +34,7 @@
       this.pendingMove = null;               // Back King Xây: tháp đang chờ dời sang ô mới
       this.dungHopUsed = false;              // Dung Hợp: đã dùng (1 lần/ván) chưa
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0; this._afkStage = 0;
+      this._noLeakStreak = 0; this._leakedThisWave = false; this._shieldUsed = false; this._defPrevWave = null;   // Phòng thủ: Tái Thiết (chuỗi đợt sạch) + Lá Chắn (chặn 1 quái/đợt)
       if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -47,6 +48,7 @@
     hasCore(id) { return this.cores.find((c) => c.id === id) || null; }
     coreValue(id) { const c = this.hasCore(id); return c ? c.value : 0; }
     maxSkills() { return CFG.MAX_SKILLS + this.coreValue("thamLam"); }        // Tham Lam: thêm ô phép
+    maxLivesVal() { return CFG.START_LIVES + this.coreValue("thanhTri"); }     // Thành Trì: tăng mạng tối đa
     costMul() { return 1 - this.coreValue("blackFriday") / 100; }             // Black Friday: rẻ hơn
     goldMul() { return 1 + this.coreValue("tayBuon") / 100; }                 // Tay Buôn: +vàng mọi nguồn
     spellCdMul() { return 1 - this.coreValue("nhanhNhen") / 100; }            // Nhanh Nhẹn: giảm hồi chiêu
@@ -79,6 +81,7 @@
       this.sp -= cost;
       const core = { id: it.id, tier: it.tier, value: it.value, target: null };
       this.cores.push(core); this.coreOffer = null;
+      if (id === "thanhTri") { this.lives += it.value; if (this.onCoreLog) this.onCoreLog("🧱 Thành Trì: +" + it.value + " mạng (tối đa " + this.maxLivesVal() + ")."); }   // Thành Trì: cộng mạng ngay
       if (this.netMatch) this.netMatch.sendCores && this.netMatch.sendCores();   // đồng bộ (2v2 dùng để áp lõi bàn chung)
       if (CFG.CORES[id].aim === "tower") { this.pendingCore = core; this.buildType = null; this.selected = null; }   // chờ chọn tháp
       this.recomputeAuras(); this.emit(); return true;
@@ -259,14 +262,16 @@
     upgradeSelected() {
       const t = this.selected; if (!t || t.trap || t.maxLevel || !t.ready) return;
       const cost = this.buyCost(t.upgradeCost); if (this.gold < cost) return;   // Black Friday: rẻ hơn
-      if (this.mirror) { this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row }); this.emit(); return; }
+      if (this.mirror) { this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row }); t.action = "up"; t.buildTimer = CFG.UP_TIME; t.buildDur = CFG.UP_TIME; t._predAct = Date.now(); this.emit(); return; }   // DỰ ĐOÁN: hiện "đang nâng cấp" ngay (mượt), bàn chung xác nhận sau
       this.gold -= cost; t.upgrade(); t.startWork("up", CFG.workTime(cost, this.wave)); this._coreActed(); this.recomputeAuras(); this.emit();
     }
     // Bán/tháo dỡ: KHÔNG gỡ ngay — vào trạng thái "sell" chờ SELL_TIME rồi mới gỡ & hoàn vàng.
     sellSelected() {
       const t = this.selected; if (!t) return;
       if (this.mirror) {   // 2v2 đồng đội: hoàn ½ vào VÍ MÌNH ngay, gửi lệnh gỡ cho chủ-bàn (bàn không hoàn lại)
-        this.gold += this.gainGold(t.sellValue); this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row }); this.selected = null; this.emit(); return;
+        this.gold += this.gainGold(t.sellValue); this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row });
+        if (!t.trap && t.action !== "sell") { t.action = "sell"; t.buildTimer = CFG.SELL_TIME; t.buildDur = CFG.SELL_TIME; t._predAct = Date.now(); }   // DỰ ĐOÁN: hiện "đang tháo dỡ" ngay (mượt)
+        this.selected = null; this.emit(); return;
       }
       if (t.trap) { this.gold += this.gainGold(t.sellValue); this._coreActed(); this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
       if (t.action === "sell") return;   // đang tháo rồi
@@ -309,7 +314,7 @@
         lv: this.lives, w: this.wave, go: this.gameOver ? 1 : 0,
         tw: this.towers.map((t) => [t.col, t.row, t.type, t.level, t.ready ? 1 : 0, t.action || 0, +t.buildTimer.toFixed(2), +t.angle.toFixed(3), t.buffTime > 0 ? 1 : 0, t.fuseType || 0]),
         tr: this.traps.map((t) => [t.col, t.row, t.type]),
-        en: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.fly ? 1 : 0, e.boss ? 1 : 0, e.freezeTime > 0 ? 1 : 0, e.slowTime > 0 ? 1 : 0, e.burnTime > 0 ? 1 : 0, +e.angle || 0]),
+        en: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.fly ? 1 : 0, e.boss ? 1 : 0, e.freezeTime > 0 ? 1 : 0, e.slowTime > 0 ? 1 : 0, e.burnTime > 0 ? 1 : 0, +e.angle || 0, (e.poison && e.poison.length) ? 1 : 0]),
       };
     }
     applyBoard(snap) {
@@ -324,17 +329,28 @@
       const snapOcc = new Set(); for (const a of snap.tw) snapOcc.add(a[0] + "," + a[1]); for (const a of snap.tr) snapOcc.add(a[0] + "," + a[1]);
       if (layoutChanged) {
         const preds = [...this.towers, ...this.traps].filter((t) => t._pred);   // GIỮ dự đoán tháp mình vừa xây (chưa được bàn chung xác nhận)
+        const now0 = Date.now();
+        const actPreds = this.towers.filter((t) => t._predAct && now0 - t._predAct < 2500).map((t) => ({ c: t.col, r: t.row, action: t.action, bt: t.buildTimer, ts: t._predAct }));   // GIỮ dự đoán bán/nâng qua lúc dựng lại bàn
         this._boardSig = sig;
         this.towers = []; this.blockSet = new Set(); this.occupied = new Set();
         for (const a of snap.tw) { const t = new STM.Tower(a[2], a[0], a[1]); t.level = a[3]; t.buildTimer = a[6]; t.buildDur = Math.max(a[6], 0.01); t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; if (a[9]) t.fuse(a[9]); t.totalSpent = this._spentFor(t.def, t.level); this.towers.push(t); this.occupied.add(a[0] + "," + a[1]); this.blockSet.add(a[0] + "," + a[1]); }
         this.traps = snap.tr.map((a) => { const t = new STM.Trap(a[2], a[0], a[1]); this.occupied.add(a[0] + "," + a[1]); return t; });
+        for (const p of actPreds) { const t = this.towerAt(p.c, p.r); if (t && !t.action) { t.action = p.action; t.buildTimer = p.bt; t.buildDur = Math.max(p.bt, 0.01); t._predAct = p.ts; } }   // bàn chung chưa kịp phản ánh bán/nâng -> giữ dự đoán
         this._readdPreds(preds, snapOcc);   // dự đoán chưa vào bàn chung & chưa quá hạn -> hiện tiếp (khỏi nhấp nháy)
       } else {
         // bố cục giữ nguyên: chỉ cập nhật trạng thái ĐỘNG của tháp (góc quay, đồng hồ xây, buff) để hoạt ảnh mượt
-        for (let i = 0; i < snap.tw.length; i++) { const a = snap.tw[i], t = this.towers[i]; if (!t) continue; t.buildTimer = a[6]; t.action = a[5] || null; t.angle = a[7]; t.buffTime = a[8] ? 1 : 0; }
+        const now = Date.now();
+        for (let i = 0; i < snap.tw.length; i++) {
+          const a = snap.tw[i], t = this.towers[i]; if (!t) continue;
+          const act = a[5] || null;
+          // GIỮ hành động dự đoán (bán/nâng) khi bàn chung CHƯA kịp phản ánh (board định kỳ bay trước lúc chủ-bàn áp lệnh)
+          if (t._predAct && now - t._predAct < 2500 && !act) { /* giữ t.action + buildTimer dự đoán */ }
+          else { t.action = act; t.buildTimer = a[6]; if (act) t._predAct = 0; }
+          t.angle = a[7]; t.buffTime = a[8] ? 1 : 0;
+        }
       }
       this._cullPreds(snapOcc);   // dự đoán đã được bàn chung xác nhận (hoặc quá hạn) -> bỏ bản dự đoán
-      this.enemies = snap.en.map((a) => { const d = CFG.ENEMIES[a[2]]; const e = new STM.Enemy(d, 1, 1, this, !!a[6]); e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3]; e.freezeTime = a[7] ? 1 : 0; if (a[8]) { e.slowTime = 1; e.slowMult = 0.5; } e.burnTime = a[9] ? 1 : 0; e.angle = a[10] || 0; e.remain = 1; return e; });
+      this.enemies = snap.en.map((a) => { const d = CFG.ENEMIES[a[2]]; const e = new STM.Enemy(d, 1, 1, this, !!a[6]); e.x = a[0]; e.y = a[1]; e.maxHp = a[4]; e.hp = a[3]; e.freezeTime = a[7] ? 1 : 0; if (a[8]) { e.slowTime = 1; e.slowMult = 0.5; } e.burnTime = a[9] ? 1 : 0; e.angle = a[10] || 0; if (a[11]) e.poison = [{ pct: 0, time: 1 }]; e.remain = 1; return e; });   // a[11]=dính độc -> vẽ vòng độc tím (chỉ hiển thị, không trừ máu ở mirror)
       // giữ lại lựa chọn tháp theo ô (để bảng chi tiết không mất khi bàn cập nhật)
       if (keepSel) this.selected = keepSel[2] ? this.traps.find((t) => t.col === keepSel[0] && t.row === keepSel[1]) : this.towerAt(keepSel[0], keepSel[1]);
       // Chỉ làm mới HUD (nặng: dựng lại shop/cây phép/bảng tháp) khi BỐ CỤC đổi. Khung chỉ có quái
@@ -377,7 +393,7 @@
     // Gọi đợt kế: xếp quái vào hàng chờ theo thời gian tuyệt đối (spawnClock), KHÔNG xoá đợt cũ.
     launchWave() {
       if (this.gameOver || this.victory) return;
-      this.wave++; this._afkOnWave(this.wave);   // chốt AFK đợt trước
+      this.wave++; this._afkOnWave(this.wave); this._defenseOnWave(this.wave);   // chốt AFK + Phòng thủ đợt trước
       const w = CFG.buildWave(this.wave); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
       this.spawnQueue.sort((a, b) => a.at - b.at);
@@ -388,7 +404,7 @@
     // ĐỐI KHÁNG: nhận đợt n từ MATCH (đồng bộ mọi người chơi, không tự gọi trước)
     receiveWave(n) {
       if (this.gameOver) return;
-      this._afkOnWave(n);   // chốt AFK đợt trước
+      this._afkOnWave(n); this._defenseOnWave(n);   // chốt AFK + Phòng thủ đợt trước
       if (this.mirror) { this.wave = n; this.started = true; this.emit(); return; }   // đồng đội không sinh quái, chỉ xem bàn chủ-bàn
       this.wave = n; const w = CFG.buildWave(n); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
@@ -527,6 +543,7 @@
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
         coreTiers: this.coreTiers, coreRolls: this.coreRolls,
         afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned, stage: this._afkStage || 0 },
+        def: { streak: this._noLeakStreak, prev: this._defPrevWave, leaked: this._leakedThisWave, shield: this._shieldUsed },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -564,6 +581,7 @@
       this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
       if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; this._afkStage = s.afk.stage || 0; }
+      if (s.def) { this._noLeakStreak = s.def.streak || 0; this._defPrevWave = s.def.prev != null ? s.def.prev : null; this._leakedThisWave = !!s.def.leaked; this._shieldUsed = !!s.def.shield; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }
@@ -589,7 +607,29 @@
       }
       this.emit();
     }
-    onEnemyLeak(e) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); if (this.mirror) return; /* đồng đội: mạng/thua do chủ-bàn quyết (áp qua board) */ if (this.sandbox) { this.emit(); return; } /* sân thử: lọt cũng KHÔNG trừ mạng */ this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit(); }
+    onEnemyLeak(e) {
+      const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1);
+      if (this.mirror) return;   // đồng đội: mạng/thua do chủ-bàn quyết (áp qua board)
+      if (this.sandbox) { this.emit(); return; }   // sân thử: lọt cũng KHÔNG trừ mạng
+      // Lá Chắn: quái ĐẦU TIÊN lọt mỗi đợt được miễn trừ mạng
+      if (this.hasCore("laChan") && !this._shieldUsed) { this._shieldUsed = true; if (this.onCoreLog) this.onCoreLog("🛡 Lá Chắn: chặn 1 quái lọt (miễn phí đợt này)."); this.emit(); return; }
+      this._leakedThisWave = true;   // Tái Thiết: đợt này có quái lọt -> cắt chuỗi đợt sạch
+      this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit();
+    }
+    // Phòng thủ: gọi mỗi khi sang đợt mới (Tái Thiết hồi mạng + reset Lá Chắn)
+    _defenseOnWave(n) {
+      if (this.hasCore("taiThiet") && this._defPrevWave != null) {
+        if (this._leakedThisWave) this._noLeakStreak = 0;
+        else {
+          this._noLeakStreak++;
+          if (this._noLeakStreak >= 5) {
+            this._noLeakStreak = 0;
+            if (this.lives < this.maxLivesVal()) { this.lives++; if (this.onCoreLog) this.onCoreLog("🩹 Tái Thiết: +1 mạng (5 đợt không quái lọt)."); }
+          }
+        }
+      }
+      this._defPrevWave = n; this._leakedThisWave = false; this._shieldUsed = false;
+    }
 
     /* --------- SÂN THỬ (design): thả/xóa quái & tháp tự do để thử bố cục --------- */
     spawnWaveAt(n) {   // thả đúng đàn quái của đợt n (KHÔNG đổi luật kết thúc), lặp lại bao nhiêu lần tùy ý
@@ -637,6 +677,7 @@
       // chỉ trừ Điểm KN + hồi chiêu CỦA MÌNH.
       if (!free && this.mirror && s.aim !== "pvp") {
         this.netMatch.sendCmd({ act: "spell", key, x, y });
+        this.playSpellFx(key, x, y);   // DỰ ĐOÁN: hiện hiệu ứng phép NGAY trên bàn mình (khỏi chờ chủ-bàn phát fx về)
         this.skillCd[key] = s.cd * this.spellCdMul(); this.pendingSkill = null; this.emit(); return;
       }
       switch (key) {
@@ -662,7 +703,30 @@
         default: return;
       }
       if (!free) this.skillCd[key] = s.cd * this.spellCdMul();   // Nhanh Nhẹn giảm hồi chiêu; chủ-bàn áp lệnh đồng đội thì KHÔNG tính hồi chiêu của mình
+      // 2v2: chủ-bàn tự thi triển phép BÀN -> phát HÌNH ẢNH cho đồng đội (chỉ khi phép của CHÍNH mình; phép đồng đội gửi lên đã hiện optimistic bên họ)
+      if (!free && this.t2 && this.t2.isAuthority && s.aim !== "pvp") this.netMatch.sendFx(key, x, y);
       this.pendingSkill = null; this.emit();
+    }
+    // 2v2 đồng đội (mirror): phát HÌNH ẢNH phép bàn (không tác động máu) — dùng lại đúng hiệu ứng của castSkill
+    playSpellFx(key, x, y) {
+      const s = CFG.SKILLS[key]; if (!s) return;
+      switch (key) {
+        case "muaLua": case "baoSet": {
+          const r = s.radius * TILE, air = s.hits === "air";
+          this.effects.push(new BlastRing(x, y, r, air ? "#fff3b0" : "#ffb057"));
+          for (let i = 0; i < 7; i++) { const a = Math.random() * 6.283, rr = Math.sqrt(Math.random()) * r * .9, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr, delay = Math.random() * .35; this.effects.push(air ? new BoltFx(px, py, delay) : new MeteorFx(px, py, delay)); }
+          break;
+        }
+        case "khoiDoc": this.effects.push(new STM.PoisonCloud(x, y, s.radius * TILE, 0, s.dur, 0)); break;   // đám khói tím (không trừ máu ở mirror)
+        case "phongAn": this.effects.push(new BlastRing(x, y, s.radius * TILE, "#bdeaff")); break;
+        case "nhatDuong": this.effects.push(new StrikeFx(x, y, "#fff2a0")); break;
+        case "tangLuc": { const t = this.towerAt(Math.floor(x / TILE), Math.floor(y / TILE)); this.effects.push(new PowerUpFx(t ? t.x : x, t ? t.y : y)); break; }
+        case "kiemThan": { for (const e of this.enemies) if (!e.dead && !e.leaked) this.effects.push(new SlashFx(e.x, e.y, "#fff0b0")); this.effects.push(new FieldFlash("#ffe082", .45)); break; }
+        case "meTran": for (const e of this.enemies) e.slow(s.slow, s.dur); this.effects.push(new FieldFlash("#88b8ff", .7)); break;
+        case "dichChuyen": for (const e of this.enemies) this.effects.push(new TeleFx(e.x, e.y)); this.effects.push(new FieldFlash("#b79cff", .5)); break;
+        default: return;
+      }
+      this.emit();
     }
 
     /* --------------------------- vòng lặp --------------------------- */
