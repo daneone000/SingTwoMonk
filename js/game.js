@@ -36,6 +36,7 @@
       this.dungHopUsed = false;              // Dung Hợp: đã dùng (1 lần/ván) chưa
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0; this._afkStage = 0;
       this._noLeakStreak = 0; this._leakedThisWave = false; this._shieldUsed = false; this._defPrevWave = null;   // Phòng thủ: Tái Thiết (chuỗi đợt sạch) + Lá Chắn (chặn 1 quái/đợt)
+      this._teamMaxLives = 0;   // 2v2: mạng tối đa cộng thêm do ĐỒNG ĐỘI chọn Thành Trì (áp lên bàn chủ-bàn)
       if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -48,8 +49,11 @@
     /* ------------------------- LÕI NÂNG CẤP ------------------------- */
     hasCore(id) { return this.cores.find((c) => c.id === id) || null; }
     coreValue(id) { const c = this.hasCore(id); return c ? c.value : 0; }
+    // 2v2 bàn chung: lõi PHÒNG THỦ tác động lên bàn (mạng/chặn lọt) do CHỦ-BÀN xử lý ->
+    // tính cả lõi của ĐỒNG ĐỘI (đồng bộ qua mateCores) để đồng đội chọn cũng có hiệu lực.
+    teamHasCore(id) { if (this.hasCore(id)) return true; const t = this.t2; return !!(t && t.isAuthority && t.mateCoreValue && t.mateCoreValue(id) > 0); }
     maxSkills() { return CFG.MAX_SKILLS + this.coreValue("thamLam"); }        // Tham Lam: thêm ô phép
-    maxLivesVal() { return CFG.START_LIVES + this.coreValue("thanhTri"); }     // Thành Trì: tăng mạng tối đa
+    maxLivesVal() { return CFG.START_LIVES + this.coreValue("thanhTri") + (this._teamMaxLives || 0); }     // Thành Trì: tăng mạng tối đa (+bonus 2v2 từ đồng đội)
     costMul() { return 1 - this.coreValue("blackFriday") / 100; }             // Black Friday: rẻ hơn
     goldMul() { return 1 + this.coreValue("tayBuon") / 100; }                 // Tay Buôn: +vàng mọi nguồn
     spellCdMul() { return 1 - this.coreValue("nhanhNhen") / 100; }            // Nhanh Nhẹn: giảm hồi chiêu
@@ -82,7 +86,10 @@
       this.sp -= cost;
       const core = { id: it.id, tier: it.tier, value: it.value, target: null };
       this.cores.push(core); this.coreOffer = null;
-      if (id === "thanhTri") { this.lives += it.value; if (this.onCoreLog) this.onCoreLog("🧱 Thành Trì: +" + it.value + " mạng (tối đa " + this.maxLivesVal() + ")."); }   // Thành Trì: cộng mạng ngay
+      if (id === "thanhTri") {
+        if (this.mirror) { this.netMatch.sendCmd({ act: "thanhtri", value: it.value }); if (this.onCoreLog) this.onCoreLog("🧱 Thành Trì: +" + it.value + " mạng tối đa cho BÀN ĐỘI."); }   // 2v2: mạng thuộc chủ-bàn -> route sang chủ-bàn
+        else { this.lives += it.value; if (this.onCoreLog) this.onCoreLog("🧱 Thành Trì: +" + it.value + " mạng (tối đa " + this.maxLivesVal() + ")."); }   // Thành Trì: cộng mạng ngay
+      }
       if (this.netMatch) this.netMatch.sendCores && this.netMatch.sendCores();   // đồng bộ (2v2 dùng để áp lõi bàn chung)
       if (CFG.CORES[id].aim === "tower") { this.pendingCore = core; this.buildType = null; this.selected = null; }   // chờ chọn tháp
       this.recomputeAuras(); this.emit(); return true;
@@ -298,6 +305,8 @@
         if (s && s.aim === "enemy") { let hd = 1e9; for (const e of this.enemies) { const d = STM.util.dist(e.x, e.y, cmd.x, cmd.y); if (d < hd) { hd = d; tgt = e; } } }
         else if (s && s.aim === "tower") tgt = this.towerAt(Math.floor(cmd.x / TILE), Math.floor(cmd.y / TILE));
         this.castSkill(cmd.key, cmd.x, cmd.y, tgt, true);   // free=true: không trừ KN/hồi chiêu của chủ-bàn
+      } else if (cmd.act === "thanhtri") {   // Thành Trì của đồng đội -> cộng mạng + mạng tối đa cho BÀN CHUNG
+        const v = cmd.value || 0; this.lives += v; this._teamMaxLives = (this._teamMaxLives || 0) + v; this.emit();
       } else if (cmd.act === "giaco") {   // Gia Cố của đồng đội -> áp lên tháp bàn chung
         const t = this.towerAt(cmd.c, cmd.r); if (t) { t.reinforce = (t.reinforce || 0) + (cmd.value || 0) / 100; this.recomputeAuras(); this.emit(); }
       } else if (cmd.act === "move") {   // đồng đội dời tháp trên bàn chung
@@ -315,17 +324,20 @@
         lv: this.lives, w: this.wave, go: this.gameOver ? 1 : 0,
         tw: this.towers.map((t) => [t.col, t.row, t.type, t.level, t.ready ? 1 : 0, t.action || 0, +t.buildTimer.toFixed(2), +t.angle.toFixed(3), t.buffTime > 0 ? 1 : 0, t.fuseType || 0]),
         tr: this.traps.map((t) => [t.col, t.row, t.type]),
+        rz: [...this.raised],   // ô đã NÂNG CAO (Trùm Bản Đồ) -> đồng đội vẽ bệ đá + chặn quái bay
         en: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.fly ? 1 : 0, e.boss ? 1 : 0, e.freezeTime > 0 ? 1 : 0, e.slowTime > 0 ? 1 : 0, e.burnTime > 0 ? 1 : 0, +e.angle || 0, (e.poison && e.poison.length) ? 1 : 0]),
       };
     }
     applyBoard(snap) {
       if (!snap) return;
       this.lives = snap.lv; this.wave = snap.w; this.gameOver = !!snap.go;
+      this.raised = new Set(snap.rz || []);   // Trùm Bản Đồ: đồng bộ ô đã nâng cao (vẽ bệ đá + chặn quái bay)
       const keepSel = this.selected && this.selected.col != null ? [this.selected.col, this.selected.row, this.selected.trap ? 1 : 0] : null;
       // Chữ ký BỐ CỤC tháp/bẫy: chỉ dựng lại tháp + tính lại flow-field/aura khi bố cục ĐỔI
       // (đại đa số khung chỉ quái di chuyển) -> đồng đội hết lag vì bỏ BFS + cấp phát object mỗi khung.
       const sig = snap.tw.map((a) => a[0] + "," + a[1] + "," + a[2] + "," + a[3] + "," + (a[9] || 0)).join("|")
-        + "#" + snap.tr.map((a) => a[0] + "," + a[1] + "," + a[2]).join("|");
+        + "#" + snap.tr.map((a) => a[0] + "," + a[1] + "," + a[2]).join("|")
+        + "@" + (snap.rz || []).join("|");   // ô nâng đổi -> tính lại luồng bay
       const layoutChanged = sig !== this._boardSig;
       const snapOcc = new Set(); for (const a of snap.tw) snapOcc.add(a[0] + "," + a[1]); for (const a of snap.tr) snapOcc.add(a[0] + "," + a[1]);
       if (layoutChanged) {
@@ -544,7 +556,7 @@
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
         coreTiers: this.coreTiers, coreRolls: this.coreRolls,
         afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned, stage: this._afkStage || 0 },
-        def: { streak: this._noLeakStreak, prev: this._defPrevWave, leaked: this._leakedThisWave, shield: this._shieldUsed },
+        def: { streak: this._noLeakStreak, prev: this._defPrevWave, leaked: this._leakedThisWave, shield: this._shieldUsed, tml: this._teamMaxLives || 0 },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -582,7 +594,7 @@
       this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
       if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; this._afkStage = s.afk.stage || 0; }
-      if (s.def) { this._noLeakStreak = s.def.streak || 0; this._defPrevWave = s.def.prev != null ? s.def.prev : null; this._leakedThisWave = !!s.def.leaked; this._shieldUsed = !!s.def.shield; }
+      if (s.def) { this._noLeakStreak = s.def.streak || 0; this._defPrevWave = s.def.prev != null ? s.def.prev : null; this._leakedThisWave = !!s.def.leaked; this._shieldUsed = !!s.def.shield; this._teamMaxLives = s.def.tml || 0; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }
@@ -613,13 +625,13 @@
       if (this.mirror) return;   // đồng đội: mạng/thua do chủ-bàn quyết (áp qua board)
       if (this.sandbox) { this.emit(); return; }   // sân thử: lọt cũng KHÔNG trừ mạng
       // Lá Chắn: quái ĐẦU TIÊN lọt mỗi đợt được miễn trừ mạng
-      if (this.hasCore("laChan") && !this._shieldUsed) { this._shieldUsed = true; if (this.onCoreLog) this.onCoreLog("🛡 Lá Chắn: chặn 1 quái lọt (miễn phí đợt này)."); this.emit(); return; }
+      if (this.teamHasCore("laChan") && !this._shieldUsed) { this._shieldUsed = true; if (this.onCoreLog) this.onCoreLog("🛡 Lá Chắn: chặn 1 quái lọt (miễn phí đợt này)."); this.emit(); return; }
       this._leakedThisWave = true;   // Tái Thiết: đợt này có quái lọt -> cắt chuỗi đợt sạch
       this.lives -= 1; if (this.lives <= 0) { this.lives = 0; this.gameOver = true; } this.emit();
     }
     // Phòng thủ: gọi mỗi khi sang đợt mới (Tái Thiết hồi mạng + reset Lá Chắn)
     _defenseOnWave(n) {
-      if (this.hasCore("taiThiet") && this._defPrevWave != null) {
+      if (this.teamHasCore("taiThiet") && this._defPrevWave != null) {
         if (this._leakedThisWave) this._noLeakStreak = 0;
         else {
           this._noLeakStreak++;
