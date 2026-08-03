@@ -37,6 +37,7 @@
       this._afkClean = 0; this._afkGold = 0; this._curWaveGold = 0; this._curWaveActed = false; this._afkPrevWave = null; this._afkEarned = 0; this._afkStage = 0;
       this._noLeakStreak = 0; this._leakedThisWave = false; this._shieldUsed = false; this._defPrevWave = null;   // Phòng thủ: Tái Thiết (chuỗi đợt sạch) + Lá Chắn (chặn 1 quái/đợt)
       this._teamMaxLives = 0;   // 2v2: mạng tối đa cộng thêm do ĐỒNG ĐỘI chọn Thành Trì (áp lên bàn chủ-bàn)
+      this._bossMaxLives = 0; this._bossWaves = {};   // Thành Trì Kim Cương: +1 mạng tối đa mỗi đợt boss KHÔNG lọt boss
       if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -53,7 +54,28 @@
     // tính cả lõi của ĐỒNG ĐỘI (đồng bộ qua mateCores) để đồng đội chọn cũng có hiệu lực.
     teamHasCore(id) { if (this.hasCore(id)) return true; const t = this.t2; return !!(t && t.isAuthority && t.mateCoreValue && t.mateCoreValue(id) > 0); }
     maxSkills() { return CFG.MAX_SKILLS + this.coreValue("thamLam"); }        // Tham Lam: thêm ô phép
-    maxLivesVal() { return CFG.START_LIVES + this.coreValue("thanhTri") + (this._teamMaxLives || 0); }     // Thành Trì: tăng mạng tối đa (+bonus 2v2 từ đồng đội)
+    maxLivesVal() { return CFG.START_LIVES + this.coreValue("thanhTri") + (this._teamMaxLives || 0) + (this._bossMaxLives || 0); }     // Thành Trì: tăng mạng tối đa (+đồng đội 2v2 +thưởng đợt boss KC)
+    // có sở hữu Thành Trì cấp KIM CƯƠNG không (của mình HOẶC của đồng đội 2v2)?
+    _hasKcThanhTri() {
+      const c = this.hasCore("thanhTri"); if (c && c.tier === "kimcuong") return true;
+      const t = this.t2;
+      if (t && t.isAuthority && t.mateCores) { const mc = t.mateCores.find((x) => x.id === "thanhTri"); if (mc && (mc.tier === "kimcuong" || (mc.value || 0) >= 8)) return true; }
+      return false;
+    }
+    // đợt boss `wave` có 1 boss vừa được giải quyết (giết=leaked false / lọt=true); khi ĐỦ số boss của đợt -> chốt thưởng
+    _bossResolve(wave, leaked) {
+      const bw = this._bossWaves[wave]; if (!bw) return;
+      bw.resolved++; if (leaked) bw.leaked++;
+      if (bw.resolved >= bw.total && !bw.rewarded) {
+        bw.rewarded = true;
+        if (bw.leaked === 0 && this._hasKcThanhTri()) {   // KHÔNG boss nào lọt -> Thành Trì KC thưởng
+          this._bossMaxLives = (this._bossMaxLives || 0) + 1; this.lives += 1;
+          if (this.onCoreLog) this.onCoreLog("🧱 Thành Trì (Kim Cương): đợt boss " + wave + " không lọt boss → +1 mạng tối đa.");
+          this.emit();
+        }
+        delete this._bossWaves[wave];
+      }
+    }
     costMul() { return 1 - this.coreValue("blackFriday") / 100; }             // Black Friday: rẻ hơn
     goldMul() { return 1 + this.coreValue("tayBuon") / 100; }                 // Tay Buôn: +vàng mọi nguồn
     spellCdMul() { return 1 - this.coreValue("nhanhNhen") / 100; }            // Nhanh Nhẹn: giảm hồi chiêu
@@ -408,7 +430,7 @@
       if (this.gameOver || this.victory) return;
       this.wave++; this._afkOnWave(this.wave); this._defenseOnWave(this.wave);   // chốt AFK + Phòng thủ đợt trước
       const w = CFG.buildWave(this.wave); let t = this.spawnClock + 0.2;
-      for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
+      for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w, n: this.wave }); t += w.gap; }
       this.spawnQueue.sort((a, b) => a.at - b.at);
       this.score += 50 * this.wave;
       this.waveTimer = this.wave >= CFG.LATE_WAVE ? CFG.WAVE_INTERVAL_LATE : CFG.WAVE_INTERVAL; this.started = true; this.emit();
@@ -420,7 +442,7 @@
       this._afkOnWave(n); this._defenseOnWave(n);   // chốt AFK + Phòng thủ đợt trước
       if (this.mirror) { this.wave = n; this.started = true; this.emit(); return; }   // đồng đội không sinh quái, chỉ xem bàn chủ-bàn
       this.wave = n; const w = CFG.buildWave(n); let t = this.spawnClock + 0.2;
-      for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w }); t += w.gap; }
+      for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w, n }); t += w.gap; }
       this.spawnQueue.sort((a, b) => a.at - b.at); this.started = true; this.emit();
     }
     /* ---------- NỐI LẠI: tua nhanh khoảng bị mất kết nối ----------
@@ -545,7 +567,7 @@
         dungHopUsed: this.dungHopUsed,
         // trạng thái động để nối lại đúng "kiểu game online": quái đang chạy, hàng chờ sinh, đồng hồ sinh, buff tốc
         spawnClock: this.spawnClock, raised: [...this.raised],
-        spawnQueue: this.spawnQueue.map((s) => ({ at: s.at, w: s.w })),
+        spawnQueue: this.spawnQueue.map((s) => ({ at: s.at, w: s.w, n: s.n })),
         enemies: this.enemies.filter((e) => !e.dead && !e.leaked).map((e) => [
           Math.round(e.x), Math.round(e.y), e.def.key, Math.round(e.hp), Math.round(e.maxHp), e.isBoss ? 1 : 0,
           e.hpMul, e.rwMul, +e.freezeTime.toFixed(2), +e.slowTime.toFixed(2), +e.slowMult.toFixed(3),
@@ -556,7 +578,7 @@
         cores: this.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value, target: c.target })),
         coreTiers: this.coreTiers, coreRolls: this.coreRolls,
         afk: { clean: this._afkClean, gold: this._afkGold, cwg: this._curWaveGold, acted: this._curWaveActed, prev: this._afkPrevWave, earned: this._afkEarned, stage: this._afkStage || 0 },
-        def: { streak: this._noLeakStreak, prev: this._defPrevWave, leaked: this._leakedThisWave, shield: this._shieldUsed, tml: this._teamMaxLives || 0 },
+        def: { streak: this._noLeakStreak, prev: this._defPrevWave, leaked: this._leakedThisWave, shield: this._shieldUsed, tml: this._teamMaxLives || 0, bml: this._bossMaxLives || 0 },
       };
     }
     // tổng vàng đã đổ vào 1 tháp tới cấp `lv` (để tính giá bán khi khôi phục)
@@ -575,7 +597,7 @@
       for (const t of s.traps || []) { const tr = new STM.Trap(t.k, t.c, t.r); this.traps.push(tr); this.occupied.add(t.c + "," + t.r); }
       // khôi phục quái đang chạy + hàng chờ sinh + đồng hồ sinh (để catchUp mô phỏng tiếp)
       this.spawnClock = s.spawnClock || 0;
-      this.spawnQueue = (s.spawnQueue || []).map((q) => ({ at: q.at, w: q.w }));
+      this.spawnQueue = (s.spawnQueue || []).map((q) => ({ at: q.at, w: q.w, n: q.n }));
       this.raised = new Set(s.raised || []);
       this.computeFlow();   // cần dist trước khi dựng quái (+ air flow né ô nâng) (Enemy dùng flow-field)
       for (const a of s.enemies || []) {
@@ -594,16 +616,21 @@
       this.coreRolls = s.coreRolls || {}; this.dungHopUsed = !!s.dungHopUsed;
       for (const c of this.cores) if (CFG.CORES[c.id] && CFG.CORES[c.id].aim === "tower" && c.target) { const t = this.towerAt(c.target.c, c.target.r); if (t) t.reinforce = (t.reinforce || 0) + c.value / 100; }
       if (s.afk) { this._afkClean = s.afk.clean || 0; this._afkGold = s.afk.gold || 0; this._curWaveGold = s.afk.cwg || 0; this._curWaveActed = !!s.afk.acted; this._afkPrevWave = s.afk.prev != null ? s.afk.prev : null; this._afkEarned = s.afk.earned || 0; this._afkStage = s.afk.stage || 0; }
-      if (s.def) { this._noLeakStreak = s.def.streak || 0; this._defPrevWave = s.def.prev != null ? s.def.prev : null; this._leakedThisWave = !!s.def.leaked; this._shieldUsed = !!s.def.shield; this._teamMaxLives = s.def.tml || 0; }
+      if (s.def) { this._noLeakStreak = s.def.streak || 0; this._defPrevWave = s.def.prev != null ? s.def.prev : null; this._leakedThisWave = !!s.def.leaked; this._shieldUsed = !!s.def.shield; this._teamMaxLives = s.def.tml || 0; this._bossMaxLives = s.def.bml || 0; }
       this.started = this.wave > 0 || this.enemies.length > 0 || this.spawnQueue.length > 0;
       this.recomputeAuras(); this.emit();
     }
     nextWavePreview() { const w = CFG.buildWave(this.wave + 1); return { name: CFG.ENEMIES[w.type].name, fly: CFG.ENEMIES[w.type].fly, boss: !!w.boss, count: w.count }; }
     updateSpawns() {
-      while (this.spawnQueue.length && this.spawnQueue[0].at <= this.spawnClock) { const s = this.spawnQueue.shift(), w = s.w; this.enemies.push(new STM.Enemy(CFG.ENEMIES[w.type], w.hpMul, w.rwMul, this, w.boss)); }
+      while (this.spawnQueue.length && this.spawnQueue[0].at <= this.spawnClock) {
+        const s = this.spawnQueue.shift(), w = s.w, e = new STM.Enemy(CFG.ENEMIES[w.type], w.hpMul, w.rwMul, this, w.boss);
+        if (w.boss) { e.spawnWave = s.n != null ? s.n : this.wave; const bw = this._bossWaves[e.spawnWave] || (this._bossWaves[e.spawnWave] = { total: 0, resolved: 0, leaked: 0, rewarded: false }); bw.total++; }   // đếm boss đợt này để chốt thưởng Thành Trì KC
+        this.enemies.push(e);
+      }
     }
     onEnemyKilled(e) {
       if (this.mirror) { const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1); return; }   // đồng đội: vàng/KN do chủ-bàn chia (không tính lại ở mirror)
+      if (e.boss && e.spawnWave != null) this._bossResolve(e.spawnWave, false);   // boss BỊ GIẾT (không lọt) -> đếm cho thưởng Thành Trì KC
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
       // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
       // 2v2-vs-MÁY: bàn đội MÁY (2 máy chung bàn) ăn ×1.5 để đua kịp; các bàn khác giữ nguyên
@@ -623,6 +650,7 @@
     onEnemyLeak(e) {
       const i = this.enemies.indexOf(e); if (i >= 0) this.enemies.splice(i, 1);
       if (this.mirror) return;   // đồng đội: mạng/thua do chủ-bàn quyết (áp qua board)
+      if (e.boss && e.spawnWave != null) this._bossResolve(e.spawnWave, true);   // boss LỌT (kể cả được Lá Chắn đỡ) -> đợt này không còn "sạch boss"
       if (this.sandbox) { this.emit(); return; }   // sân thử: lọt cũng KHÔNG trừ mạng
       // Lá Chắn: quái ĐẦU TIÊN lọt mỗi đợt được miễn trừ mạng
       if (this.teamHasCore("laChan") && !this._shieldUsed) { this._shieldUsed = true; if (this.onCoreLog) this.onCoreLog("🛡 Lá Chắn: chặn 1 quái lọt (miễn phí đợt này)."); this.emit(); return; }
