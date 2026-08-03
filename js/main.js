@@ -68,7 +68,6 @@
   function refreshHotkeyBadges() {
     document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); });
     document.querySelectorAll(".hk[data-slot]").forEach((el) => { el.textContent = keyGlyph(SLOT_KEYS[+el.dataset.slot]); });
-    document.querySelectorAll(".hk[data-gact]").forEach((el) => { el.textContent = keyGlyph(GKEYS[el.dataset.gact]); });
   }
   const learnedSkills = (g) => CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k)).slice(0, g.maxSkills());
   const skillInSlot = (g, i) => learnedSkills(g)[i] || null;
@@ -441,10 +440,8 @@
     const canUp = !t.trap && !t.maxLevel && t.ready;
     tqUp.classList.toggle("hidden", !!t.trap);   // bẫy không nâng cấp -> ẩn nút nâng
     tqUp.disabled = !canUp;
-    tqUp.title = t.trap ? "" : canUp ? ("Nâng cấp (" + keyGlyph(GKEYS.upgrade) + ") −" + g.buyCost(t.upgradeCost) + "💰") : t.maxLevel ? "Đã tối đa cấp" : "Đang bận";
-    tqSell.title = (t.action === "sell" ? "Đang tháo dỡ" : "Bán (" + keyGlyph(GKEYS.sell) + ") +" + g.gainGold(t.sellValue) + "💰");
-    // gán badge phím TƯỜNG MINH theo từng nút (tự-sửa, khỏi phụ thuộc init/cache): nâng = phím upgrade, bán = phím sell
-    { const ub = tqUp.querySelector(".hk"); if (ub) ub.textContent = keyGlyph(GKEYS.upgrade); const sb = tqSell.querySelector(".hk"); if (sb) sb.textContent = keyGlyph(GKEYS.sell); }
+    tqUp.title = t.trap ? "" : canUp ? ("Nâng cấp (phím " + keyGlyph(GKEYS.upgrade) + ") −" + g.buyCost(t.upgradeCost) + "💰") : t.maxLevel ? "Đã tối đa cấp" : "Đang bận";
+    tqSell.title = (t.action === "sell" ? "Đang tháo dỡ" : "Bán (phím " + keyGlyph(GKEYS.sell) + ") +" + g.gainGold(t.sellValue) + "💰");
   }
 
   /* ---------- 2v2: PHỐI HỢP — Ping (đánh dấu ô) + Chat ---------- */
