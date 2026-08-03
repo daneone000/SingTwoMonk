@@ -154,16 +154,16 @@ body.team2v2 .coop-chat:not(.hidden) { display: block; margin-top: 6px; padding:
 @keyframes coopBubbleIn { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* nút nâng/bán nhanh nổi cạnh tháp đang chọn */
-.tower-quick { position: absolute; transform: translate(-50%, -135%); display: flex; gap: 5px; z-index: 6; pointer-events: none; }
+.tower-quick { position: absolute; transform: translate(-50%, -118%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 6; pointer-events: none; }
 .tower-quick.hidden { display: none; }
-.tq-btn { pointer-events: auto; display: flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 8px; cursor: pointer;
-  border: 2px solid var(--gold-d); background: linear-gradient(180deg, #33402a, #1d2716); color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 7px rgba(0,0,0,.55); }
+.tq-btn { pointer-events: auto; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 3px 9px; border-radius: 7px; cursor: pointer;
+  border: 2px solid var(--gold-d); background: linear-gradient(180deg, #33402a, #1d2716); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.55); }
 .tq-btn:hover:not(:disabled) { border-color: var(--gold); }
 .tq-btn:disabled { opacity: .45; cursor: default; }
 .tq-btn.up { background: linear-gradient(180deg, #2e7d32, #1b5e20); }
 .tq-btn.sell { background: linear-gradient(180deg, #7a3820, #4a1f10); }
 .tq-btn.hidden { display: none; }
-.tq-lb { font-weight: 800; font-size: 14px; letter-spacing: .2px; }
+.tq-lb { font-weight: 800; font-size: 12px; letter-spacing: .2px; }
 
 /* ==== right: portrait ==== */
 .col-right { gap: 4px; }
