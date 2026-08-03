@@ -434,8 +434,9 @@
     towerQuick.classList.toggle("hidden", !show);
     if (!show) return;
     // định vị theo canvas THẬT (bù padding/border của .canvas-wrap + tỉ lệ co giãn)
+    // đặt BÊN PHẢI tháp (dịch mốc sang phải ~nửa ô), căn giữa theo chiều dọc (CSS translateY -50%)
     const scale = canvas.clientWidth / CFG.CANVAS_W;
-    towerQuick.style.left = (canvas.offsetLeft + canvas.clientLeft + (t.x + CFG.MARGIN) * scale) + "px";
+    towerQuick.style.left = (canvas.offsetLeft + canvas.clientLeft + (t.x + CFG.MARGIN + CFG.TILE * 0.6) * scale) + "px";
     towerQuick.style.top = (canvas.offsetTop + canvas.clientTop + (t.y + CFG.MARGIN) * scale) + "px";
     const canUp = !t.trap && !t.maxLevel && t.ready;
     tqUp.classList.toggle("hidden", !!t.trap);   // bẫy không nâng cấp -> ẩn nút nâng
