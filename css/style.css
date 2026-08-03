@@ -156,15 +156,16 @@ body.team2v2 .coop-chat:not(.hidden) { display: block; margin-top: 6px; padding:
 /* nút nâng/bán nhanh nổi cạnh tháp đang chọn */
 .tower-quick { position: absolute; transform: translate(-50%, -135%); display: flex; gap: 5px; z-index: 6; pointer-events: none; }
 .tower-quick.hidden { display: none; }
-.tq-btn { pointer-events: auto; display: flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: 8px; cursor: pointer;
-  border: 2px solid var(--gold-d); background: linear-gradient(180deg, #33402a, #1d2716); color: var(--txt); font-size: 15px; font-weight: 700; box-shadow: 0 2px 7px rgba(0,0,0,.55); }
+.tq-btn { pointer-events: auto; display: flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 8px; cursor: pointer;
+  border: 2px solid var(--gold-d); background: linear-gradient(180deg, #33402a, #1d2716); color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 7px rgba(0,0,0,.55); }
 .tq-btn:hover:not(:disabled) { border-color: var(--gold); }
 .tq-btn:disabled { opacity: .45; cursor: default; }
 .tq-btn.up { background: linear-gradient(180deg, #2e7d32, #1b5e20); }
 .tq-btn.sell { background: linear-gradient(180deg, #7a3820, #4a1f10); }
 .tq-btn.hidden { display: none; }
-.tq-btn .hk { font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25); border-radius: 4px; padding: 0 4px; min-width: 14px; text-align: center; line-height: 1.35; }
-.tq-ic { line-height: 1; }
+.tq-lb { font-weight: 800; font-size: 13px; letter-spacing: .2px; }
+.tq-btn .hk { font-size: 13px; font-weight: 800; color: #fff; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3); border-radius: 4px; padding: 1px 5px; min-width: 16px; text-align: center; line-height: 1.3; }
+.tq-ic { line-height: 1; font-size: 15px; }
 
 /* ==== right: portrait ==== */
 .col-right { gap: 4px; }
