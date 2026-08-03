@@ -163,7 +163,7 @@ body.team2v2 .coop-chat:not(.hidden) { display: block; margin-top: 6px; padding:
 .tq-btn.up { background: linear-gradient(180deg, #2e7d32, #1b5e20); }
 .tq-btn.sell { background: linear-gradient(180deg, #7a3820, #4a1f10); }
 .tq-btn.hidden { display: none; }
-.tq-btn .hk { font-size: 10px; font-weight: 800; color: var(--gold); background: rgba(0,0,0,.35); border-radius: 4px; padding: 0 3px; min-width: 12px; text-align: center; }
+.tq-btn .hk { font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.25); border-radius: 4px; padding: 0 4px; min-width: 14px; text-align: center; line-height: 1.35; }
 .tq-ic { line-height: 1; }
 
 /* ==== right: portrait ==== */
