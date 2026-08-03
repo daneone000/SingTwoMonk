@@ -20,6 +20,7 @@
       this.speed = 1; this.paused = false; this.autoNext = true;       // tự gọi đợt định kỳ
       this.buildType = null; this.selected = null; this.hover = null; this.pendingSkill = null;
       this.pendingPing = null;   // 2v2: đang chờ chọn ô để ĐÁNH DẤU (ping) cho đồng đội
+      this._cmdSeq = 0; this._pendingCmds = {};   // 2v2 đồng đội: lệnh chờ chủ-bàn XÁC NHẬN (ACK/NACK) -> hết "lúc được lúc mất"
       this.skillCd = {}; this.learned = new Set(["muaLua"]);   // Mưa Lửa học sẵn mặc định
       this.frameCount = 0;
       // ----- đối kháng -----
@@ -280,8 +281,9 @@
       if (this.gold < cost) return;
       if (this.mirror) {   // 2v2 đồng đội: kiểm tra chỗ trên bàn chung, trừ vàng CỦA MÌNH, gửi lệnh cho chủ-bàn đặt
         if (!(isTrap ? this.isLandFree(c, r) : this.canPlaceTower(c, r))) return;
-        this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "build", type, c, r });
-        this._predictBuild(type, c, r, isTrap);   // DỰ ĐOÁN: hiện tháp NGAY khỏi chờ bàn chung về (mượt khi xây); bàn chung sẽ xác nhận/gỡ
+        const id = ++this._cmdSeq; this._pendingCmds[id] = { kind: "build", c, r, goldDelta: -cost };
+        this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "build", type, c, r, id });
+        this._predictBuild(type, c, r, isTrap, id);   // DỰ ĐOÁN: hiện tháp NGAY; chủ-bàn ACK giữ / NACK gỡ+hoàn vàng
         this.emit(); return;
       }
       if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= cost; this.selected = t; }
@@ -292,15 +294,16 @@
     upgradeSelected() {
       const t = this.selected; if (!t || t.trap || t.maxLevel || !t.ready) return;
       const cost = this.buyCost(t.upgradeCost); if (this.gold < cost) return;   // Black Friday: rẻ hơn
-      if (this.mirror) { this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row }); t.action = "up"; t.buildTimer = CFG.UP_TIME; t.buildDur = CFG.UP_TIME; t._predAct = Date.now(); this.emit(); return; }   // DỰ ĐOÁN: hiện "đang nâng cấp" ngay (mượt), bàn chung xác nhận sau
+      if (this.mirror) { const id = ++this._cmdSeq; this._pendingCmds[id] = { kind: "up", c: t.col, r: t.row, goldDelta: -cost }; this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row, id }); t.action = "up"; t.buildTimer = CFG.UP_TIME; t.buildDur = CFG.UP_TIME; t._predAct = Date.now(); this.emit(); return; }   // DỰ ĐOÁN: hiện "đang nâng cấp" ngay; ACK/NACK xử lý sau
       this.gold -= cost; t.upgrade(); t.startWork("up", CFG.workTime(cost, this.wave)); this._coreActed(); this.recomputeAuras(); this.emit();
     }
     // Bán/tháo dỡ: KHÔNG gỡ ngay — vào trạng thái "sell" chờ SELL_TIME rồi mới gỡ & hoàn vàng.
     sellSelected() {
       const t = this.selected; if (!t) return;
       if (this.mirror) {   // 2v2 đồng đội: hoàn ½ vào VÍ MÌNH ngay, gửi lệnh gỡ cho chủ-bàn (bàn không hoàn lại)
-        this.gold += this.gainGold(t.sellValue); this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row });
-        if (!t.trap && t.action !== "sell") { t.action = "sell"; t.buildTimer = CFG.SELL_TIME; t.buildDur = CFG.SELL_TIME; t._predAct = Date.now(); }   // DỰ ĐOÁN: hiện "đang tháo dỡ" ngay (mượt)
+        const id = ++this._cmdSeq, refund = this.gainGold(t.sellValue); this._pendingCmds[id] = { kind: "sell", c: t.col, r: t.row, goldDelta: +refund };
+        this.gold += refund; this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row, id });
+        if (!t.trap && t.action !== "sell") { t.action = "sell"; t.buildTimer = CFG.SELL_TIME; t.buildDur = CFG.SELL_TIME; t._predAct = Date.now(); }   // DỰ ĐOÁN: hiện "đang tháo dỡ" ngay
         this.selected = null; this.emit(); return;
       }
       if (t.trap) { this.gold += this.gainGold(t.sellValue); this._coreActed(); this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
@@ -310,18 +313,18 @@
     /* ---- 2v2: áp LỆNH của đồng đội lên bàn chung (chủ-bàn), KHÔNG trừ vàng (người ra lệnh đã tự trừ) ---- */
     towerAt(c, r) { return this.towers.find((t) => t.col === c && t.row === r) || null; }
     applyCmd(cmd) {
-      if (!cmd) return;
+      if (!cmd) return false;
       if (cmd.act === "build") {
         const type = cmd.type, isTrap = !!CFG.TRAPS[type];
-        if (isTrap) { if (!this.isLandFree(cmd.c, cmd.r)) return; const t = new STM.Trap(type, cmd.c, cmd.r); this.traps.push(t); this.occupied.add(cmd.c + "," + cmd.r); }
-        else { if (!this.canPlaceTower(cmd.c, cmd.r)) return; const t = new STM.Tower(type, cmd.c, cmd.r); t.startWork("build", CFG.workTime(CFG.TOWERS[type].cost, this.wave)); this.towers.push(t); this.occupied.add(cmd.c + "," + cmd.r); this.blockSet.add(cmd.c + "," + cmd.r); this.computeFlow(); this.recomputeAuras(); }
-        this.emit();
+        if (isTrap) { if (!this.isLandFree(cmd.c, cmd.r)) return false; const t = new STM.Trap(type, cmd.c, cmd.r); this.traps.push(t); this.occupied.add(cmd.c + "," + cmd.r); }
+        else { if (!this.canPlaceTower(cmd.c, cmd.r)) return false; const t = new STM.Tower(type, cmd.c, cmd.r); t.startWork("build", CFG.workTime(CFG.TOWERS[type].cost, this.wave)); this.towers.push(t); this.occupied.add(cmd.c + "," + cmd.r); this.blockSet.add(cmd.c + "," + cmd.r); this.computeFlow(); this.recomputeAuras(); }
+        this.emit(); return true;
       } else if (cmd.act === "up") {
-        const t = this.towerAt(cmd.c, cmd.r); if (!t || t.maxLevel || !t.ready) return; t.upgrade(); t.startWork("up", CFG.workTime(t.upgradeCost, this.wave)); this.recomputeAuras(); this.emit();
+        const t = this.towerAt(cmd.c, cmd.r); if (!t || t.maxLevel || !t.ready) return false; t.upgrade(); t.startWork("up", CFG.workTime(t.upgradeCost, this.wave)); this.recomputeAuras(); this.emit(); return true;
       } else if (cmd.act === "sell") {
         const tr = this.traps.find((x) => x.col === cmd.c && x.row === cmd.r);
-        if (tr) { this.occupied.delete(cmd.c + "," + cmd.r); this.traps.splice(this.traps.indexOf(tr), 1); if (this.selected === tr) this.selected = null; this.emit(); return; }
-        const t = this.towerAt(cmd.c, cmd.r); if (!t || t.action === "sell") return; t.noRefund = true; t.startWork("sell", CFG.workTime(t.sellValue, this.wave)); this.emit();
+        if (tr) { this.occupied.delete(cmd.c + "," + cmd.r); this.traps.splice(this.traps.indexOf(tr), 1); if (this.selected === tr) this.selected = null; this.emit(); return true; }
+        const t = this.towerAt(cmd.c, cmd.r); if (!t || t.action === "sell") return false; t.noRefund = true; t.startWork("sell", CFG.workTime(t.sellValue, this.wave)); this.emit(); return true;
       } else if (cmd.act === "spell") {
         let tgt = null; const s = CFG.SKILLS[cmd.key];
         if (s && s.aim === "enemy") { let hd = 1e9; for (const e of this.enemies) { const d = STM.util.dist(e.x, e.y, cmd.x, cmd.y); if (d < hd) { hd = d; tgt = e; } } }
@@ -394,23 +397,42 @@
       if (layoutChanged) { this.computeFlow(); this.recomputeAuras(); this.emit(); }
     }
     /* ---- 2v2 đồng đội: DỰ ĐOÁN xây tháp (hiện ngay khi bấm, khỏi chờ bàn chung về) ---- */
-    _predictBuild(type, c, r, isTrap) {
+    _predictBuild(type, c, r, isTrap, id) {
       if (this.occupied.has(c + "," + r)) return;
-      if (isTrap) { const t = new STM.Trap(type, c, r); t._pred = Date.now(); this.traps.push(t); this.occupied.add(c + "," + r); this.selected = t; }
-      else { const t = new STM.Tower(type, c, r); t._pred = Date.now(); t.startWork("build", CFG.workTime(0.01, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.selected = t; }
+      if (isTrap) { const t = new STM.Trap(type, c, r); t._pred = Date.now(); t._predId = id; this.traps.push(t); this.occupied.add(c + "," + r); this.selected = t; }
+      else { const t = new STM.Tower(type, c, r); t._pred = Date.now(); t._predId = id; t.startWork("build", CFG.workTime(0.01, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.selected = t; }
+    }
+    // 2v2 đồng đội: chủ-bàn trả lời lệnh — ok=true GIỮ dự đoán tới khi board xác nhận; ok=false GỠ NGAY + hoàn vàng
+    onCmdAck(id, ok) {
+      const e = this._pendingCmds[id]; if (!e) return; delete this._pendingCmds[id];
+      if (ok) {
+        if (e.kind === "build") { const t = this.towers.find((x) => x._predId === id) || this.traps.find((x) => x._predId === id); if (t) t._predOk = true; }   // xác nhận: khỏi bị timeout gỡ nhầm
+        return;
+      }
+      this.gold -= e.goldDelta;   // hoàn tác vàng (build/up: +cost; sell: -refund)
+      if (e.kind === "build") {
+        let idx = this.towers.findIndex((x) => x._predId === id);
+        if (idx >= 0) { const t = this.towers[idx]; const k = t.col + "," + t.row; this.occupied.delete(k); this.blockSet.delete(k); if (this.selected === t) this.selected = null; this.towers.splice(idx, 1); this.computeFlow(); this.recomputeAuras(); }
+        else { idx = this.traps.findIndex((x) => x._predId === id); if (idx >= 0) { const t = this.traps[idx]; this.occupied.delete(t.col + "," + t.row); if (this.selected === t) this.selected = null; this.traps.splice(idx, 1); } }
+      } else {   // sell / up bị từ chối -> bỏ trạng thái dự đoán trên tháp
+        const t = this.towerAt(e.c, e.r); if (t && t._predAct) { t.action = null; t.buildTimer = 0; t._predAct = 0; }
+      }
+      if (this.onCoreLog) this.onCoreLog("⚠ Lệnh " + (e.kind === "build" ? "xây" : e.kind === "sell" ? "bán" : "nâng") + " bị bàn chung từ chối — đã hoàn vàng.");
+      this.emit();
     }
     _readdPreds(preds, snapOcc) {   // sau khi dựng lại bàn từ bàn chung: giữ lại dự đoán CHƯA được xác nhận & còn hạn (<2.5s)
       const now = Date.now();
       for (const p of preds) {
         const k = p.col + "," + p.row;
-        if (now - p._pred > 2500 || snapOcc.has(k) || this.occupied.has(k)) continue;
+        if (snapOcc.has(k) || this.occupied.has(k)) continue;
+        if (!p._predOk && now - p._pred > 2500) continue;   // chỉ hết hạn với dự đoán CHƯA được ACK (mất gói ack)
         if (p.trap) this.traps.push(p); else { this.towers.push(p); this.blockSet.add(k); }
         this.occupied.add(k);
       }
     }
-    _cullPreds(snapOcc) {   // bỏ dự đoán khi bàn chung ĐÃ có tháp đó (xác nhận) hoặc quá 2.5s không thấy (bị từ chối)
+    _cullPreds(snapOcc) {   // bỏ dự đoán khi bàn chung ĐÃ có tháp đó (xác nhận); dự đoán CHƯA ACK quá 2.5s -> gỡ (phòng mất gói)
       const now = Date.now();
-      const drop = (t) => { if (!t._pred) return false; const k = t.col + "," + t.row; if (snapOcc.has(k) || now - t._pred > 2500) { this.occupied.delete(k); this.blockSet.delete(k); if (this.selected === t) this.selected = null; return true; } return false; };
+      const drop = (t) => { if (!t._pred) return false; const k = t.col + "," + t.row; if (snapOcc.has(k) || (!t._predOk && now - t._pred > 2500)) { this.occupied.delete(k); this.blockSet.delete(k); if (this.selected === t) this.selected = null; return true; } return false; };
       this.towers = this.towers.filter((t) => !drop(t));
       this.traps = this.traps.filter((t) => !drop(t));
     }

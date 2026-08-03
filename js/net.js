@@ -152,7 +152,8 @@
         case "fx": g.playSpellFx(o.key, o.x, o.y); break;                          // chủ-bàn -> đồng đội: phát HÌNH ẢNH phép bàn (Mưa Lửa/Bão Sét/Khói Độc…)
         case "ping": g.showPing(o.c, o.r, o.kind, false); break;                    // đồng đội đánh dấu ô -> hiện trên bàn mình
         case "chat": if (this.onChat) this.onChat(o.i, o.text); break;             // đồng đội gửi chat nhanh/tự do
-        case "cmd": if (this.isAuthority) { g.applyCmd(o.c); this.pushBoard(); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh + ĐẨY BÀN NGAY (đồng đội thấy xây/nâng tức thì, hết delay)
+        case "cmd": if (this.isAuthority) { const ok = g.applyCmd(o.c); this.pushBoard(); if (o.c && o.c.id != null) this.client.send({ t: "cmdack", id: o.c.id, ok: ok !== false }); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh + ĐẨY BÀN NGAY + TRẢ LỜI ACK/NACK (đồng đội giữ/gỡ dự đoán)
+        case "cmdack": g.onCmdAck(o.id, o.ok); break;                              // chủ-bàn -> đồng đội: xác nhận/từ chối lệnh xây/nâng/bán
         case "reward": { const got = g.gainGold(o.gold || 0); g.gold += got; g._curWaveGold += got; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; } // chủ-bàn chia vàng/KN (người nhận tự áp Tay Buôn; tính cả cho AFK)
         case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; this.mateCores = o.cores || []; if (this.isAuthority) g.recomputeAuras(); if (this.onChange) this.onChange(); break;
         case "teamspell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình

@@ -37,8 +37,9 @@
   //  • Tháp/bẫy: gán theo từng loại (KEYS)
   //  • Phép: gán theo 6 Ô (SLOT_KEYS). Phép học được xếp vào ô theo thứ tự cây kỹ năng;
   //    nhấn phím của ô -> thi triển phép đang nằm ở ô đó.
-  const KB_LS = "stm.keys", SLOT_LS = "stm.skillslots";
+  const KB_LS = "stm.keys", SLOT_LS = "stm.skillslots", GACT_LS = "stm.gactionkeys";
   const RESERVED = new Set(["escape", "enter", "f2", " ", "tab"]);   // phím dành riêng, không gán được
+  const GACT_DEF = { upgrade: "n", sell: "b" }, GACT_NAME = { upgrade: "Nâng cấp tháp", sell: "Bán / tháo tháp" }, GACT_GLYPH = { upgrade: "⬆", sell: "✖" };
   function loadKeys() {
     let s = {}; try { s = JSON.parse(localStorage.getItem(KB_LS) || "{}"); } catch (e) {}
     const out = {}; for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) out[k] = (s && s[k]) || CFG.DEFAULT_KEYS[k];
@@ -50,17 +51,24 @@
     const out = []; for (let i = 0; i < CFG.DEFAULT_SLOT_KEYS.length; i++) out[i] = (a[i] != null ? a[i] : CFG.DEFAULT_SLOT_KEYS[i]);
     return out;
   }
-  let KEYS = loadKeys(), SLOT_KEYS = loadSlotKeys();
+  function loadGActKeys() {
+    let s = {}; try { s = JSON.parse(localStorage.getItem(GACT_LS) || "{}"); } catch (e) {}
+    const out = {}; for (const k in GACT_DEF) out[k] = (s && s[k] != null) ? s[k] : GACT_DEF[k];
+    return out;
+  }
+  let KEYS = loadKeys(), SLOT_KEYS = loadSlotKeys(), GKEYS = loadGActKeys();
   const keyGlyph = (k) => !k ? "·" : k === " " ? "Space" : k.length === 1 ? k.toUpperCase() : k;
-  let keyMap = {}, slotKeyMap = {};
+  let keyMap = {}, slotKeyMap = {}, gActKeyMap = {};
   function rebuildKeyMap() {
     keyMap = {}; for (const a in KEYS) if (KEYS[a]) keyMap[KEYS[a].toLowerCase()] = a;
     slotKeyMap = {}; SLOT_KEYS.forEach((k, i) => { if (k) slotKeyMap[k.toLowerCase()] = i; });
+    gActKeyMap = {}; for (const a in GKEYS) if (GKEYS[a]) gActKeyMap[GKEYS[a].toLowerCase()] = a;
   }
-  function persistKeys() { try { localStorage.setItem(KB_LS, JSON.stringify(KEYS)); localStorage.setItem(SLOT_LS, JSON.stringify(SLOT_KEYS)); } catch (e) {} rebuildKeyMap(); refreshHotkeyBadges(); }
+  function persistKeys() { try { localStorage.setItem(KB_LS, JSON.stringify(KEYS)); localStorage.setItem(SLOT_LS, JSON.stringify(SLOT_KEYS)); localStorage.setItem(GACT_LS, JSON.stringify(GKEYS)); } catch (e) {} rebuildKeyMap(); refreshHotkeyBadges(); }
   function refreshHotkeyBadges() {
     document.querySelectorAll(".hk[data-act]").forEach((el) => { el.textContent = keyGlyph(KEYS[el.dataset.act]); });
     document.querySelectorAll(".hk[data-slot]").forEach((el) => { el.textContent = keyGlyph(SLOT_KEYS[+el.dataset.slot]); });
+    document.querySelectorAll(".hk[data-gact]").forEach((el) => { el.textContent = keyGlyph(GKEYS[el.dataset.gact]); });
   }
   const learnedSkills = (g) => CFG.SKILL_TREE_ORDER.filter((k) => g.learned.has(k)).slice(0, g.maxSkills());
   const skillInSlot = (g, i) => learnedSkills(g)[i] || null;
@@ -146,7 +154,7 @@
   const keysModal = $("keysModal");
   let kbCapture = null;   // {kind:'act'|'slot', id} đang chờ gán phím (null = không capture)
   function keyRow(kind, id, name, glyph, cur) {
-    const attr = kind === "slot" ? `data-slot="${id}"` : `data-act="${id}"`;
+    const attr = kind === "slot" ? `data-slot="${id}"` : kind === "gact" ? `data-gact="${id}"` : `data-act="${id}"`;
     return `<div class="kb-row"><span class="kb-nm"><b class="kb-g">${glyph}</b>${name}</span>` +
       `<button class="kb-key" ${attr}>${keyGlyph(cur)}</button></div>`;
   }
@@ -159,14 +167,16 @@
       const k = learned[i], nm = k ? CFG.SKILLS[k].name : "<i>Ô trống</i>", gl = k ? CFG.SKILLS[k].glyph : "◦";
       h += keyRow("slot", i, `Ô ${i + 1} · ${nm}`, gl, SLOT_KEYS[i]);
     }
+    h += `</div><div class="kb-sec">Thao tác tháp (áp lên tháp đang chọn)</div><div class="kb-grid">`;
+    for (const a in GACT_DEF) h += keyRow("gact", a, GACT_NAME[a], GACT_GLYPH[a], GKEYS[a]);
     h += `</div>`;
     $("keysBody").innerHTML = h;
     $("keysBody").querySelectorAll(".kb-key").forEach((btn) => {
       btn.onclick = () => {
         renderKeysModal();   // dọn trạng thái "đang chờ" cũ
-        const cur = btn.dataset.slot != null ? { kind: "slot", id: +btn.dataset.slot } : { kind: "act", id: btn.dataset.act };
+        const cur = btn.dataset.gact != null ? { kind: "gact", id: btn.dataset.gact } : btn.dataset.slot != null ? { kind: "slot", id: +btn.dataset.slot } : { kind: "act", id: btn.dataset.act };
         kbCapture = cur;
-        const sel = cur.kind === "slot" ? `.kb-key[data-slot="${cur.id}"]` : `.kb-key[data-act="${cur.id}"]`;
+        const sel = cur.kind === "slot" ? `.kb-key[data-slot="${cur.id}"]` : cur.kind === "gact" ? `.kb-key[data-gact="${cur.id}"]` : `.kb-key[data-act="${cur.id}"]`;
         const el = $("keysBody").querySelector(sel); if (el) { el.classList.add("capturing"); el.textContent = "Nhấn phím…"; }
         $("keysTip").textContent = "Đang chờ… nhấn phím muốn gán (Esc để hủy). Trùng phím sẽ tự gỡ khỏi nơi cũ.";
       };
@@ -181,16 +191,17 @@
     const norm = key.toLowerCase();
     if (RESERVED.has(norm)) { $("keysTip").textContent = `Phím "${keyGlyph(key)}" dành riêng (Space/Enter/Esc/F2/Tab) — chọn phím khác.`; return; }
     const val = key.length === 1 ? norm : key;
-    // gỡ phím này khỏi mọi nơi khác (tháp/bẫy & ô phép) để không trùng
+    // gỡ phím này khỏi mọi nơi khác (tháp/bẫy & ô phép & thao tác) để không trùng
     for (const a in KEYS) if ((KEYS[a] || "").toLowerCase() === norm) KEYS[a] = "";
     SLOT_KEYS.forEach((sk, i) => { if ((sk || "").toLowerCase() === norm) SLOT_KEYS[i] = ""; });
-    if (cap.kind === "slot") SLOT_KEYS[cap.id] = val; else KEYS[cap.id] = val;
+    for (const a in GKEYS) if ((GKEYS[a] || "").toLowerCase() === norm) GKEYS[a] = "";
+    if (cap.kind === "slot") SLOT_KEYS[cap.id] = val; else if (cap.kind === "gact") GKEYS[cap.id] = val; else KEYS[cap.id] = val;
     kbCapture = null; persistKeys(); renderKeysModal();
     $("keysTip").textContent = "Đã lưu. Bấm ô khác để đổi tiếp, hoặc Xong.";
   }, true);
   $("btnCfg").onclick = () => { renderKeysModal(); $("keysTip").textContent = "Bấm ô phím của một tháp hoặc một Ô phép rồi nhấn phím mới để gán."; keysModal.classList.remove("hidden"); };
   $("keysClose").onclick = () => { kbCapture = null; keysModal.classList.add("hidden"); };
-  $("keysReset").onclick = () => { KEYS = Object.assign({}, CFG.DEFAULT_KEYS); SLOT_KEYS = CFG.DEFAULT_SLOT_KEYS.slice(); persistKeys(); renderKeysModal(); $("keysTip").textContent = "Đã khôi phục phím mặc định (tháp 1–8, phép Q W E A S D)."; };
+  $("keysReset").onclick = () => { KEYS = Object.assign({}, CFG.DEFAULT_KEYS); SLOT_KEYS = CFG.DEFAULT_SLOT_KEYS.slice(); GKEYS = Object.assign({}, GACT_DEF); persistKeys(); renderKeysModal(); $("keysTip").textContent = "Đã khôi phục phím mặc định (tháp 1–8, phép Q W E A S D, nâng N, bán B)."; };
   keysModal.onclick = (e) => { if (e.target === keysModal) { kbCapture = null; keysModal.classList.add("hidden"); } };
 
   /* ---------- thanh Phép (đã học) ---------- */
@@ -406,13 +417,33 @@
     $("btnPause").textContent = g.paused ? "▶ Tiếp" : "⏸ Dừng"; $("btnSpeed").textContent = "⏩ x" + g.speed;
     canvas.style.cursor = g.pendingPing ? "crosshair" : g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: chờ ping / dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
     for (const b of coopPingBtns) b.classList.toggle("on", g.pendingPing === b.dataset.kind);
-    renderTowerPanel(g);
+    renderTowerPanel(g); positionTowerQuick(g);
     if (g.wave !== prevWave && g.wave > 0) { log("Đợt " + g.wave + " bắt đầu", "ev"); prevWave = g.wave; }
     if (g.lives < prevLives) { log("Quái lọt cửa Tử! Còn " + g.lives + " mạng", "warn"); prevLives = g.lives; }
     if ((g.gameOver || g.victory) && !prevEnd) { log(g.victory ? "CHIẾN THẮNG!" : "THẤT THỦ!", g.victory ? "good" : "warn"); prevEnd = true; }
   }
   game.onChange = updateHUD;
   game.onCoreLog = (m) => log(m, "good");   // lõi AFK báo thưởng vàng
+
+  /* ---------- nút NÂNG/BÁN nhanh nổi cạnh tháp đang chọn ---------- */
+  const towerQuick = $("towerQuick"), tqUp = $("tqUp"), tqSell = $("tqSell");
+  tqUp.onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.upgradeSelected(); };
+  tqSell.onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.sellSelected(); };
+  function positionTowerQuick(g) {
+    const t = g.selected;
+    const show = t && t.col != null && !g.buildType && !g.pendingSkill && !g.pendingCore && !g.pendingMove && !g.pendingPing && !g.gameOver && !g.victory;
+    towerQuick.classList.toggle("hidden", !show);
+    if (!show) return;
+    // định vị theo canvas THẬT (bù padding/border của .canvas-wrap + tỉ lệ co giãn)
+    const scale = canvas.clientWidth / CFG.CANVAS_W;
+    towerQuick.style.left = (canvas.offsetLeft + canvas.clientLeft + (t.x + CFG.MARGIN) * scale) + "px";
+    towerQuick.style.top = (canvas.offsetTop + canvas.clientTop + (t.y + CFG.MARGIN) * scale) + "px";
+    const canUp = !t.trap && !t.maxLevel && t.ready;
+    tqUp.classList.toggle("hidden", !!t.trap);   // bẫy không nâng cấp -> ẩn nút nâng
+    tqUp.disabled = !canUp;
+    tqUp.title = t.trap ? "" : canUp ? ("Nâng cấp −" + g.buyCost(t.upgradeCost) + "💰") : t.maxLevel ? "Đã tối đa cấp" : "Đang bận";
+    tqSell.title = (t.action === "sell" ? "Đang tháo dỡ" : "Bán +" + g.gainGold(t.sellValue) + "💰");
+  }
 
   /* ---------- 2v2: PHỐI HỢP — Ping (đánh dấu ô) + Chat ---------- */
   const coopPingBtns = [...document.querySelectorAll(".cb-ping")];
@@ -463,6 +494,8 @@
     else if (e.key === "Enter") game.startWave();
     else {
       const kk = e.key.toLowerCase();
+      const ga = gActKeyMap[kk];
+      if (ga) { if (ga === "upgrade") game.upgradeSelected(); else if (ga === "sell") game.sellSelected(); return; }   // phím nâng cấp / bán tháp đang chọn
       const a = keyMap[kk];
       if (a) { game.setBuild(a); return; }                  // phím tháp/bẫy
       const si = slotKeyMap[kk];
