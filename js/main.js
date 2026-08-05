@@ -347,7 +347,7 @@
     const t = g.selected; tp.classList.remove("hidden");
     if (t !== tpTower || !!(t && t.fused) !== tpFused) {   // dựng lại cả khi tháp vừa được DUNG HỢP
       tpTower = t; tpFused = !!(t && t.fused);
-      if (!t) { const nx = g.nextWavePreview(); tp.innerHTML = `<div class="tp-empty">🏰 Chọn tháp/bẫy trên bản đồ để xem chi tiết &amp; nâng cấp/bán. &nbsp;•&nbsp; Đợt sau: <b>${nx.name}</b> ×${nx.count}${nx.boss ? " (BOSS)" : nx.fly ? " (bay)" : ""}</div>`; return; }
+      if (!t) { const nx = g.nextWavePreview(); tp.innerHTML = `<div class="tp-empty">🏰 Chọn tháp/bẫy để xem chi tiết &amp; nâng cấp/bán (phím <b>H</b>: nút nâng/bán nhanh cạnh tháp). &nbsp;•&nbsp; Đợt sau: <b>${nx.name}</b> ×${nx.count}${nx.boss ? " (BOSS)" : nx.fly ? " (bay)" : ""}</div>`; return; }
       const title = t.fused ? `${shortName(t.def.name)}+${shortName(t.fuseDef.name)} ⚗: ${targetLabel(t.fireTarget)}` : `${t.def.name}: ${targetText(t.def)}`;
       tp.innerHTML = `<div class="tp-icon" style="background:${t.def.color}">${t.def.glyph}</div>` +
         `<div class="tp-main"><div class="tp-title">${title} <span class="lv" id="tpLv"></span></div><div class="tp-stats" id="tpStats"></div><div class="tp-prev" id="tpPrev"></div></div>` +
@@ -426,11 +426,12 @@
 
   /* ---------- nút NÂNG/BÁN nhanh nổi cạnh tháp đang chọn ---------- */
   const towerQuick = $("towerQuick"), tqUp = $("tqUp"), tqSell = $("tqSell");
+  let showQuick = false;   // nút nâng/bán nổi cạnh tháp: mặc định ẩn, bật/tắt bằng phím H
   tqUp.onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.upgradeSelected(); };
   tqSell.onpointerdown = (e) => { if (e.button !== 0) return; e.preventDefault(); game.sellSelected(); };
   function positionTowerQuick(g) {
     const t = g.selected;
-    const show = t && t.col != null && !g.buildType && !g.pendingSkill && !g.pendingCore && !g.pendingMove && !g.pendingPing && !g.gameOver && !g.victory;
+    const show = showQuick && t && t.col != null && !g.buildType && !g.pendingSkill && !g.pendingCore && !g.pendingMove && !g.pendingPing && !g.gameOver && !g.victory;
     towerQuick.classList.toggle("hidden", !show);
     if (!show) return;
     // định vị theo canvas THẬT (bù padding/border của .canvas-wrap + tỉ lệ co giãn)
@@ -500,6 +501,7 @@
       if (a) { game.setBuild(a); return; }                  // phím tháp/bẫy
       const si = slotKeyMap[kk];
       if (si != null) { const k = skillInSlot(game, si); if (k) game.armSkill(k); return; }   // phím ô phép
+      if (kk === "h") { showQuick = !showQuick; log(showQuick ? "🔘 Hiện nút nâng/bán cạnh tháp (H để ẩn)." : "🔘 Ẩn nút nâng/bán cạnh tháp (H để hiện).", "ev"); game.emit(); return; }
       if (kk === "v" && game.t2) game.setPing("build");     // 2v2: phím V đánh dấu "Xây đây"
     }
   });

@@ -297,7 +297,7 @@
         ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, TILE * .5, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();
         ctx.fillStyle = col; ctx.font = "bold 15px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(Math.ceil(this.buildTimer), x, y); ctx.restore();
       }
-      if (sel) { ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+      if (sel) selectHighlight(ctx, x, y, this.range, this.glowT || 0);
     }
     // Vòng đồng gia cố (quay + nhấp nháy) quanh chân tháp — dấu hiệu tháp đã Gia Cố
     drawReinforce(ctx, x, y) {
@@ -418,7 +418,7 @@
       ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.beginPath(); ctx.arc(x + TILE * .28, y + TILE * .1, 7.5, 0, 7); ctx.fill();
       ctx.strokeStyle = "#b9862b"; ctx.lineWidth = 1; ctx.stroke();
       ctx.fillStyle = "#ffd24a"; ctx.font = "bold 9px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("1×", x + TILE * .28, y + TILE * .1 + .5);
-      if (sel) { ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+      if (sel) selectHighlight(ctx, x, y, this.range, this.pulse || 0);
     }
   }
 
@@ -481,6 +481,17 @@
     ctx.fillStyle = hi; ctx.beginPath(); ctx.moveTo(cx, cy - h / 2); ctx.lineTo(cx - hw * .5, cy); ctx.lineTo(cx, cy + h / 2 * .2); ctx.lineTo(cx - hw * .15, cy - h * .1); ctx.closePath(); ctx.fill();
   }
   // huy hiệu cấp (số vàng trên nền tối)
+  // Dấu chọn: vòng sáng vàng nhấp nháy quanh chân + vòng tầm nét đứt (phân biệt rõ tháp đang chọn)
+  function selectHighlight(ctx, x, y, range, t) {
+    const p = 0.5 + 0.5 * Math.sin(t * 4);
+    ctx.save();
+    ctx.shadowColor = "rgba(255,214,80,.9)"; ctx.shadowBlur = 10 + 6 * p;
+    ctx.strokeStyle = "rgba(255,224,130," + (0.7 + 0.3 * p) + ")"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, TILE * (0.5 + 0.03 * p), 0, 7); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, range, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
   function levelBadge(ctx, x, y, lv) {
     ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fill();
     ctx.strokeStyle = "#b9862b"; ctx.lineWidth = 1; ctx.stroke();
