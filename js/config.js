@@ -289,10 +289,10 @@
   // Nhóm có combo (>=3 lõi khả dụng): Kinh tế / Tháp / Phòng thủ / Phép. "Bản đồ" chỉ 1 lõi -> không combo.
   const COMBO_GROUPS = ["Kinh tế", "Tháp", "Phòng thủ", "Phép"];
   const COMBOS = {
-    "Kinh tế": { icon: "💰", x2: "Nhận ngay +1000 vàng.", x3: "Mở đổi 10 KN → 50 vàng (lặp lại)." },
+    "Kinh tế": { icon: "💰", x2: "Nhận ngay +1000 vàng.", x3: "Mở đổi 10 KN → 20 vàng (lặp lại)." },
     "Tháp": { icon: "🏰", x2: "+10% sát thương & tốc đánh cho LOẠI tháp đang xây NHIỀU NHẤT.", x3: "Chọn 1 loại tháp để cường hóa hiệu ứng đặc biệt." },
     "Phòng thủ": { icon: "🛡", x2: "Mỗi 2 quái lọt cửa Tử → nhận 1 GEM (gắn vào tháp).", x3: "Gấp đôi chỉ số của mọi gem." },
-    "Phép": { icon: "🎩", x2: "Dùng 1 phép → hồi 25% thời gian phép đó cho 1 phép NGẪU NHIÊN khác.", x3: "Phép giết quái cho ×2 vàng; phép PvP mạnh hơn." },
+    "Phép": { icon: "🎩", x2: "Dùng 1 phép → hồi 25% thời gian phép đó cho 1 phép NGẪU NHIÊN khác.", x3: "Phép giết quái ×2 vàng; Tăng Lực/Mê Trận/Phong Ấn ×2 thời gian; phép PvP mạnh hơn." },
   };
   const COMBO_ECO_GOLD = 1000, SP_TO_GOLD_SP = 10, SP_TO_GOLD_GOLD = 20;   // 3x Kinh tế: đổi KN→vàng tỉ lệ 1:2
 
