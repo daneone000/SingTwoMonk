@@ -169,12 +169,14 @@
   // Thông tin chủng của đợt n (dùng cho banner)
   function waveInfo(n) { const boss = n % 10 === 0; const type = boss ? bossType(n) : pickType(n); const d = ENEMIES[type]; return { type, name: d.name, fly: d.fly, boss, shape: d.shape, color: d.color }; }
   const COUNT_SCALE = 0.6;   // GIẢM số lượng quái mỗi đợt còn ~60%
+  const MAX_COUNT = 20;      // TRẦN số quái/đợt (không tính trùm): vượt trần -> dồn phần khó vào MÁU, không thêm quái
   function buildWave(n) {
-    const hpMul = Math.pow(1.135, n - 1) * (1 + n * 0.03);
+    let hpMul = Math.pow(1.135, n - 1) * (1 + n * 0.03);
     if (n % 10 === 0) { const type = bossType(n); return { type, count: 1 + Math.floor(n / 40), gap: 3.0, hpMul, rwMul: 1, boss: true }; }
     const type = pickType(n), d = ENEMIES[type];
     const rawCount = Math.max(3, Math.round((6 + n * 1.05) * d.cf));   // số lượng "gốc"
-    const count = Math.max(2, Math.round(rawCount * COUNT_SCALE));     // ít quái hơn
+    let count = Math.max(2, Math.round(rawCount * COUNT_SCALE));       // ít quái hơn
+    if (count > MAX_COUNT) { hpMul *= count / MAX_COUNT; count = MAX_COUNT; }   // đã tối đa số lượng: phần vượt biến thành MÁU
     const rwMul = rawCount / count;                                    // BÙ vàng: count×reward ≈ giữ nguyên tổng/đợt
     const gap = d.fly ? 0.55 : d.speed > 100 ? 0.45 : d.speed < 45 ? 1.1 : 0.7;
     return { type, count, gap, hpMul, rwMul };
