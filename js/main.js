@@ -360,7 +360,7 @@
     }
     // ===== GEM =====
     const gm = Math.round(CFG.GEM_PER * 100);
-    html += `<div class="wiki-group">💎 Gem (gắn vào tháp, tối đa 3/tháp)</div>`;
+    html += `<div class="wiki-group">💎 Gem (gắn vào tháp, tối đa ${CFG.MAX_GEMS}/tháp)</div>`;
     html += `<p class="wiki-intro">Nguồn gem DUY NHẤT: combo <b>2× Phòng thủ</b> (mỗi 2 quái lọt = 1 gem ngẫu nhiên). Combo <b>3× Phòng thủ</b> gấp đôi chỉ số gem. Mỗi gem +${gm}% (gem cùng loại cộng dồn). Tối đa <b>${CFG.MAX_GEMS}</b> gem/tháp — ghép đủ <b>5 loại khác nhau</b> → <b>☯ Ngũ Hành</b>: ×${CFG.NGUHANH_MUL} hiệu quả mọi gem trên tháp đó.</p>`;
     for (const k of CFG.GEM_ORDER) {
       const gd = CFG.GEMS[k];
