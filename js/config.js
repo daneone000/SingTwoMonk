@@ -300,12 +300,13 @@
   // Gắn vào tháp (tối đa 3/tháp). Nguồn DUY NHẤT: combo 2x Phòng thủ (2 quái lọt = 1 gem, NGẪU NHIÊN loại).
   // base +10%/gem; ×2 khi có combo 3x Phòng thủ. Nhiều gem cùng loại cộng dồn.
   const GEM_PER = 0.10, CRIT_MULT = 2, MAX_GEMS = 5, NGUHANH_MUL = 2;   // đủ 5 loại gem/tháp -> NGŨ HÀNH: ×2 hiệu quả mọi gem
+  // per = hệ số MỖI gem (Hoả mạnh hơn: +50%/gem). ×gemMul(3x Phòng thủ) ×ngũ hành.
   const GEMS = {
-    kim: { key: "kim", name: "Kim", icon: "◈", color: "#ffd24a", stat: "crit", desc: (v) => `+${v}% tỉ lệ chí mạng (chí mạng gây ×2 sát thương).` },
-    moc: { key: "moc", name: "Mộc", icon: "❧", color: "#5ab54a", stat: "rate", desc: (v) => `+${v}% tốc đánh.` },
-    thuy: { key: "thuy", name: "Thuỷ", icon: "❄", color: "#29b6f6", stat: "slow", desc: (v) => `Đòn đánh làm chậm quái ${v}% (1.2s).` },
-    hoa: { key: "hoa", name: "Hoả", icon: "🔥", color: "#ff5722", stat: "dmg", desc: (v) => `+${v}% sát thương.` },
-    tho: { key: "tho", name: "Thổ", icon: "⬢", color: "#a1887f", stat: "stun", desc: (v) => `+${v}% xác suất choáng quái 1s khi trúng.` },
+    kim: { key: "kim", name: "Kim", icon: "◈", color: "#ffd24a", stat: "crit", per: 0.10, desc: (v) => `+${v}% tỉ lệ chí mạng (chí mạng gây ×2 sát thương).` },
+    moc: { key: "moc", name: "Mộc", icon: "❧", color: "#5ab54a", stat: "rate", per: 0.10, desc: (v) => `+${v}% tốc đánh.` },
+    thuy: { key: "thuy", name: "Thuỷ", icon: "❄", color: "#29b6f6", stat: "slow", per: 0.10, desc: (v) => `Đòn đánh làm chậm quái ${v}% (1.2s).` },
+    hoa: { key: "hoa", name: "Hoả", icon: "🔥", color: "#ff5722", stat: "dmg", per: 0.50, desc: (v) => `+${v}% sát thương.` },
+    tho: { key: "tho", name: "Thổ", icon: "⬢", color: "#a1887f", stat: "stun", per: 0.10, desc: (v) => `+${v}% xác suất choáng quái 1s — CHỈ mục tiêu chính (không loang).` },
   };
   const GEM_ORDER = ["kim", "moc", "thuy", "hoa", "tho"];
 

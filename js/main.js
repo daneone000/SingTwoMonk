@@ -288,7 +288,7 @@
     let html = "";
     if (total > 0) {
       html += `<div class="gem-title">💎 Túi gem <small>(chọn loại → bấm tháp để gắn · tối đa ${CFG.MAX_GEMS}/tháp · đủ 5 loại → ☯ Ngũ Hành ×${CFG.NGUHANH_MUL})</small></div><div class="gem-chips">`;
-      for (const k of CFG.GEM_ORDER) { const n = g.gemBag[k]; if (!n) continue; const gd = CFG.GEMS[k]; html += `<button class="gem-chip${g.pendingGem === k ? " on" : ""}" data-gem="${k}" style="--gc:${gd.color}" title="${gd.name} — ${gd.desc(Math.round(CFG.GEM_PER * 100 * g.gemMul()))}">${gd.icon} ${gd.name} ×${n}</button>`; }
+      for (const k of CFG.GEM_ORDER) { const n = g.gemBag[k]; if (!n) continue; const gd = CFG.GEMS[k]; html += `<button class="gem-chip${g.pendingGem === k ? " on" : ""}" data-gem="${k}" style="--gc:${gd.color}" title="${gd.name} — ${gd.desc(Math.round(gd.per * 100 * g.gemMul()))}">${gd.icon} ${gd.name} ×${n}</button>`; }
       html += `</div>`;
     }
     if (eco3) html += `<button id="spGoldBtn" class="sp-gold-btn"${g.sp >= CFG.SP_TO_GOLD_SP ? "" : " disabled"}>💱 Đổi ${CFG.SP_TO_GOLD_SP} KN → ${CFG.SP_TO_GOLD_GOLD}💰</button>`;
@@ -359,12 +359,12 @@
       html += `<div class="wiki-core"><span class="wiki-ic">${c.icon}</span><div class="wiki-tx"><div class="wiki-nm">${grp}</div><div class="wiki-desc"><b>2×</b> ${c.x2}<br><b>3×</b> ${c.x3}</div></div></div>`;
     }
     // ===== GEM =====
-    const gm = Math.round(CFG.GEM_PER * 100);
+    const gm = Math.round(CFG.GEM_PER * 100), gmHoa = Math.round(CFG.GEMS.hoa.per * 100);
     html += `<div class="wiki-group">💎 Gem (gắn vào tháp, tối đa ${CFG.MAX_GEMS}/tháp)</div>`;
-    html += `<p class="wiki-intro">Nguồn gem DUY NHẤT: combo <b>2× Phòng thủ</b> (mỗi 2 quái lọt = 1 gem ngẫu nhiên). Combo <b>3× Phòng thủ</b> gấp đôi chỉ số gem. Mỗi gem +${gm}% (gem cùng loại cộng dồn). Tối đa <b>${CFG.MAX_GEMS}</b> gem/tháp — ghép đủ <b>5 loại khác nhau</b> → <b>☯ Ngũ Hành</b>: ×${CFG.NGUHANH_MUL} hiệu quả mọi gem trên tháp đó.</p>`;
+    html += `<p class="wiki-intro">Nguồn gem DUY NHẤT: combo <b>2× Phòng thủ</b> (mỗi 2 quái lọt = 1 gem ngẫu nhiên). Combo <b>3× Phòng thủ</b> gấp đôi chỉ số gem. Mỗi gem +${gm}% (riêng Hoả +${gmHoa}%; gem cùng loại cộng dồn). Tối đa <b>${CFG.MAX_GEMS}</b> gem/tháp — ghép đủ <b>5 loại khác nhau</b> → <b>☯ Ngũ Hành</b>: ×${CFG.NGUHANH_MUL} hiệu quả mọi gem trên tháp đó.</p>`;
     for (const k of CFG.GEM_ORDER) {
       const gd = CFG.GEMS[k];
-      html += `<div class="wiki-core"><span class="wiki-ic" style="color:${gd.color}">${gd.icon}</span><div class="wiki-tx"><div class="wiki-nm">Gem ${gd.name}</div><div class="wiki-desc">${gd.desc(gm)}</div></div></div>`;
+      html += `<div class="wiki-core"><span class="wiki-ic" style="color:${gd.color}">${gd.icon}</span><div class="wiki-tx"><div class="wiki-nm">Gem ${gd.name}</div><div class="wiki-desc">${gd.desc(Math.round(gd.per * 100))}</div></div></div>`;
     }
     wikiBody.innerHTML = html;
   }

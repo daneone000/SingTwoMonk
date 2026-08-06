@@ -508,12 +508,12 @@
       this.boonDistMul = (this.boon === "set") ? 1 + CFG.SET_DIST_PER * (dist(tower.x, tower.y, target.x, target.y) / TILE) : 1;   // Sét: +10%/ô, không cap
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
-    applyTo(e) {
+    applyTo(e, primary) {
       let dmg = this.dmg * this.boonDistMul;   // Sét boon: +dmg theo khoảng cách
       if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng
       e.applyDamage(dmg);
       if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm
-      if (this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);     // GEM Thổ: choáng 1s
+      if (primary && this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);   // GEM Thổ: choáng 1s — CHỈ mục tiêu chính (không loang)
       if (this.boon === "bang" && Math.random() < CFG.FREEZE_CHANCE) e.freeze(CFG.FREEZE_DUR);        // Băng boon: 10% đóng băng 1s
       if (this.boon === "lua" && Math.random() < CFG.BURN_CHANCE) e.burnMiss(CFG.BURN_MISS_PCT, CFG.BURN_DUR);   // Lửa boon: đốt %máu đã mất
       for (const fx of this.effects) {   // dung hợp có thể có nhiều hiệu ứng (làm chậm + độc...)
@@ -531,9 +531,9 @@
       if (game.mirror) { if (this.splash > 0) game.effects.push(new BlastFx(this.tx, this.ty, this.splash * TILE, this.projColor)); return; }   // đồng đội: đạn chỉ để NHÌN, không trừ máu (máu do chủ-bàn áp qua board)
       if (this.splash > 0) {   // NỔ LAN: trúng mọi quái đúng loại trong bán kính
         const r = this.splash * TILE;
-        for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, this.tx, this.ty) <= r + e.radius) this.applyTo(e); }
+        for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, this.tx, this.ty) <= r + e.radius) this.applyTo(e, e === this.target); }   // stun (Thổ) chỉ mục tiêu chính
         game.effects.push(new BlastFx(this.tx, this.ty, r, this.projColor));
-      } else if (this.target && !this.target.dead && !this.target.leaked) this.applyTo(this.target);
+      } else if (this.target && !this.target.dead && !this.target.leaked) this.applyTo(this.target, true);
     }
     draw(ctx) { ctx.fillStyle = this.projColor; ctx.beginPath(); ctx.arc(this.x, this.y, this.splash > 0 ? 6 : 4, 0, 7); ctx.fill(); }
   }

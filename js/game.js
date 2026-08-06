@@ -327,18 +327,19 @@
     }
     // GEM: gộp chỉ số gem của từng tháp -> cache lên tháp (đọc lúc bắn). Gọi trong recomputeAuras.
     recomputeGems() {
-      const base = CFG.GEM_PER * this.gemMul();
+      const mul0 = this.gemMul();   // 3x Phòng thủ: ×2
       for (const t of this.towers) {
         const g = t.gems || [];
         const cnt = (k) => { let n = 0; for (const x of g) if (x === k) n++; return n; };
         const types = new Set(g);
         t.nguHanh = CFG.GEM_ORDER.every((k) => types.has(k));   // đủ 5 loại -> ngũ hành
-        const per = base * (t.nguHanh ? CFG.NGUHANH_MUL : 1);   // ngũ hành: ×2 hiệu quả mọi gem
-        t.gemDmgMul = 1 + per * cnt("hoa");
-        t.gemRateMul = 1 + per * cnt("moc");
-        t.gemCrit = per * cnt("kim");
-        t.gemSlow = per * cnt("thuy");
-        t.gemStun = per * cnt("tho");
+        const mul = mul0 * (t.nguHanh ? CFG.NGUHANH_MUL : 1);   // ngũ hành: ×2 hiệu quả mọi gem
+        const P = CFG.GEMS;   // hệ số MỖI gem (Hoả 0.50, còn lại 0.10)
+        t.gemDmgMul = 1 + P.hoa.per * mul * cnt("hoa");
+        t.gemRateMul = 1 + P.moc.per * mul * cnt("moc");
+        t.gemCrit = P.kim.per * mul * cnt("kim");
+        t.gemSlow = P.thuy.per * mul * cnt("thuy");
+        t.gemStun = P.tho.per * mul * cnt("tho");
       }
     }
     /* ------------------------- COMBO THÁP (Phase 2) ------------------------- */
