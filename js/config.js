@@ -111,11 +111,11 @@
       // lv1 = +10%/+10% ĐÚNG BẢNG GỐC (ảnh play.zing). lv2-5 ƯỚC LƯỢNG: tăng dần, giữ F1=(1+dmg)(1+rate)≈1.90 < 2 ở lv5
       // -> 1 NL buff 1 tháp vẫn < xây THÊM 1 tháp; chỉ LỜI rõ khi 1 NL buff >=2 tháp (dồn nhiều tháp bắn quanh 1 NL). Tầm GIỮ 1.5.
       lv: [
-        { range: 1.5, dmgBonus: 0.10, rateBonus: 0.10 }, { range: 1.5, dmgBonus: 0.20, rateBonus: 0.14 },
-        { range: 1.5, dmgBonus: 0.30, rateBonus: 0.18 }, { range: 1.5, dmgBonus: 0.40, rateBonus: 0.23 },
-        { range: 1.5, dmgBonus: 0.50, rateBonus: 0.27 },
+        { range: 1.5, dmgBonus: 0.10, rateBonus: 0.10 }, { range: 1.5, dmgBonus: 0.20, rateBonus: 0.15 },
+        { range: 1.5, dmgBonus: 0.30, rateBonus: 0.20 }, { range: 1.5, dmgBonus: 0.40, rateBonus: 0.25 },
+        { range: 1.5, dmgBonus: 0.50, rateBonus: 0.30 },
       ],
-      desc: "KHÔNG bắn — buff sức mạnh (+10→50%) & tốc bắn (+10→27%) cho tháp quanh (tầm 1.5). 1 NL < xây thêm 1 tháp: chỉ thật lời khi buff ≥2 tháp cùng lúc.",
+      desc: "KHÔNG bắn — buff sức mạnh (+10→50%) & tốc bắn (+10→30%) cho tháp quanh (tầm 1.5). 1 NL < xây thêm 1 tháp: chỉ thật lời khi buff ≥2 tháp cùng lúc.",
     },
   };
   const TRAPS = {
