@@ -39,6 +39,7 @@
       if (this.poison.length) { let f = 0; for (const p of this.poison) { f += p.pct; p.time -= dt; } if (f > 0) this.applyDamage(this.hp * f * dt, true); this.poison = this.poison.filter((p) => p.time > 0); }  // trừ theo % máu hiện tại
       if (this.slowTime > 0) { this.slowTime -= dt; if (this.slowTime <= 0) this.slowMult = 1; }
       if (this.freezeTime > 0) this.freezeTime -= dt;
+      if (this.critFx > 0) this.critFx -= dt;   // GEM Kim: nháy chí mạng
       if (this.pullCd > 0) this.pullCd -= dt;
       this.animT += dt;
       if (this.fly) this.wingPhase += dt * 9;
@@ -102,6 +103,7 @@
       if (this.freezeTime > 0) { ctx.fillStyle = "rgba(120,200,255,.4)"; ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 7); ctx.fill(); }
       else if (this.slowTime > 0) { ctx.strokeStyle = "#7fdfff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 7); ctx.stroke(); }
       if (this.poison.length) { ctx.fillStyle = "rgba(156,39,176,.4)"; ctx.beginPath(); ctx.arc(x, y, r + 6, 0, 7); ctx.fill(); }
+      if (this.critFx > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, this.critFx * 4); ctx.strokeStyle = "#ffd24a"; ctx.lineWidth = 2.5; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * (r + 3), y + Math.sin(a) * (r + 3)); ctx.lineTo(x + Math.cos(a) * (r + 9), y + Math.sin(a) * (r + 9)); ctx.stroke(); } ctx.restore(); }   // GEM Kim: tia chí mạng
       const w = r * 2.3, f = Math.max(0, this.hp / this.maxHp);
       ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(x - w / 2, y - r - 11, w, 4);
       ctx.fillStyle = f > .5 ? "#4caf50" : f > .25 ? "#ffc107" : "#f44336"; ctx.fillRect(x - w / 2, y - r - 11, w * f, 4);
@@ -221,6 +223,7 @@
       this.reinforce = 0;   // Gia Cố: +% chỉ số (cộng dồn theo cấp)
       this.origMul = 1;     // Nguyên Bản: ×N khi tháp đã max cấp
       this.fused = false; this.fuseType = null; this.fuseDef = null;   // Dung Hợp
+      this.gems = [];   // gem đã gắn (tối đa 3); chỉ số gộp cache: gemDmgMul/gemRateMul/gemCrit/gemSlow/gemStun (game.recomputeGems)
     }
     get ready() { return this.buildTimer <= 0; }
     coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
@@ -254,8 +257,8 @@
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }
     upgrade() { if (this.maxLevel) return false; this.totalSpent += this.upgradeCost; this.level++; return true; }
     buff(m, d) { this.buffMult = m; this.buffTime = d; }
-    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul(); }
-    effRate() { return this.fstats.rate * this.auraRate / this.coreMul(); }   // chia -> bắn nhanh hơn khi có lõi
+    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul() * (this.gemDmgMul || 1); }
+    effRate() { return this.fstats.rate * this.auraRate / this.coreMul() / (this.gemRateMul || 1); }   // chia -> bắn nhanh hơn (lõi + gem Mộc)
     canHit(e) { const t = this.fireTarget; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
     findTarget(en) {
       let best = null, br = 1e18; const rng = this.range;
@@ -285,6 +288,11 @@
       this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
       if (isMax) maxBadge(ctx, x + TILE * .3, y + TILE * .3); else levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
+      if (!working && this.gems && this.gems.length) {   // GEM: chấm màu ngũ hành ở CẠNH DƯỚI
+        const n = this.gems.length, gx = x - (n - 1) * 4, gy = y + TILE * .42;
+        for (let i = 0; i < n; i++) { const gd = CFG.GEMS[this.gems[i]]; ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.beginPath(); ctx.arc(gx + i * 8, gy, 3.6, 0, 7); ctx.fill(); ctx.fillStyle = gd ? gd.color : "#fff"; ctx.beginPath(); ctx.arc(gx + i * 8, gy, 2.4, 0, 7); ctx.fill(); }
+      }
+      if (!working && this.nguHanh) nguHanhBadge(ctx, x, y - TILE * .34, this.glowT || 0);   // NGŨ HÀNH: đủ 5 loại gem -> ×2
       if (!working && this.fused) {   // chấm màu = tháp đã dung hợp vào (góc dưới-trái)
         const bx = x - TILE * .3, by = y + TILE * .3;
         ctx.fillStyle = "rgba(0,0,0,.72)"; ctx.beginPath(); ctx.arc(bx, by, 7.5, 0, 7); ctx.fill();
@@ -479,10 +487,16 @@
       const shooter = (tower.fused && tower.def.support) ? tower.fuseDef : tower.def;   // Năng Lượng gốc -> đạn theo tháp dung hợp
       this.projColor = shooter.projColor || "#ffe8b0"; this.speed = shooter.projSpeed || tower.def.projSpeed || 400;
       this.x = tower.x; this.y = tower.y; this.target = target; this.tx = target.x; this.ty = target.y; this.dead = false;
+      // GEM: mang theo chỉ số gem của tháp lúc bắn
+      this.gemCrit = tower.gemCrit || 0; this.gemSlow = tower.gemSlow || 0; this.gemStun = tower.gemStun || 0;
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e) {
-      e.applyDamage(this.dmg);
+      let dmg = this.dmg;
+      if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng ×1.5
+      e.applyDamage(dmg);
+      if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm
+      if (this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);     // GEM Thổ: choáng 1s
       for (const fx of this.effects) {   // dung hợp có thể có nhiều hiệu ứng (làm chậm + độc...)
         if (fx === "slow") e.slow(1 - Math.min(0.95, (this.st.slowPct || 0) * this.effMul), 1.2);
         else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, 5s
@@ -536,6 +550,17 @@
     ctx.beginPath(); ctx.arc(x, y, TILE * (0.5 + 0.03 * p), 0, 7); ctx.stroke();
     ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, range, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  // Huy hiệu NGŨ HÀNH: ngũ giác 5 màu ngũ hành xoay + toả sáng (đủ 5 loại gem -> ×2)
+  function nguHanhBadge(ctx, x, y, t) {
+    const cols = CFG.GEM_ORDER.map((k) => CFG.GEMS[k].color), p = 0.5 + 0.5 * Math.sin(t * 3), R = 7.5;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(t * .5);
+    ctx.shadowColor = "rgba(255,255,255,.85)"; ctx.shadowBlur = 5 + 4 * p;
+    ctx.fillStyle = "rgba(20,16,8,.92)"; ctx.beginPath(); ctx.arc(0, 0, R + 1.5, 0, 7); ctx.fill();
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < 5; i++) { const a0 = -Math.PI / 2 + i * 2 * Math.PI / 5, a1 = a0 + 2 * Math.PI / 5;
+      ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a1); ctx.closePath(); ctx.fill(); }
     ctx.restore();
   }
   // Huy hiệu cấp tối đa: ngôi sao vàng thay số cấp (tháp đã max)

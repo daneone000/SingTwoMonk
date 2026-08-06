@@ -39,6 +39,13 @@
       this._noLeakStreak = 0; this._leakedThisWave = false; this._shieldUsed = false; this._defPrevWave = null;   // Phòng thủ: Tái Thiết (chuỗi đợt sạch) + Lá Chắn (chặn 1 quái/đợt)
       this._teamMaxLives = 0;   // 2v2: mạng tối đa cộng thêm do ĐỒNG ĐỘI chọn Thành Trì (áp lên bàn chủ-bàn)
       this._bossMaxLives = 0; this._bossWaves = {};   // Thành Trì Kim Cương: +1 mạng tối đa mỗi đợt boss KHÔNG lọt boss
+      // ----- COMBO LÕI + GEM -----
+      this._combo = { "Kinh tế": 0, "Tháp": 0, "Phòng thủ": 0, "Phép": 0 };   // mức combo hiện tại (0/2/3)
+      this._comboEcoPaid = false;                    // combo 2x Kinh tế: đã cộng 1000v chưa
+      this.gemBag = { kim: 0, moc: 0, thuy: 0, hoa: 0, tho: 0 };   // túi gem chờ gắn (nguồn: combo 2x Phòng thủ)
+      this._leakGemCtr = 0;                          // đếm quái lọt để phát gem (mỗi 2)
+      this.pendingGem = null;                        // loại gem đang chờ bấm tháp để gắn
+      this.towerBoon = null;                         // combo 3x Tháp: loại tháp được cường hóa (Phase 2)
       if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -51,6 +58,49 @@
     /* ------------------------- LÕI NÂNG CẤP ------------------------- */
     hasCore(id) { return this.cores.find((c) => c.id === id) || null; }
     coreValue(id) { const c = this.hasCore(id); return c ? c.value : 0; }
+    /* ------------------------- COMBO LÕI ------------------------- */
+    comboLevel(group) { return this._combo ? (this._combo[group] || 0) : 0; }
+    hasCombo(group, n) { return this.comboLevel(group) >= n; }
+    gemMul() { return this.hasCombo("Phòng thủ", 3) ? 2 : 1; }   // 3x Phòng thủ: gấp đôi chỉ số gem
+    // đếm lại combo từ this.cores (gọi sau pickCore & khi load snapshot)
+    recomputeCombos() {
+      const c = { "Kinh tế": 0, "Tháp": 0, "Phòng thủ": 0, "Phép": 0 };
+      for (const co of this.cores) { const g = CFG.CORES[co.id] && CFG.CORES[co.id].group; if (g in c) c[g]++; }
+      for (const g in c) c[g] = c[g] >= 3 ? 3 : c[g] >= 2 ? 2 : 0;   // ngưỡng 2/3
+      this._combo = c;
+      if (this.hasCombo("Kinh tế", 2) && !this._comboEcoPaid && !this.mirror) {   // 2x Kinh tế: +1000v một lần
+        this._comboEcoPaid = true; this.gold += CFG.COMBO_ECO_GOLD;
+        if (this.onCoreLog) this.onCoreLog("💰 Combo Kinh tế (2×): +" + CFG.COMBO_ECO_GOLD + " vàng!");
+      }
+    }
+    // combo 3x Kinh tế: đổi 10 KN -> 50 vàng
+    exchangeSpForGold() {
+      if (!this.hasCombo("Kinh tế", 3) || this.sp < CFG.SP_TO_GOLD_SP) return false;
+      this.sp -= CFG.SP_TO_GOLD_SP; this.gold += CFG.SP_TO_GOLD_GOLD; this.emit(); return true;
+    }
+    /* ------------------------- GEM ------------------------- */
+    // phát 1 gem NGẪU NHIÊN vào túi (combo 2x Phòng thủ, mỗi 2 quái lọt)
+    _awardGem() {
+      const k = CFG.GEM_ORDER[(Math.random() * CFG.GEM_ORDER.length) | 0];
+      this.gemBag[k] = (this.gemBag[k] || 0) + 1;
+      if (this.onGem) this.onGem(k);
+      if (this.onCoreLog) this.onCoreLog("💎 Nhận GEM " + CFG.GEMS[k].name + " — chọn tháp để gắn.");
+      this.emit();
+    }
+    armGem(kind) {
+      if (!this.gemBag || !this.gemBag[kind]) return;
+      this.pendingGem = this.pendingGem === kind ? null : kind;
+      this.buildType = null; this.pendingSkill = null; this.pendingCore = null; this.pendingPing = null; this.pendingMove = null; this.selected = null; this.emit();
+    }
+    socketGem(t) {
+      const kind = this.pendingGem; if (!kind || !t || t.trap) return false;
+      if (!this.gemBag[kind]) { this.pendingGem = null; this.emit(); return false; }
+      if ((t.gems ? t.gems.length : 0) >= CFG.MAX_GEMS) { if (this.onCoreLog) this.onCoreLog("Tháp đã đủ " + CFG.MAX_GEMS + " gem."); return false; }
+      if (!t.gems) t.gems = [];
+      t.gems.push(kind); this.gemBag[kind]--; this.pendingGem = null;
+      if (this.onCoreLog) this.onCoreLog("💎 Gắn gem " + CFG.GEMS[kind].name + " vào tháp.");
+      this.recomputeAuras(); this.emit(); return true;
+    }
     // 2v2 bàn chung: lõi PHÒNG THỦ tác động lên bàn (mạng/chặn lọt) do CHỦ-BÀN xử lý ->
     // tính cả lõi của ĐỒNG ĐỘI (đồng bộ qua mateCores) để đồng đội chọn cũng có hiệu lực.
     teamHasCore(id) { if (this.hasCore(id)) return true; const t = this.t2; return !!(t && t.isAuthority && t.mateCoreValue && t.mateCoreValue(id) > 0); }
@@ -115,6 +165,7 @@
       }
       if (this.netMatch) this.netMatch.sendCores && this.netMatch.sendCores();   // đồng bộ (2v2 dùng để áp lõi bàn chung)
       if (CFG.CORES[id].aim === "tower") { this.pendingCore = core; this.buildType = null; this.selected = null; }   // chờ chọn tháp
+      this.recomputeCombos();   // combo lõi có thể vừa mở khóa (2x/3x nhóm)
       this.recomputeAuras(); this.emit(); return true;
     }
     // áp lõi cần mục tiêu lên 1 tháp (Gia Cố)
@@ -255,6 +306,23 @@
         let dmg = 0, rate = 0;
         for (const s of sups) { const st = s.auraStats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE) { dmg += st.dmgBonus; rate += st.rateBonus; } }
         t.auraDmg = 1 + dmg; t.auraRate = 1 / (1 + rate);   // KHÔNG còn trần: buff cộng dồn từ mọi tháp Năng Lượng trong tầm (tự chặn ~8 tháp do tầm 1.5)
+      }
+      this.recomputeGems();
+    }
+    // GEM: gộp chỉ số gem của từng tháp -> cache lên tháp (đọc lúc bắn). Gọi trong recomputeAuras.
+    recomputeGems() {
+      const base = CFG.GEM_PER * this.gemMul();
+      for (const t of this.towers) {
+        const g = t.gems || [];
+        const cnt = (k) => { let n = 0; for (const x of g) if (x === k) n++; return n; };
+        const types = new Set(g);
+        t.nguHanh = CFG.GEM_ORDER.every((k) => types.has(k));   // đủ 5 loại -> ngũ hành
+        const per = base * (t.nguHanh ? CFG.NGUHANH_MUL : 1);   // ngũ hành: ×2 hiệu quả mọi gem
+        t.gemDmgMul = 1 + per * cnt("hoa");
+        t.gemRateMul = 1 + per * cnt("moc");
+        t.gemCrit = per * cnt("kim");
+        t.gemSlow = per * cnt("thuy");
+        t.gemStun = per * cnt("tho");
       }
     }
 
@@ -674,6 +742,7 @@
       if (this.mirror) return;   // đồng đội: mạng/thua do chủ-bàn quyết (áp qua board)
       if (e.boss && e.spawnWave != null) this._bossResolve(e.spawnWave, true);   // boss LỌT (kể cả được Lá Chắn đỡ) -> đợt này không còn "sạch boss"
       if (this.sandbox) { this.emit(); return; }   // sân thử: lọt cũng KHÔNG trừ mạng
+      if (this.hasCombo("Phòng thủ", 2)) { this._leakGemCtr++; if (this._leakGemCtr >= 2) { this._leakGemCtr -= 2; this._awardGem(); } }   // combo 2x Phòng thủ: mỗi 2 quái lọt -> 1 gem
       // Lá Chắn: quái ĐẦU TIÊN lọt mỗi đợt được miễn trừ mạng
       if (this.teamHasCore("laChan") && !this._shieldUsed) { this._shieldUsed = true; if (this.onCoreLog) this.onCoreLog("🛡 Lá Chắn: chặn 1 quái lọt (miễn phí đợt này)."); this.emit(); return; }
       this._leakedThisWave = true;   // Tái Thiết: đợt này có quái lọt -> cắt chuỗi đợt sạch
@@ -1027,8 +1096,8 @@
       const toXY = (ev) => { const b = cv.getBoundingClientRect(); const x = (ev.clientX - b.left) * (cv.width / b.width) - CFG.MARGIN, y = (ev.clientY - b.top) * (cv.height / b.height) - CFG.MARGIN; return { x, y, c: Math.floor(x / TILE), r: Math.floor(y / TILE) }; };
       cv.addEventListener("mousemove", (ev) => { this.hover = toXY(ev); });
       cv.addEventListener("mouseleave", () => { this.hover = null; });
-      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingPing) { this.placePing(p.c, p.r); return; } if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } if (this.pendingMove) { this.applyMoveTower(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
-      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.pendingMove = null; this.pendingPing = null; this.emit(); });
+      cv.addEventListener("click", (ev) => { const p = toXY(ev); if (this.pendingPing) { this.placePing(p.c, p.r); return; } if (this.pendingGem) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.socketGem(t); return; } if (this.pendingSkill) { this.handleSkillClick(p); return; } if (this.buildType) { this.placeSelected(p.c, p.r); return; } if (this.pendingCore) { const t = this.towers.find((t) => t.col === p.c && t.row === p.r); if (t && !t.trap) this.applyCoreToTower(t); return; } if (this.pendingMove) { this.applyMoveTower(p.c, p.r); return; } const o = this.towers.find((t) => t.col === p.c && t.row === p.r) || this.traps.find((t) => t.col === p.c && t.row === p.r); this.selected = o || null; this.emit(); });
+      cv.addEventListener("contextmenu", (ev) => { ev.preventDefault(); this.buildType = null; this.selected = null; this.pendingSkill = null; this.pendingMove = null; this.pendingPing = null; this.pendingGem = null; this.emit(); });
     }
     handleSkillClick(p) {
       const s = CFG.SKILLS[this.pendingSkill];

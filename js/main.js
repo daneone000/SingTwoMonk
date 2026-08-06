@@ -261,6 +261,41 @@
     if (g.pendingCore) { corePendingEl.classList.remove("hidden"); corePendingTx.innerHTML = `🔧 <b>${CFG.CORES[g.pendingCore.id].name}</b>: bấm chọn 1 <b>tháp</b> trên bản đồ để gia cố (+${g.pendingCore.value}%).`; }
     else corePendingEl.classList.add("hidden");
   }
+  // COMBO LÕI: dải hiện các combo đang bật (2×/3×)
+  let comboSig = "";
+  function renderCombos(g) {
+    const active = CFG.COMBO_GROUPS.filter((grp) => g.comboLevel(grp) >= 2);
+    const sig = active.map((grp) => grp + g.comboLevel(grp)).join(",");
+    if (sig === comboSig) return; comboSig = sig;
+    const bar = $("comboBar");
+    if (!active.length) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+    bar.classList.remove("hidden");
+    bar.innerHTML = active.map((grp) => {
+      const lvl = g.comboLevel(grp), c = CFG.COMBOS[grp];
+      const lines = [`<b>2×</b> ${c.x2}`].concat(lvl >= 3 ? [`<b>3×</b> ${c.x3}`] : []);
+      return `<div class="combo-item"><span class="combo-ic">${c.icon}</span><span class="combo-tx"><b>Combo ${grp} ${lvl}×</b>${lines.map((l) => `<small>${l}</small>`).join("")}</span></div>`;
+    }).join("");
+  }
+  // TÚI GEM + nút đổi KN→vàng (combo 3× Kinh tế)
+  let gemSig = "";
+  function renderGemBar(g) {
+    const total = Object.values(g.gemBag).reduce((a, b) => a + b, 0), eco3 = g.hasCombo("Kinh tế", 3);
+    const sig = CFG.GEM_ORDER.map((k) => g.gemBag[k]).join(",") + "|" + (g.pendingGem || "") + "|" + (eco3 ? 1 : 0) + "|" + g.sp + "|" + g.gemMul();
+    if (sig === gemSig) return; gemSig = sig;
+    const bar = $("gemBar");
+    if (total === 0 && !eco3) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+    bar.classList.remove("hidden");
+    let html = "";
+    if (total > 0) {
+      html += `<div class="gem-title">💎 Túi gem <small>(chọn loại → bấm tháp để gắn · tối đa ${CFG.MAX_GEMS}/tháp · đủ 5 loại → ☯ Ngũ Hành ×${CFG.NGUHANH_MUL})</small></div><div class="gem-chips">`;
+      for (const k of CFG.GEM_ORDER) { const n = g.gemBag[k]; if (!n) continue; const gd = CFG.GEMS[k]; html += `<button class="gem-chip${g.pendingGem === k ? " on" : ""}" data-gem="${k}" style="--gc:${gd.color}" title="${gd.name} — ${gd.desc(Math.round(CFG.GEM_PER * 100 * g.gemMul()))}">${gd.icon} ${gd.name} ×${n}</button>`; }
+      html += `</div>`;
+    }
+    if (eco3) html += `<button id="spGoldBtn" class="sp-gold-btn"${g.sp >= CFG.SP_TO_GOLD_SP ? "" : " disabled"}>💱 Đổi ${CFG.SP_TO_GOLD_SP} KN → ${CFG.SP_TO_GOLD_GOLD}💰</button>`;
+    bar.innerHTML = html;
+    bar.querySelectorAll(".gem-chip").forEach((b) => { b.onclick = () => game.armGem(b.dataset.gem); });
+    const sg = $("spGoldBtn"); if (sg) sg.onclick = () => { if (game.exchangeSpForGold()) log("💱 Đổi " + CFG.SP_TO_GOLD_SP + " KN → +" + CFG.SP_TO_GOLD_GOLD + " vàng.", "good"); };
+  }
   function openCorePick(slot) {
     const off = game.openCore(slot); if (!off || !off.items.length) return;
     const cti = TIER[off.items[0].tier];
@@ -293,6 +328,21 @@
         const desc = c.desc(tiers.map((tk) => c.tiers[tk]).join("/"));
         html += `<div class="wiki-core"><span class="wiki-ic">${c.icon}</span><div class="wiki-tx"><div class="wiki-nm">${c.name} ${chips}</div><div class="wiki-desc">${desc}</div></div></div>`;
       }
+    }
+    // ===== COMBO LÕI =====
+    html += `<div class="wiki-group">⚡ Combo Lõi (chọn 2/3 lõi CÙNG nhóm)</div>`;
+    html += `<p class="wiki-intro">Chọn <b>2</b> hoặc <b>3</b> lõi cùng một nhóm sẽ mở khóa thưởng cộng thêm (cộng dồn: 3 lõi hưởng cả 2× lẫn 3×).</p>`;
+    for (const grp of CFG.COMBO_GROUPS) {
+      const c = CFG.COMBOS[grp];
+      html += `<div class="wiki-core"><span class="wiki-ic">${c.icon}</span><div class="wiki-tx"><div class="wiki-nm">${grp}</div><div class="wiki-desc"><b>2×</b> ${c.x2}<br><b>3×</b> ${c.x3}</div></div></div>`;
+    }
+    // ===== GEM =====
+    const gm = Math.round(CFG.GEM_PER * 100);
+    html += `<div class="wiki-group">💎 Gem (gắn vào tháp, tối đa 3/tháp)</div>`;
+    html += `<p class="wiki-intro">Nguồn gem DUY NHẤT: combo <b>2× Phòng thủ</b> (mỗi 2 quái lọt = 1 gem ngẫu nhiên). Combo <b>3× Phòng thủ</b> gấp đôi chỉ số gem. Mỗi gem +${gm}% (gem cùng loại cộng dồn). Tối đa <b>${CFG.MAX_GEMS}</b> gem/tháp — ghép đủ <b>5 loại khác nhau</b> → <b>☯ Ngũ Hành</b>: ×${CFG.NGUHANH_MUL} hiệu quả mọi gem trên tháp đó.</p>`;
+    for (const k of CFG.GEM_ORDER) {
+      const gd = CFG.GEMS[k];
+      html += `<div class="wiki-core"><span class="wiki-ic" style="color:${gd.color}">${gd.icon}</span><div class="wiki-tx"><div class="wiki-nm">Gem ${gd.name}</div><div class="wiki-desc">${gd.desc(gm)}</div></div></div>`;
     }
     wikiBody.innerHTML = html;
   }
@@ -331,6 +381,14 @@
       (s.splash ? `<div>Bắn Loang: <b>${(raw.splash || 0).toFixed(1)}</b>${plus(splBonus)}</div>` : `<div>Cấp: <b>${t.level}/${t.def.lv.length}</b></div>`) + eff;
   }
   // Xem trước nâng cấp: cấp kế sẽ +chỉ số gì (để cân nhắc)
+  // Dòng gem của tháp đang chọn (ô trống + gem đã gắn)
+  function gemLineHTML(t) {
+    if (t.trap) return "";
+    const gems = t.gems || [], slots = [];
+    for (let i = 0; i < CFG.MAX_GEMS; i++) { const k = gems[i]; if (k) { const gd = CFG.GEMS[k]; slots.push(`<span class="tp-gem" style="--gc:${gd.color}" title="${gd.name}">${gd.icon}</span>`); } else slots.push(`<span class="tp-gem empty">◦</span>`); }
+    const nh = t.nguHanh ? ` <span class="tp-nguhanh">☯ NGŨ HÀNH ×2</span>` : "";
+    return `<div class="tp-gemline">💎 Gem: ${slots.join("")}${nh}</div>`;
+  }
   function upgradePreviewHTML(t) {
     if (t.trap || t.maxLevel) return "";
     const c = t.stats, n = t.def.lv[t.level], p = [];   // c=cấp hiện tại, n=cấp kế
@@ -365,7 +423,7 @@
     if (!t) return;
     // cập nhật phần ĐỘNG tại chỗ (đổi text/disabled, không thay nút)
     $("tpLv").textContent = t.trap ? "Dùng 1 lần" : `Cấp Độ: ${t.level}/${t.def.lv.length}`;
-    $("tpStats").innerHTML = statsHTML(t);
+    $("tpStats").innerHTML = statsHTML(t) + gemLineHTML(t);
     $("tpPrev").innerHTML = (t.ready && !t.trap && !t.maxLevel) ? upgradePreviewHTML(t) : "";
     const bu = $("tpUp");
     if (t.trap) { bu.textContent = "Không nâng cấp"; bu.disabled = true; bu.className = "tp-up"; }
@@ -411,14 +469,14 @@
       const sale = cost < def.cost; b.classList.toggle("sale", sale);   // Black Friday: giá giảm
       const cs = b.querySelector(".tw-cost"); const txt = "💰" + cost; if (cs.textContent !== txt) cs.textContent = txt;
     }
-    maybeRenderCores(g); updateAfkLive(g);
+    maybeRenderCores(g); updateAfkLive(g); renderCombos(g); renderGemBar(g);
     { const sig = g.learned.size + ":" + [...g.learned].sort().join(","); if (sig !== lastLearned) { renderSkills(g); lastLearned = sig; } }   // render lại khi TẬP phép đổi (kể cả đổi phép giữ nguyên số lượng)
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : "";
       const swappable = g.canSwap() && cd > 0; b.classList.toggle("swappable", swappable); if (swappable) b.title = s.name + " — 🎩 đang hồi chiêu: bấm để ĐỔI sang phép khác"; }
     if (!modal.classList.contains("hidden")) renderTree();
     { const can = hasLearnable(g); $("btnTree").classList.toggle("can-learn", can); $("btnTree2").classList.toggle("can-learn", can); }
     $("btnPause").textContent = g.paused ? "▶ Tiếp" : "⏸ Dừng"; $("btnSpeed").textContent = "⏩ x" + g.speed;
-    canvas.style.cursor = g.pendingPing ? "crosshair" : g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: chờ ping / dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
+    canvas.style.cursor = g.pendingGem ? CORE_CURSOR : g.pendingPing ? "crosshair" : g.pendingMove ? "move" : g.pendingCore ? CORE_CURSOR : g.pendingSkill ? AIM_CURSOR : g.buildType ? "cell" : "crosshair";  // con trỏ đổi: gắn gem / chờ ping / dời tháp / chờ Gia Cố / chờ mục tiêu phép / khi xây
     for (const b of coopPingBtns) b.classList.toggle("on", g.pendingPing === b.dataset.kind);
     renderTowerPanel(g); positionTowerQuick(g);
     if (g.wave !== prevWave && g.wave > 0) { log("Đợt " + g.wave + " bắt đầu", "ev"); prevWave = g.wave; }
@@ -454,6 +512,7 @@
   const coopPingBtns = [...document.querySelectorAll(".cb-ping")];
   coopPingBtns.forEach((b) => { b.onclick = () => game.setPing(b.dataset.kind); });
   game.onPing = (kind, mine) => { const p = CFG.PINGS[kind]; log((mine ? "📍 Bạn đánh dấu: " : "📍 Đồng đội: ") + (p ? p.icon + " " + p.label : kind), mine ? "ev" : "good"); };
+  game.onGem = (kind) => { const gd = CFG.GEMS[kind]; log("💎 Nhận gem " + (gd ? gd.icon + " " + gd.name : kind) + " — chọn tháp để gắn.", "good"); };
   const coopChat = $("coopChat"), ccText = $("ccText"), ccQuick = $("ccQuick"), bubbleBox = $("coopBubbles");
   CFG.QUICKCHAT.forEach((m, i) => { const b = document.createElement("button"); b.textContent = m; b.onclick = () => sendChat(i, null); ccQuick.appendChild(b); });
   $("cbChatToggle").onclick = () => { const nowHidden = coopChat.classList.toggle("hidden"); $("cbChatToggle").classList.toggle("on", !nowHidden); if (!nowHidden) ccText.focus(); };
@@ -485,14 +544,14 @@
   $("dbClearTowers").onclick = () => { game.clearBoard(); log("💣 Đã xóa hết tháp — vẽ lại mê cung.", "ev"); };
   function syncDbAuto() { const b = $("dbAuto"); if (!b) return; b.classList.toggle("on", game.autoNext); b.textContent = game.autoNext ? "⏸ Dừng thả" : "▶ Thả liên tục"; }
   const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận" };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
   $("modeEndless").onclick = () => newGame("endless");
   $("modeDesign").onclick = () => newGame("design");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame(game.mode || "endless"); };
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.pendingPing = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.pendingPing = null; game.pendingGem = null; game.emit(); return; }
     if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }

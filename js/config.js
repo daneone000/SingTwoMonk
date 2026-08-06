@@ -284,9 +284,44 @@
   const coreVal = (id, tier) => { const c = CORES[id]; return c && c.tiers[tier] != null ? c.tiers[tier] : 0; };
   // random không phụ thuộc (offer 3 thẻ per-player); tiers do server/solo phát riêng
 
+  /* ===================== COMBO LÕI ===================== */
+  // Chọn 2/3 lõi CÙNG NHÓM -> mở khóa hiệu ứng cộng thêm. Cộng dồn: 3 lõi = hưởng CẢ 2x lẫn 3x.
+  // Nhóm có combo (>=3 lõi khả dụng): Kinh tế / Tháp / Phòng thủ / Phép. "Bản đồ" chỉ 1 lõi -> không combo.
+  const COMBO_GROUPS = ["Kinh tế", "Tháp", "Phòng thủ", "Phép"];
+  const COMBOS = {
+    "Kinh tế": { icon: "💰", x2: "Nhận ngay +1000 vàng.", x3: "Mở đổi 10 KN → 50 vàng (lặp lại)." },
+    "Tháp": { icon: "🏰", x2: "+10% sát thương & tốc đánh cho LOẠI tháp đang xây NHIỀU NHẤT.", x3: "Chọn 1 loại tháp để cường hóa hiệu ứng đặc biệt." },
+    "Phòng thủ": { icon: "🛡", x2: "Mỗi 2 quái lọt cửa Tử → nhận 1 GEM (gắn vào tháp).", x3: "Gấp đôi chỉ số của mọi gem." },
+    "Phép": { icon: "🎩", x2: "Dùng 1 phép → hồi 25% thời gian phép đó cho 1 phép NGẪU NHIÊN khác.", x3: "Phép giết quái cho ×2 vàng; phép PvP mạnh hơn." },
+  };
+  const COMBO_ECO_GOLD = 1000, SP_TO_GOLD_SP = 10, SP_TO_GOLD_GOLD = 20;   // 3x Kinh tế: đổi KN→vàng tỉ lệ 1:2
+
+  /* ===================== GEM (ngũ hành) ===================== */
+  // Gắn vào tháp (tối đa 3/tháp). Nguồn DUY NHẤT: combo 2x Phòng thủ (2 quái lọt = 1 gem, NGẪU NHIÊN loại).
+  // base +10%/gem; ×2 khi có combo 3x Phòng thủ. Nhiều gem cùng loại cộng dồn.
+  const GEM_PER = 0.10, CRIT_MULT = 2, MAX_GEMS = 5, NGUHANH_MUL = 2;   // đủ 5 loại gem/tháp -> NGŨ HÀNH: ×2 hiệu quả mọi gem
+  const GEMS = {
+    kim: { key: "kim", name: "Kim", icon: "◈", color: "#ffd24a", stat: "crit", desc: (v) => `+${v}% tỉ lệ chí mạng (chí mạng gây ×2 sát thương).` },
+    moc: { key: "moc", name: "Mộc", icon: "❧", color: "#5ab54a", stat: "rate", desc: (v) => `+${v}% tốc đánh.` },
+    thuy: { key: "thuy", name: "Thuỷ", icon: "❄", color: "#29b6f6", stat: "slow", desc: (v) => `Đòn đánh làm chậm quái ${v}% (1.2s).` },
+    hoa: { key: "hoa", name: "Hoả", icon: "🔥", color: "#ff5722", stat: "dmg", desc: (v) => `+${v}% sát thương.` },
+    tho: { key: "tho", name: "Thổ", icon: "⬢", color: "#a1887f", stat: "stun", desc: (v) => `+${v}% xác suất choáng quái 1s khi trúng.` },
+  };
+  const GEM_ORDER = ["kim", "moc", "thuy", "hoa", "tho"];
+
+  /* ===== hằng số cường hóa tháp (combo 3x Tháp) ===== */
+  const TOWER_COMBO_BONUS = 0.10;               // 2x Tháp: +10% ST & tốc cho loại nhiều nhất
+  const BURN_CHANCE = 0.15, BURN_MISS_PCT = 0.02, BURN_DUR = 3;   // Lửa: 15% đốt = 2%/s MÁU ĐÃ MẤT (maxHp-hp), 3s
+  const FREEZE_CHANCE = 0.10, FREEZE_DUR = 1;                // Băng: 10% đóng băng 1s
+  const SET_DIST_PER = 0.10;                                 // Sét: +10%/ô khoảng cách — KHÔNG cap
+  const ENERGY_RANGE_MUL = 2;                                // Năng Lượng: nhân đôi tầm phủ
+
   STM.CFG = {
     TILE, COLS, ROWS, CELL, MARGIN, buildMap, MAPS, curMap, setMap, getMapId,
     CORES, CORE_ORDER, CORE_TIERS, CORE_TIER_INFO, CORE_UNLOCK_SP, coresAtTier, coreVal, MAX_CORES: 3, RAISE_SP: 10,
+    COMBO_GROUPS, COMBOS, COMBO_ECO_GOLD, SP_TO_GOLD_SP, SP_TO_GOLD_GOLD,
+    GEMS, GEM_ORDER, GEM_PER, CRIT_MULT, MAX_GEMS, NGUHANH_MUL,
+    TOWER_COMBO_BONUS, BURN_CHANCE, BURN_MISS_PCT, BURN_DUR, FREEZE_CHANCE, FREEZE_DUR, SET_DIST_PER, ENERGY_RANGE_MUL,
     GRID_W: TILE * COLS, GRID_H: TILE * ROWS,
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,

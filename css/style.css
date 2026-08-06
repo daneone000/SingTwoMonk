@@ -437,6 +437,35 @@ body.netplay #btnPause { display: none; }
 
 /* ============================ LÕI NÂNG CẤP ============================ */
 .core-slots { display: flex; flex-direction: column; gap: 4px; margin-bottom: 2px; }
+/* ===== COMBO LÕI ===== */
+.combo-bar { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.combo-bar.hidden, .gem-bar.hidden { display: none; }
+.combo-item { display: flex; gap: 7px; padding: 4px 8px; border-radius: 8px; border: 2px solid #b06be0;
+  background: linear-gradient(180deg, rgba(176,107,224,.18), rgba(0,0,0,.25)); box-shadow: 0 0 7px -3px #c98bff; }
+.combo-item .combo-ic { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+.combo-item .combo-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.combo-item .combo-tx > b { font-size: 11.5px; color: #e6c6ff; }
+.combo-item .combo-tx small { font-size: 10px; color: var(--dim); line-height: 1.25; }
+.combo-item .combo-tx small b { color: #ffd24a; }
+/* ===== TÚI GEM ===== */
+.gem-bar { display: flex; flex-direction: column; gap: 5px; margin: 4px 0; padding: 6px 8px; border-radius: 8px;
+  border: 2px solid var(--gold-d); background: var(--stone-d); }
+.gem-title { font-size: 11px; color: var(--gold); font-weight: 700; }
+.gem-title small { color: var(--dim); font-weight: 400; font-size: 9.5px; }
+.gem-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.gem-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; cursor: pointer;
+  padding: 3px 8px; border-radius: 14px; color: #fff; background: #1a1a12; border: 2px solid var(--gc, #ffd24a); }
+.gem-chip:hover { background: #26261a; }
+.gem-chip.on { background: var(--gc); color: #14140c; box-shadow: 0 0 8px -1px var(--gc); }
+.sp-gold-btn { align-self: flex-start; font-size: 11px; font-weight: 700; cursor: pointer; padding: 4px 10px;
+  border-radius: 7px; color: #14140c; background: var(--gold); border: 1px solid var(--gold-d); }
+.sp-gold-btn:disabled { opacity: .45; cursor: default; }
+.tp-gemline { grid-column: 1 / -1; font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 5px; }
+.tp-gem { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 12px;
+  border: 1.5px solid var(--gc, var(--gold-d)); background: #14140c; }
+.tp-gem.empty { color: #555; border-color: #444; }
+.tp-nguhanh { font-size: 10.5px; font-weight: 800; color: #14140c; padding: 1px 7px; border-radius: 10px;
+  background: linear-gradient(90deg, #ffd24a, #5ab54a, #29b6f6, #ff5722, #a1887f); }
 .core-slot { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 8px;
   border: 2px solid var(--gold-d); background: var(--stone-d); position: relative; --tc: var(--gold); }
 .core-slot .core-ic { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
