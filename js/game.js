@@ -45,7 +45,10 @@
       this.gemBag = { kim: 0, moc: 0, thuy: 0, hoa: 0, tho: 0 };   // túi gem chờ gắn (nguồn: combo 2x Phòng thủ)
       this._leakGemCtr = 0;                          // đếm quái lọt để phát gem (mỗi 2)
       this.pendingGem = null;                        // loại gem đang chờ bấm tháp để gắn
-      this.towerBoon = null;                         // combo 3x Tháp: loại tháp được cường hóa (Phase 2)
+      this.towerBoon = null;                         // combo 3x Tháp: loại tháp được cường hóa (chọn 1 lần/ván)
+      this.boonPending = false;                      // đang chờ người chơi chọn loại cường hóa (mở modal)
+      this._comboTowerType = null;                   // 2x Tháp: loại tháp đang được +10% (nhiều nhất)
+      this._lastBuiltType = null; this._lastSoldType = null; this._tieAfterSell = false;   // tie-break 2x Tháp
       if (mode === "design") { this.gold = CFG.DESIGN_GOLD; this.sp = CFG.DESIGN_SP; this.autoNext = false; }   // sân thử: tài nguyên vô hạn, KHÔNG tự gọi đợt
       this.computeFlow(); this.buildTerrain(); this.emit();
     }
@@ -72,6 +75,7 @@
         this._comboEcoPaid = true; this.gold += CFG.COMBO_ECO_GOLD;
         if (this.onCoreLog) this.onCoreLog("💰 Combo Kinh tế (2×): +" + CFG.COMBO_ECO_GOLD + " vàng!");
       }
+      if (this.hasCombo("Tháp", 3) && !this.towerBoon && !this.boonPending && !this.mirror) { this.boonPending = true; if (this.onBoonOffer) this.onBoonOffer(); }   // 3x Tháp: mở modal chọn cường hóa
     }
     // combo 3x Kinh tế: đổi 10 KN -> 50 vàng
     exchangeSpForGold() {
@@ -301,13 +305,15 @@
     recomputeAuras() {
       this.recomputeCores();   // Nguyên Bản: cập nhật origMul theo tháp đã max cấp
       const sups = this.towers.filter((t) => t.emitsAura && t.ready);   // Năng Lượng (kể cả sau dung hợp) phát aura
+      const rngMul = this.towerBoon === "nangluong" ? CFG.ENERGY_RANGE_MUL : 1;   // boon Năng Lượng: nhân đôi tầm phủ
       for (const t of this.towers) {
         if (!t.firesFused) continue;   // chỉ tháp CÓ BẮN mới nhận buff (tháp dung hợp Năng Lượng tự buff vì dist=0)
         let dmg = 0, rate = 0;
-        for (const s of sups) { const st = s.auraStats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE) { dmg += st.dmgBonus; rate += st.rateBonus; } }
+        for (const s of sups) { const st = s.auraStats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE * rngMul) { dmg += st.dmgBonus; rate += st.rateBonus; } }
         t.auraDmg = 1 + dmg; t.auraRate = 1 / (1 + rate);   // KHÔNG còn trần: buff cộng dồn từ mọi tháp Năng Lượng trong tầm (tự chặn ~8 tháp do tầm 1.5)
       }
       this.recomputeGems();
+      this.recomputeTowerCombo();
     }
     // GEM: gộp chỉ số gem của từng tháp -> cache lên tháp (đọc lúc bắn). Gọi trong recomputeAuras.
     recomputeGems() {
@@ -324,6 +330,34 @@
         t.gemSlow = per * cnt("thuy");
         t.gemStun = per * cnt("tho");
       }
+    }
+    /* ------------------------- COMBO THÁP (Phase 2) ------------------------- */
+    // loại tháp XÂY NHIỀU NHẤT (tie-break: loại xây gần nhất; nếu hòa NGAY SAU khi bán -> loại KHÁC loại vừa bán)
+    mostBuiltType() {
+      const cnt = {}; for (const t of this.towers) if (!t.trap) cnt[t.type] = (cnt[t.type] || 0) + 1;
+      let max = 0; for (const k in cnt) if (cnt[k] > max) max = cnt[k];
+      if (max === 0) return null;
+      const tied = Object.keys(cnt).filter((k) => cnt[k] === max);
+      if (tied.length === 1) return tied[0];
+      if (this._tieAfterSell && this._lastSoldType) {   // hòa ngay sau khi bán -> tránh loại vừa bán
+        const rest = tied.filter((k) => k !== this._lastSoldType);
+        if (rest.length) return (this._lastBuiltType && rest.includes(this._lastBuiltType)) ? this._lastBuiltType : rest[0];
+      }
+      return (this._lastBuiltType && tied.includes(this._lastBuiltType)) ? this._lastBuiltType : tied[0];   // mặc định: loại xây gần nhất
+    }
+    // cache cờ combo (2x) + boon (3x) lên từng tháp — gọi trong recomputeAuras
+    recomputeTowerCombo() {
+      const buffType = this.hasCombo("Tháp", 2) ? this.mostBuiltType() : null;
+      this._comboTowerType = buffType;
+      const boon = this.towerBoon;
+      for (const t of this.towers) { t.comboBuff = !t.trap && t.type === buffType; t.boon = (boon && t.type === boon) ? boon : null; }
+    }
+    // combo 3x Tháp: chọn 1 LOẠI tháp để cường hóa (một lần/ván)
+    pickTowerBoon(type) {
+      if (this.towerBoon || !CFG.TOWERS[type]) return false;
+      this.towerBoon = type; this.boonPending = false;
+      if (this.onCoreLog) this.onCoreLog("🏰 Cường hóa " + CFG.TOWERS[type].name + " (combo 3× Tháp).");
+      this.recomputeAuras(); this.emit(); return true;
     }
 
     /* --------------------- xây / nâng / bán --------------------- */
@@ -355,7 +389,7 @@
         this.emit(); return;
       }
       if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= cost; this.selected = t; }
-      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this.computeFlow(); this.recomputeAuras(); }
+      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this._lastBuiltType = type; this._tieAfterSell = false; this.computeFlow(); this.recomputeAuras(); }
       this._coreActed(); this.emit();
     }
     // Nâng cấp: trừ vàng ngay, tăng cấp, nhưng CHỜ (chưa hiệu lực) trong UP_TIME.
@@ -385,7 +419,7 @@
       if (cmd.act === "build") {
         const type = cmd.type, isTrap = !!CFG.TRAPS[type];
         if (isTrap) { if (!this.isLandFree(cmd.c, cmd.r)) return false; const t = new STM.Trap(type, cmd.c, cmd.r); this.traps.push(t); this.occupied.add(cmd.c + "," + cmd.r); }
-        else { if (!this.canPlaceTower(cmd.c, cmd.r)) return false; const t = new STM.Tower(type, cmd.c, cmd.r); t.startWork("build", CFG.workTime(CFG.TOWERS[type].cost, this.wave)); this.towers.push(t); this.occupied.add(cmd.c + "," + cmd.r); this.blockSet.add(cmd.c + "," + cmd.r); this.computeFlow(); this.recomputeAuras(); }
+        else { if (!this.canPlaceTower(cmd.c, cmd.r)) return false; const t = new STM.Tower(type, cmd.c, cmd.r); t.startWork("build", CFG.workTime(CFG.TOWERS[type].cost, this.wave)); this.towers.push(t); this.occupied.add(cmd.c + "," + cmd.r); this.blockSet.add(cmd.c + "," + cmd.r); this._lastBuiltType = type; this._tieAfterSell = false; this.computeFlow(); this.recomputeAuras(); }
         this.emit(); return true;
       } else if (cmd.act === "up") {
         const t = this.towerAt(cmd.c, cmd.r); if (!t || t.maxLevel || !t.ready) return false; t.upgrade(); t.startWork("up", CFG.workTime(t.upgradeCost, this.wave)); this.recomputeAuras(); this.emit(); return true;
@@ -894,7 +928,7 @@
       for (const t of this.towers) t.update(pdt, this);
       // tháp đang "bán/phá" hết giờ -> gỡ khỏi sân (+ hoàn vàng nếu do người chơi bán)
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
-      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; } this.computeFlow(); this.recomputeAuras(); this.emit(); }
+      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; if (!t.trap) { this._lastSoldType = t.type; this._tieAfterSell = true; } } this.computeFlow(); this.recomputeAuras(); this.emit(); }
       if (this._towerDone) { this._towerDone = false; this.recomputeAuras(); this.emit(); }   // xây/nâng xong -> cập nhật aura
       for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);

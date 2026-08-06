@@ -21,7 +21,7 @@
       else { const sp = game.enemySpawnCell(); this.x = (sp.c + 0.5) * TILE; this.y = (sp.r + 0.5) * TILE; }
       this.dead = false; this.leaked = false;
       this.slowMult = 1; this.slowTime = 0; this.freezeTime = 0;
-      this.burnDps = 0; this.burnTime = 0; this.poison = []; this.pullCd = 0; this.remain = 1e9;
+      this.burnDps = 0; this.burnTime = 0; this.burnMissPct = 0; this.burnMissTime = 0; this.poison = []; this.pullCd = 0; this.remain = 1e9;
       this.wingPhase = Math.random() * 6; this.animT = Math.random() * 3;
       this.slowResist = def.slowResist || 0;   // kháng làm chậm (0..1)
       this.pRes = def.poisonResist || null;    // kháng độc: {dmg, dur} — giảm ST độc & thời gian nhiễm
@@ -31,12 +31,14 @@
     slow(m, d) { const eff = 1 - (1 - m) * (1 - this.slowResist); if (eff < this.slowMult || this.slowTime <= 0) this.slowMult = eff; this.slowTime = Math.max(this.slowTime, d * (1 - this.slowResist * 0.5)); }
     freeze(d) { this.freezeTime = Math.max(this.freezeTime, d); }
     burn(dps, d) { this.burnDps = Math.max(this.burnDps, dps); this.burnTime = Math.max(this.burnTime, d); }
-    addPoison(pct, d, mx) { if (this.pRes) { pct *= (1 - this.pRes.dmg); d *= (1 - this.pRes.dur); } if (this.poison.length < mx) this.poison.push({ pct, time: d }); else this.poison[0] = { pct, time: d }; }  // pct = % máu HIỆN TẠI / giây; kháng độc giảm cả ST & thời gian
+    burnMiss(pct, d) { this.burnMissPct = Math.max(this.burnMissPct, pct); this.burnMissTime = Math.max(this.burnMissTime, d); }   // Lửa boon: đốt = %/s MÁU ĐÃ MẤT
+    addPoison(pct, d, mx, useMax) { if (this.pRes) { pct *= (1 - this.pRes.dmg); d *= (1 - this.pRes.dur); } const ent = { pct, time: d, max: !!useMax }; if (this.poison.length < mx) this.poison.push(ent); else this.poison[0] = ent; }  // pct = %/giây máu (HIỆN TẠI, hoặc TỐI ĐA nếu max); kháng độc giảm cả ST & thời gian
     teleportTo(cx, cy) { this.x = cx; this.y = cy; }
 
     update(dt, game) {
       if (this.burnTime > 0) { this.applyDamage(this.burnDps * dt, true); this.burnTime -= dt; }
-      if (this.poison.length) { let f = 0; for (const p of this.poison) { f += p.pct; p.time -= dt; } if (f > 0) this.applyDamage(this.hp * f * dt, true); this.poison = this.poison.filter((p) => p.time > 0); }  // trừ theo % máu hiện tại
+      if (this.burnMissTime > 0) { this.applyDamage((this.maxHp - this.hp) * this.burnMissPct * dt, true); this.burnMissTime -= dt; }   // Lửa boon: đốt theo máu ĐÃ MẤT
+      if (this.poison.length) { let dmg = 0; for (const p of this.poison) { dmg += (p.max ? this.maxHp : this.hp) * p.pct; p.time -= dt; } if (dmg > 0) this.applyDamage(dmg * dt, true); this.poison = this.poison.filter((p) => p.time > 0); }  // độc: % máu hiện tại (hoặc TỐI ĐA nếu boon Độc)
       if (this.slowTime > 0) { this.slowTime -= dt; if (this.slowTime <= 0) this.slowMult = 1; }
       if (this.freezeTime > 0) this.freezeTime -= dt;
       if (this.critFx > 0) this.critFx -= dt;   // GEM Kim: nháy chí mạng
@@ -257,8 +259,9 @@
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }
     upgrade() { if (this.maxLevel) return false; this.totalSpent += this.upgradeCost; this.level++; return true; }
     buff(m, d) { this.buffMult = m; this.buffTime = d; }
-    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul() * (this.gemDmgMul || 1); }
-    effRate() { return this.fstats.rate * this.auraRate / this.coreMul() / (this.gemRateMul || 1); }   // chia -> bắn nhanh hơn (lõi + gem Mộc)
+    comboBuffMul() { return this.comboBuff ? 1 + CFG.TOWER_COMBO_BONUS : 1; }   // 2x Tháp: +10% cho loại xây nhiều nhất
+    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul() * (this.gemDmgMul || 1) * this.comboBuffMul(); }
+    effRate() { return this.fstats.rate * this.auraRate / this.coreMul() / (this.gemRateMul || 1) / this.comboBuffMul(); }   // chia -> bắn nhanh hơn (lõi + gem Mộc + combo 2x tháp)
     canHit(e) { const t = this.fireTarget; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
     findTarget(en) {
       let best = null, br = 1e18; const rng = this.range;
@@ -273,7 +276,18 @@
       if (this.buffTime > 0) this.buffTime -= dt;
       const t = this.findTarget(game.enemies); if (!t) return;
       this.angle = Math.atan2(t.y - this.y, t.x - this.x);
-      if (this.cooldown <= 0) { game.projectiles.push(new Projectile(this, t)); this.cooldown = this.effRate(); }
+      if (this.cooldown <= 0) {
+        if (this.boon === "ten") { for (const tg of this.findTargets(game.enemies, this.level)) game.projectiles.push(new Projectile(this, tg)); }   // Tên boon: đa mục tiêu = cấp tháp
+        else game.projectiles.push(new Projectile(this, t));
+        this.cooldown = this.effRate();
+      }
+    }
+    // n mục tiêu gần đích nhất trong tầm (Tên boon: bắn đa mục tiêu)
+    findTargets(en, n) {
+      const rng = this.range, arr = [];
+      for (const e of en) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= rng + e.radius) arr.push(e); }
+      arr.sort((a, b) => a.remain - b.remain);
+      return arr.slice(0, Math.max(1, n));
     }
     draw(ctx, sel) {
       const x = this.x, y = this.y, working = !this.ready;
@@ -489,17 +503,22 @@
       this.x = tower.x; this.y = tower.y; this.target = target; this.tx = target.x; this.ty = target.y; this.dead = false;
       // GEM: mang theo chỉ số gem của tháp lúc bắn
       this.gemCrit = tower.gemCrit || 0; this.gemSlow = tower.gemSlow || 0; this.gemStun = tower.gemStun || 0;
+      // BOON (combo 3x Tháp): loại tháp được cường hóa
+      this.boon = tower.boon || null;
+      this.boonDistMul = (this.boon === "set") ? 1 + CFG.SET_DIST_PER * (dist(tower.x, tower.y, target.x, target.y) / TILE) : 1;   // Sét: +10%/ô, không cap
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e) {
-      let dmg = this.dmg;
-      if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng ×1.5
+      let dmg = this.dmg * this.boonDistMul;   // Sét boon: +dmg theo khoảng cách
+      if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng
       e.applyDamage(dmg);
       if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm
       if (this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);     // GEM Thổ: choáng 1s
+      if (this.boon === "bang" && Math.random() < CFG.FREEZE_CHANCE) e.freeze(CFG.FREEZE_DUR);        // Băng boon: 10% đóng băng 1s
+      if (this.boon === "lua" && Math.random() < CFG.BURN_CHANCE) e.burnMiss(CFG.BURN_MISS_PCT, CFG.BURN_DUR);   // Lửa boon: đốt %máu đã mất
       for (const fx of this.effects) {   // dung hợp có thể có nhiều hiệu ứng (làm chậm + độc...)
         if (fx === "slow") e.slow(1 - Math.min(0.95, (this.st.slowPct || 0) * this.effMul), 1.2);
-        else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4);  // mỗi giây trừ (poisonPct/5) % máu HIỆN TẠI, 5s
+        else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4, this.boon === "doc");  // độc: %máu HIỆN TẠI (hoặc TỐI ĐA nếu boon Độc), 5s
       }
     }
     update(dt, game) {

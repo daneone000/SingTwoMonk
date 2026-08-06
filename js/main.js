@@ -312,6 +312,28 @@
   }
   $("coreCancel").onclick = () => { game.cancelCoreOffer(); coreModal.classList.add("hidden"); };
   coreModal.onclick = (e) => { if (e.target === coreModal) { game.cancelCoreOffer(); coreModal.classList.add("hidden"); } };
+  // ===== COMBO 3× THÁP: chọn 1 loại tháp để cường hóa =====
+  const BOON_DESC = {
+    doc: "Độc trừ theo % MÁU TỐI ĐA (thay vì máu hiện tại) — xé boss/quái trâu mạnh hơn nhiều.",
+    bang: "10% mỗi đòn → ĐÓNG BĂNG mục tiêu 1s.",
+    lua: "15% mỗi đòn → THIÊU ĐỐT: 2%/giây MÁU ĐÃ MẤT trong 3s (càng bị đánh càng cháy mạnh).",
+    ten: "Bắn ĐA MỤC TIÊU — số mục tiêu = cấp tháp (tối đa 5).",
+    set: "Gây thêm sát thương theo KHOẢNG CÁCH tới mục tiêu (+10%/ô, không giới hạn).",
+    nangluong: "Nhân đôi TẦM PHỦ buff (1.5 → 3.0 ô).",
+  };
+  const boonModal = $("boonModal"), boonCards = $("boonCards");
+  game.onBoonOffer = () => renderBoonModal();
+  function renderBoonModal() {
+    boonCards.innerHTML = "";
+    for (const type of CFG.TOWER_ORDER) {
+      const def = CFG.TOWERS[type], card = document.createElement("button");
+      card.className = "core-card"; card.style.setProperty("--tc", def.color);
+      card.innerHTML = `<span class="cc-badge" style="background:${def.color}">Tháp</span><span class="cc-ic">${def.glyph}</span><span class="cc-name">${def.name}</span><span class="cc-group">Cường hóa</span><span class="cc-desc">${BOON_DESC[type]}</span>`;
+      card.onclick = () => { if (game.pickTowerBoon(type)) { boonModal.classList.add("hidden"); log("🏰 Cường hóa " + def.name + " (combo 3× Tháp).", "good"); } };
+      boonCards.appendChild(card);
+    }
+    boonModal.classList.remove("hidden");
+  }
 
   /* ---------- WIKI tra cứu lõi ---------- */
   const coreWiki = $("coreWiki"), wikiBody = $("wikiBody");
@@ -470,6 +492,7 @@
       const cs = b.querySelector(".tw-cost"); const txt = "💰" + cost; if (cs.textContent !== txt) cs.textContent = txt;
     }
     maybeRenderCores(g); updateAfkLive(g); renderCombos(g); renderGemBar(g);
+    if (g.boonPending && !g.towerBoon && boonModal.classList.contains("hidden")) renderBoonModal();   // 3x Tháp: đảm bảo modal chọn cường hóa hiện
     { const sig = g.learned.size + ":" + [...g.learned].sort().join(","); if (sig !== lastLearned) { renderSkills(g); lastLearned = sig; } }   // render lại khi TẬP phép đổi (kể cả đổi phép giữ nguyên số lượng)
     for (const b of skillGrid.querySelectorAll(".sk-btn")) { const k = b.dataset.key, s = CFG.SKILLS[k], cd = g.skillCd[k] || 0, pvpLock = s.aim === "pvp" && !g.versus; b.classList.toggle("active", g.pendingSkill === k); b.classList.toggle("cant", pvpLock || cd > 0); b.querySelector(".cd").textContent = cd > 0 ? cd.toFixed(0) : "";
       const swappable = g.canSwap() && cd > 0; b.classList.toggle("swappable", swappable); if (swappable) b.title = s.name + " — 🎩 đang hồi chiêu: bấm để ĐỔI sang phép khác"; }
@@ -544,7 +567,7 @@
   $("dbClearTowers").onclick = () => { game.clearBoard(); log("💣 Đã xóa hết tháp — vẽ lại mê cung.", "ev"); };
   function syncDbAuto() { const b = $("dbAuto"); if (!b) return; b.classList.toggle("on", game.autoNext); b.textContent = game.autoNext ? "⏸ Dừng thả" : "▶ Thả liên tục"; }
   const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận" };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); boonModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
   $("modeEndless").onclick = () => newGame("endless");
   $("modeDesign").onclick = () => newGame("design");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame(game.mode || "endless"); };
