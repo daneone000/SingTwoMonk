@@ -108,14 +108,14 @@
     nangluong: {
       key: "nangluong", name: "Tháp Năng Lượng", glyph: "✦", color: "#00e5ff", target: "none", block: true, support: true,
       cost: 30, up: [40, 80, 150, 300], color2: "#7bf4ff",
-      // BUFF cộng dồn KHÔNG trần (game.js). MẠNH HƠN bản gốc nhưng giữ F1=(1+dmg)(1+rate)≈1.90 < 2 ở lv5:
-      // 1 NL buff 1 tháp vẫn < xây THÊM 1 tháp -> chỉ LỜI rõ khi 1 NL buff >=2 tháp (dồn nhiều tháp bắn quanh 1 NL). Tầm GIỮ 1.5.
+      // lv1 = +10%/+10% ĐÚNG BẢNG GỐC (ảnh play.zing). lv2-5 ƯỚC LƯỢNG: tăng dần, giữ F1=(1+dmg)(1+rate)≈1.90 < 2 ở lv5
+      // -> 1 NL buff 1 tháp vẫn < xây THÊM 1 tháp; chỉ LỜI rõ khi 1 NL buff >=2 tháp (dồn nhiều tháp bắn quanh 1 NL). Tầm GIỮ 1.5.
       lv: [
-        { range: 1.5, dmgBonus: 0.14, rateBonus: 0.08 }, { range: 1.5, dmgBonus: 0.22, rateBonus: 0.12 },
-        { range: 1.5, dmgBonus: 0.32, rateBonus: 0.17 }, { range: 1.5, dmgBonus: 0.42, rateBonus: 0.22 },
+        { range: 1.5, dmgBonus: 0.10, rateBonus: 0.10 }, { range: 1.5, dmgBonus: 0.20, rateBonus: 0.14 },
+        { range: 1.5, dmgBonus: 0.30, rateBonus: 0.18 }, { range: 1.5, dmgBonus: 0.40, rateBonus: 0.23 },
         { range: 1.5, dmgBonus: 0.50, rateBonus: 0.27 },
       ],
-      desc: "KHÔNG bắn — buff sức mạnh (+14→50%) & tốc bắn (+8→27%) cho tháp quanh (tầm 1.5). 1 NL < xây thêm 1 tháp: chỉ thật lời khi buff ≥2 tháp cùng lúc.",
+      desc: "KHÔNG bắn — buff sức mạnh (+10→50%) & tốc bắn (+10→27%) cho tháp quanh (tầm 1.5). 1 NL < xây thêm 1 tháp: chỉ thật lời khi buff ≥2 tháp cùng lúc.",
     },
   };
   const TRAPS = {
