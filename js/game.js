@@ -758,7 +758,8 @@
       const sp = e.boss ? CFG.SP_PER_BOSS : CFG.SP_PER_KILL;
       // 2v2: mỗi người ít vàng hơn (×0.75) nhưng cả hai cùng nhận -> tổng đội = 1.5× người thường
       // 2v2-vs-MÁY: bàn đội MÁY (2 máy chung bàn) ăn ×1.5 để đua kịp; các bàn khác giữ nguyên
-      const base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : Math.round(e.reward * (this.teamGoldMul || 1));
+      let base = this.t2 ? Math.round(e.reward * CFG.VS2V2_GOLD_MUL) : Math.round(e.reward * (this.teamGoldMul || 1));
+      if (e._spellHit && this.hasCombo("Phép", 3)) base *= 2;   // 3x Phép: quái bị phép giết -> ×2 vàng
       const got = this.gainGold(base);   // Tay Buôn: +% vàng
       this.gold += got; this.sp += sp; this.score += e.reward * 2 + (e.boss ? 500 : 0);
       this._curWaveGold += got;          // AFK: gom vàng đợt hiện tại
@@ -846,20 +847,21 @@
         this.playSpellFx(key, x, y);   // DỰ ĐOÁN: hiện hiệu ứng phép NGAY trên bàn mình (khỏi chờ chủ-bàn phát fx về)
         this.skillCd[key] = s.cd * this.spellCdMul(); this.pendingSkill = null; this.emit(); return;
       }
+      const p3 = this.hasCombo("Phép", 3);   // 3x Phép: phép giết quái ×2 vàng + phép nền dài gấp đôi
       switch (key) {
         case "muaLua": case "baoSet": {
           const r = s.radius * TILE, air = s.hits === "air";
-          for (const e of this.enemies) if (!e.dead && !e.leaked && e.fly === air && D(e.x, e.y, x, y) <= r) e.applyDamage(s.dmg + s.pct * (e.maxHp - e.hp), true);   // % theo máu ĐÃ MẤT
+          for (const e of this.enemies) if (!e.dead && !e.leaked && e.fly === air && D(e.x, e.y, x, y) <= r) { e.applyDamage(s.dmg + s.pct * (e.maxHp - e.hp), true); e._spellHit = true; }   // % theo máu ĐÃ MẤT
           this.effects.push(new BlastRing(x, y, r, air ? "#fff3b0" : "#ffb057"));
           for (let i = 0; i < 7; i++) { const a = Math.random() * 6.283, rr = Math.sqrt(Math.random()) * r * .9, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr, delay = Math.random() * .35; this.effects.push(air ? new BoltFx(px, py, delay) : new MeteorFx(px, py, delay)); }
           break;
         }
         case "khoiDoc": this.effects.push(new STM.PoisonCloud(x, y, s.radius * TILE, s.dps, s.dur, s.pctps)); break;
-        case "phongAn": { const r = s.radius * TILE; for (const e of this.enemies) if (D(e.x, e.y, x, y) <= r) e.freeze(s.dur); this.effects.push(new BlastRing(x, y, r, "#bdeaff")); break; }
-        case "nhatDuong": if (target && !target.dead) { if (target.boss) target.applyDamage(target.maxHp * .25, true); else target.applyDamage(target.hp + 1, true); this.effects.push(new StrikeFx(target.x, target.y, "#fff2a0")); } break;
-        case "tangLuc": if (target && target instanceof STM.Tower && !target.support) { target.buff(s.mult, s.dur); this.effects.push(new PowerUpFx(target.x, target.y)); } break;
-        case "kiemThan": { for (const e of this.enemies) if (!e.dead && !e.leaked) { e.applyDamage(s.dmg + s.pct * e.maxHp, true); this.effects.push(new SlashFx(e.x, e.y, "#fff0b0")); } this.effects.push(new FieldFlash("#ffe082", .45)); break; }
-        case "meTran": for (const e of this.enemies) e.slow(s.slow, s.dur); this.effects.push(new FieldFlash("#88b8ff", .7)); break;
+        case "phongAn": { const r = s.radius * TILE, dur = s.dur * (p3 ? 2 : 1); for (const e of this.enemies) if (D(e.x, e.y, x, y) <= r) e.freeze(dur); this.effects.push(new BlastRing(x, y, r, "#bdeaff")); break; }
+        case "nhatDuong": if (target && !target.dead) { if (target.boss) target.applyDamage(target.maxHp * .25, true); else target.applyDamage(target.hp + 1, true); target._spellHit = true; this.effects.push(new StrikeFx(target.x, target.y, "#fff2a0")); } break;
+        case "tangLuc": if (target && target instanceof STM.Tower && !target.support) { target.buff(s.mult, s.dur * (p3 ? 2 : 1)); this.effects.push(new PowerUpFx(target.x, target.y)); } break;
+        case "kiemThan": { for (const e of this.enemies) if (!e.dead && !e.leaked) { e.applyDamage(s.dmg + s.pct * e.maxHp, true); e._spellHit = true; this.effects.push(new SlashFx(e.x, e.y, "#fff0b0")); } this.effects.push(new FieldFlash("#ffe082", .45)); break; }
+        case "meTran": for (const e of this.enemies) e.slow(s.slow, s.dur * (p3 ? 2 : 1)); this.effects.push(new FieldFlash("#88b8ff", .7)); break;
         case "dichChuyen": for (const e of this.enemies) { this.effects.push(new TeleFx(e.x, e.y)); if (e.fly) { e.x = this.map.sinhPix.x; e.y = this.map.sinhPix.y; } else { const sp = this.enemySpawnCell(); e.x = (sp.c + .5) * TILE; e.y = (sp.r + .5) * TILE; } this.effects.push(new TeleFx(e.x, e.y)); e.remain = 1e9; } this.effects.push(new FieldFlash("#b79cff", .5)); break;
         // ---- phép PvP: tác động lên TẤT CẢ đối thủ (local qua Match / mạng qua server) ----
         case "trieuHoi": this.castPvp("trieuHoi"); this.effects.push(new FieldFlash("#c56bff", .4)); break;
@@ -869,6 +871,11 @@
         default: return;
       }
       if (!free) this.skillCd[key] = s.cd * this.spellCdMul();   // Nhanh Nhẹn giảm hồi chiêu; chủ-bàn áp lệnh đồng đội thì KHÔNG tính hồi chiêu của mình
+      if (!free && this.hasCombo("Phép", 2)) {   // 2x Phép: hồi 25% thời gian phép vừa dùng cho 1 phép NGẪU NHIÊN khác (đang hồi chiêu)
+        const refund = s.cd * this.spellCdMul() * 0.25;
+        const others = [...this.learned].filter((k) => k !== key && (this.skillCd[k] || 0) > 0);
+        if (others.length) { const rk = others[(Math.random() * others.length) | 0]; this.skillCd[rk] = Math.max(0, this.skillCd[rk] - refund); if (this.onSpellRefund) this.onSpellRefund(rk, refund); }
+      }
       // 2v2: chủ-bàn tự thi triển phép BÀN -> phát HÌNH ẢNH cho đồng đội (chỉ khi phép của CHÍNH mình; phép đồng đội gửi lên đã hiện optimistic bên họ)
       if (!free && this.t2 && this.t2.isAuthority && s.aim !== "pvp") this.netMatch.sendFx(key, x, y);
       this.pendingSkill = null; this.emit();

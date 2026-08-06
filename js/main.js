@@ -536,6 +536,7 @@
   coopPingBtns.forEach((b) => { b.onclick = () => game.setPing(b.dataset.kind); });
   game.onPing = (kind, mine) => { const p = CFG.PINGS[kind]; log((mine ? "📍 Bạn đánh dấu: " : "📍 Đồng đội: ") + (p ? p.icon + " " + p.label : kind), mine ? "ev" : "good"); };
   game.onGem = (kind) => { const gd = CFG.GEMS[kind]; log("💎 Nhận gem " + (gd ? gd.icon + " " + gd.name : kind) + " — chọn tháp để gắn.", "good"); };
+  game.onSpellRefund = (key, amt) => { const s = CFG.SKILLS[key]; if (s) log("🎩 Combo Phép: hồi " + amt.toFixed(0) + "s hồi chiêu " + s.name + ".", "ev"); };
   const coopChat = $("coopChat"), ccText = $("ccText"), ccQuick = $("ccQuick"), bubbleBox = $("coopBubbles");
   CFG.QUICKCHAT.forEach((m, i) => { const b = document.createElement("button"); b.textContent = m; b.onclick = () => sendChat(i, null); ccQuick.appendChild(b); });
   $("cbChatToggle").onclick = () => { const nowHidden = coopChat.classList.toggle("hidden"); $("cbChatToggle").classList.toggle("on", !nowHidden); if (!nowHidden) ccText.focus(); };
