@@ -108,13 +108,13 @@
     nangluong: {
       key: "nangluong", name: "Tháp Năng Lượng", glyph: "✦", color: "#00e5ff", target: "none", block: true, support: true,
       cost: 30, up: [40, 80, 150, 300], color2: "#7bf4ff",
-      // L1 (+10%/+10%) đúng bảng gốc; buff L2-L5 ƯỚC LƯỢNG. Tầm KHÔNG đổi (1.5).
+      // BUFF: bonus mạnh hơn hẳn. Tầm phủ GIỮ NGUYÊN 1.5.
       lv: [
-        { range: 1.5, dmgBonus: 0.10, rateBonus: 0.10 }, { range: 1.5, dmgBonus: 0.15, rateBonus: 0.13 },
-        { range: 1.5, dmgBonus: 0.22, rateBonus: 0.17 }, { range: 1.5, dmgBonus: 0.30, rateBonus: 0.22 },
-        { range: 1.5, dmgBonus: 0.40, rateBonus: 0.28 },
+        { range: 1.5, dmgBonus: 0.20, rateBonus: 0.15 }, { range: 1.5, dmgBonus: 0.35, rateBonus: 0.24 },
+        { range: 1.5, dmgBonus: 0.55, rateBonus: 0.35 }, { range: 1.5, dmgBonus: 0.80, rateBonus: 0.48 },
+        { range: 1.5, dmgBonus: 1.10, rateBonus: 0.65 },
       ],
-      desc: "KHÔNG bắn — buff sức mạnh & tốc bắn cho tháp quanh (10-40%).",
+      desc: "KHÔNG bắn — buff MẠNH sức mạnh (+20→110%) & tốc bắn (+15→65%) cho tháp quanh (tầm 1.5).",
     },
   };
   const TRAPS = {
