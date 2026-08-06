@@ -181,7 +181,7 @@ function deliverPvp(slot, msg) {
 }
 function applyPvpToGame(g, msg) {
   const map = { trieuHoi: "pvpSummon", huyetQuy: "pvpHaste", maGiap: "pvpArmor", diaChan: "pvpQuake" };
-  if (msg.t === "teamspell" || msg.t === "spell") { if (map[msg.key]) g[map[msg.key]](msg.data && msg.data.type); }
+  if (msg.t === "teamspell" || msg.t === "spell") { if (map[msg.key]) g[map[msg.key]](msg.data); }
   else if (msg.t === "teamvacuum" || msg.t === "vacuum") g.spawnTransferred(msg.data);
 }
 
@@ -223,7 +223,7 @@ function setupBots(R) {
         mode: "2v2", isAuthority: false, myPid: s.pid,
         sendCmd: (cc) => { const a = authorityOf(R, s.team); if (a) send(a, { t: "cmd", from: s.pid, c: cc }); },   // nâng/gắn-lõi -> chủ-bàn NGƯỜI
         sendTeamSpell: (key, data) => routeBotPvp(s, key, data),                                                    // phép PvP -> bàn đội địch
-        sendTeamVacuum: () => {}, sendVacuum: () => {}, sendSpell: () => {}, sendPCores: () => {}, sendCores: () => {}, sendSkills: () => {},
+        sendTeamVacuum: () => {}, sendVacuum: () => {}, sendSpell: () => {}, sendPCores: () => {}, sendCores: () => {}, sendSkills: () => {}, sendGemAward: () => {},
       };
       if (R.coreTiers && R.coreTiers.length === 3) bg.coreTiers = R.coreTiers;
       s.mind = bg;
@@ -430,6 +430,7 @@ function handleMsg(c, msg) {
     case "fx": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "fx", key: o.key, x: o.x, y: o.y }); } break;   // chủ-bàn -> đồng đội NGƯỜI: chỉ hình ảnh phép bàn (bot khỏi cần)
     case "ping": if (c.slot) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "ping", c: o.c, r: o.r, kind: o.kind }); } break;   // đánh dấu ô -> đồng đội NGƯỜI (2 chiều)
     case "chat": if (c.slot) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "chat", i: o.i, text: typeof o.text === "string" ? o.text.slice(0, 120) : undefined }); } break;   // chat -> đồng đội NGƯỜI (cắt 120 ký tự)
+    case "gemaward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "gemaward", kind: o.kind }); } break;   // chủ-bàn -> đồng đội NGƯỜI: phát gem (combo 2x Phòng thủ của họ)
     case "cmd": if (c.slot) send(authorityOf(R, c.slot.team), { t: "cmd", from: c.slot.pid, c: o.c }); break;      // đồng đội -> chủ-bàn (xây/nâng/bán/phép)
     case "cmdack": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot); if (m && !m.bot) send(m, { t: "cmdack", id: o.id, ok: o.ok }); } break;   // chủ-bàn -> đồng đội NGƯỜI: xác nhận/từ chối lệnh
     case "reward": if (c.slot && c.slot.authority) { const m = teammateOf(c.slot);   // chủ-bàn chia vàng/KN cho đồng đội

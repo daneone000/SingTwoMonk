@@ -74,6 +74,7 @@
     sendFx(key, x, y) { if (this.mode === "2v2" && this.isAuthority) this.client.send({ t: "fx", key, x, y }); }   // chủ-bàn -> đồng đội: chỉ HÌNH ẢNH phép bàn (không tác động)
     sendPing(c, r, kind) { if (this.mode === "2v2") this.client.send({ t: "ping", c, r, kind }); }   // 2v2: đánh dấu ô (2 chiều giữa 2 đồng đội)
     sendChat(i, text) { if (this.mode === "2v2") this.client.send({ t: "chat", i, text }); }   // 2v2: chat nhanh (chỉ số câu mẫu) hoặc chat tự do (text)
+    sendGemAward(kind) { if (this.mode === "2v2") this.client.send({ t: "gemaward", kind }); }   // 2v2: chủ-bàn phát gem cho đồng đội (combo 2x Phòng thủ của HỌ)
     sendTeamSpell(key, data) { this.client.send({ t: "teamspell", key, data }); }   // phép PvP -> bàn đội địch
     sendTeamVacuum(data) { this.client.send({ t: "teamvacuum", data }); }
     sendSkills() { this.client.send({ t: "skills", learned: [...this.game.learned], sp: this.game.sp, cores: this.game.cores.map((c) => ({ id: c.id, tier: c.tier, value: c.value })) }); }
@@ -152,17 +153,18 @@
         case "fx": g.playSpellFx(o.key, o.x, o.y); break;                          // chủ-bàn -> đồng đội: phát HÌNH ẢNH phép bàn (Mưa Lửa/Bão Sét/Khói Độc…)
         case "ping": g.showPing(o.c, o.r, o.kind, false); break;                    // đồng đội đánh dấu ô -> hiện trên bàn mình
         case "chat": if (this.onChat) this.onChat(o.i, o.text); break;             // đồng đội gửi chat nhanh/tự do
+        case "gemaward": g.receiveGem(o.kind); if (this.onChange) this.onChange(); break;   // chủ-bàn phát gem cho mình (combo 2x Phòng thủ)
         case "cmd": if (this.isAuthority) { const ok = g.applyCmd(o.c); this.pushBoard(); if (o.c && o.c.id != null) this.client.send({ t: "cmdack", id: o.c.id, ok: ok !== false }); if (this.onChange) this.onChange(); } break;   // đồng đội -> chủ-bàn: áp lệnh + ĐẨY BÀN NGAY + TRẢ LỜI ACK/NACK (đồng đội giữ/gỡ dự đoán)
         case "cmdack": g.onCmdAck(o.id, o.ok); break;                              // chủ-bàn -> đồng đội: xác nhận/từ chối lệnh xây/nâng/bán
         case "reward": { const got = g.gainGold(o.gold || 0); g.gold += got; g._curWaveGold += got; g.sp += o.sp || 0; if (this.onChange) this.onChange(); break; } // chủ-bàn chia vàng/KN (người nhận tự áp Tay Buôn; tính cả cho AFK)
         case "skills": this.teammateSkills = { learned: o.learned || [], sp: o.sp || 0 }; this.mateCores = o.cores || []; if (this.isAuthority) g.recomputeAuras(); if (this.onChange) this.onChange(); break;
-        case "teamspell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình
+        case "teamspell": if (map[o.key]) g[map[o.key]](o.data); if (this.onChange) this.onChange(); break;   // phép PvP của đội địch giáng lên bàn mình
         case "teamvacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;
         case "wave": this.wave = o.n; g.receiveWave(o.n); if (this.onChange) this.onChange(); break;
         case "clock": this.wave = o.wave; this.waveTimer = o.waveTimer; this._alive = o.alive; if (this.onChange) this.onChange(); break;
         case "snap": this.snaps[o.pid] = o.s; break;                    // minimap đối thủ
         case "pcores": this.oppCores[o.pid] = o.cores || []; if (this.onChange) this.onChange(); break;   // lõi đối thủ đã chọn (ffa)
-        case "spell": if (map[o.key]) g[map[o.key]](o.data && o.data.type); if (this.onChange) this.onChange(); break;  // đối thủ đánh mình (trieuHoi kèm chủng chung)
+        case "spell": if (map[o.key]) g[map[o.key]](o.data); if (this.onChange) this.onChange(); break;  // đối thủ đánh mình (trieuHoi kèm chủng chung)
         case "vacuum": g.spawnTransferred(o.data); if (this.onChange) this.onChange(); break;   // đối thủ hút quái sang sân mình
         case "eliminated": { const p = this.players.find((x) => x.pid === o.pid); if (p) p.alive = false; if (this.onChange) this.onChange(); break; }
         case "end":
