@@ -277,12 +277,15 @@
       ctx.save();
       if (working) ctx.globalAlpha = .5;   // mờ khi đang xây/nâng/bán
       if (this.support && !working) { ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = this.def.color2 || this.def.color; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.fill(); ctx.restore(); }
+      const isMax = !working && this.maxLevel && !this.trap && this.def.lv.length > 1;
+      if (isMax) this.drawMaxAura(ctx, x, y);   // tháp cấp tối đa: hào quang vàng lộng lẫy
       stoneBase(ctx, x, y);
+      if (isMax) { ctx.save(); ctx.strokeStyle = "#ffdf7a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .4, 0, 7); ctx.stroke(); ctx.restore(); }   // viền vàng quanh chân
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
       if (!working && this.fused) this.drawFused(ctx, x, y);   // Dung Hợp: vầng sáng + vòng đôi 2 màu
       if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
       this.drawTurret(ctx, x, y);
-      levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
+      if (isMax) maxBadge(ctx, x + TILE * .3, y + TILE * .3); else levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
       if (!working && this.fused) {   // chấm màu = tháp đã dung hợp vào (góc dưới-trái)
         const bx = x - TILE * .3, by = y + TILE * .3;
@@ -321,6 +324,19 @@
       ctx.strokeStyle = this.def.color; ctx.lineDashOffset = t * 20; ctx.beginPath(); ctx.arc(x, y, R * .92, 0, 7); ctx.stroke();
       ctx.strokeStyle = this.fuseDef.color2 || this.fuseDef.color; ctx.lineDashOffset = -t * 20; ctx.beginPath(); ctx.arc(x, y, R * .74, 0, 7); ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // Hào quang tháp cấp tối đa (lv 5): vầng vàng + vòng tia xoay + hạt sáng — trông mạnh & đẹp
+    drawMaxAura(ctx, x, y) {
+      const t = this.glowT || 0, p = 0.5 + 0.5 * Math.sin(t * 3), R = TILE * .52;
+      ctx.save();
+      const g = ctx.createRadialGradient(x, y, R * .25, x, y, R);
+      g.addColorStop(0, "rgba(255,215,110,0)"); g.addColorStop(1, `rgba(255,200,70,${.14 + .12 * p})`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+      // vòng tia vàng xoay chậm quanh chân
+      ctx.translate(x, y); ctx.rotate(t * .35);
+      ctx.fillStyle = `rgba(255,224,130,${.5 + .4 * p})`;
+      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, r0 = TILE * .46, r1 = TILE * .46 + (i % 2 ? 5 : 8); ctx.beginPath(); ctx.arc(Math.cos(a) * ((r0 + r1) / 2), Math.sin(a) * ((r0 + r1) / 2), 1.6, 0, 7); ctx.fill(); }
       ctx.restore();
     }
     drawTurret(ctx, x, y) {
@@ -490,6 +506,16 @@
     ctx.beginPath(); ctx.arc(x, y, TILE * (0.5 + 0.03 * p), 0, 7); ctx.stroke();
     ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, range, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  // Huy hiệu cấp tối đa: ngôi sao vàng thay số cấp (tháp đã max)
+  function maxBadge(ctx, x, y) {
+    ctx.save();
+    ctx.fillStyle = "rgba(60,36,4,.92)"; ctx.beginPath(); ctx.arc(x, y, 8.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#ffdf7a"; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = "#ffd24a"; ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.6 : 6; const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   }
   function levelBadge(ctx, x, y, lv) {
