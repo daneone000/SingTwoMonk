@@ -254,7 +254,7 @@
         if (!t.firesFused) continue;   // chỉ tháp CÓ BẮN mới nhận buff (tháp dung hợp Năng Lượng tự buff vì dist=0)
         let dmg = 0, rate = 0;
         for (const s of sups) { const st = s.auraStats; if (STM.util.dist(t.x, t.y, s.x, s.y) <= st.range * TILE) { dmg += st.dmgBonus; rate += st.rateBonus; } }
-        t.auraDmg = 1 + Math.min(2, dmg); t.auraRate = 1 / (1 + Math.min(2, rate));
+        t.auraDmg = 1 + dmg; t.auraRate = 1 / (1 + rate);   // KHÔNG còn trần: buff cộng dồn từ mọi tháp Năng Lượng trong tầm (tự chặn ~8 tháp do tầm 1.5)
       }
     }
 
