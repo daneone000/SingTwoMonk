@@ -278,13 +278,11 @@
       if (working) ctx.globalAlpha = .5;   // mờ khi đang xây/nâng/bán
       if (this.support && !working) { ctx.save(); ctx.globalAlpha = .1; ctx.fillStyle = this.def.color2 || this.def.color; ctx.beginPath(); ctx.arc(x, y, this.range, 0, 7); ctx.fill(); ctx.restore(); }
       const isMax = !working && this.maxLevel && !this.trap && this.def.lv.length > 1;
-      if (isMax) this.drawMaxAura(ctx, x, y);   // tháp cấp tối đa: hào quang vàng lộng lẫy
       stoneBase(ctx, x, y);
-      if (isMax) { ctx.save(); ctx.strokeStyle = "#ffdf7a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .4, 0, 7); ctx.stroke(); ctx.restore(); }   // viền vàng quanh chân
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
       if (!working && this.fused) this.drawFused(ctx, x, y);   // Dung Hợp: vầng sáng + vòng đôi 2 màu
       if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
-      this.drawTurret(ctx, x, y);
+      this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
       if (isMax) maxBadge(ctx, x + TILE * .3, y + TILE * .3); else levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
       if (!working && this.fused) {   // chấm màu = tháp đã dung hợp vào (góc dưới-trái)
@@ -326,23 +324,19 @@
       ctx.setLineDash([]);
       ctx.restore();
     }
-    // Hào quang tháp cấp tối đa (lv 5): vầng vàng + vòng tia xoay + hạt sáng — trông mạnh & đẹp
-    drawMaxAura(ctx, x, y) {
-      const t = this.glowT || 0, p = 0.5 + 0.5 * Math.sin(t * 3), R = TILE * .52;
-      ctx.save();
-      const g = ctx.createRadialGradient(x, y, R * .25, x, y, R);
-      g.addColorStop(0, "rgba(255,215,110,0)"); g.addColorStop(1, `rgba(255,200,70,${.14 + .12 * p})`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
-      // vòng tia vàng xoay chậm quanh chân
-      ctx.translate(x, y); ctx.rotate(t * .35);
-      ctx.fillStyle = `rgba(255,224,130,${.5 + .4 * p})`;
-      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, r0 = TILE * .46, r1 = TILE * .46 + (i % 2 ? 5 : 8); ctx.beginPath(); ctx.arc(Math.cos(a) * ((r0 + r1) / 2), Math.sin(a) * ((r0 + r1) / 2), 1.6, 0, 7); ctx.fill(); }
-      ctx.restore();
-    }
-    drawTurret(ctx, x, y) {
+    drawTurret(ctx, x, y, isMax) {
       const d = this.def, col = d.color, a = this.angle, top = y - TILE * .1;
       switch (this.type) {
         case "ten": { // Tháp Tên: cột gỗ + nỏ xoay
+          if (isMax) {   // NỎ MÁY (ballista): cột bọc kim loại + cánh nỏ đôi + mũi tên lớn
+            ctx.fillStyle = "#5b4426"; roundRect(ctx, x - 7, top - 14, 14, 19, 3); ctx.fill();
+            ctx.fillStyle = "#caa46a"; roundRect(ctx, x - 8, top - 16, 16, 4, 2); ctx.fill();
+            ctx.save(); ctx.translate(x, top - 12); ctx.rotate(a);
+            ctx.strokeStyle = "#3a2a14"; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.arc(3, 0, 11, -1.25, 1.25); ctx.stroke();
+            ctx.lineWidth = 2.6; ctx.beginPath(); ctx.arc(6, 0, 8, -1.1, 1.1); ctx.stroke();
+            ctx.strokeStyle = "#e8d9a0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(18, 0); ctx.stroke();
+            ctx.fillStyle = "#ffd24a"; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(12, -3.5); ctx.lineTo(12, 3.5); ctx.fill(); ctx.restore(); break;
+          }
           ctx.fillStyle = "#6e4f2a"; roundRect(ctx, x - 5, top - 12, 10, 16, 2); ctx.fill();
           ctx.fillStyle = "#8a6636"; roundRect(ctx, x - 6, top - 14, 12, 4, 2); ctx.fill();
           ctx.save(); ctx.translate(x, top - 11); ctx.rotate(a);
@@ -351,6 +345,15 @@
           ctx.fillStyle = "#caa46a"; ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(9, -2.5); ctx.lineTo(9, 2.5); ctx.fill(); ctx.restore(); break;
         }
         case "lua": { // Tháp Lửa: lô cốt đá + nòng pháo xoay + lửa
+          if (isMax) {   // ĐẠI PHÁO ĐÔI: lô cốt lớn hơn + vành vàng + 2 nòng phun lửa
+            ctx.fillStyle = shade(col, -35); roundRect(ctx, x - 12, top - 17, 24, 18, 3); ctx.fill();
+            ctx.fillStyle = col; roundRect(ctx, x - 12, top - 19, 24, 6, 3); ctx.fill();
+            ctx.fillStyle = "#ffd24a"; roundRect(ctx, x - 12, top - 21, 24, 3, 2); ctx.fill();
+            for (let i = -1; i <= 1; i++) { ctx.fillStyle = shade(col, -20); roundRect(ctx, x - 10 + (i + 1) * 7, top - 24, 5, 5, 1); ctx.fill(); }
+            ctx.save(); ctx.translate(x, top - 9); ctx.rotate(a);
+            for (const oy of [-4, 4]) { ctx.fillStyle = "#2e2016"; roundRect(ctx, 0, oy - 3, 20, 6, 2); ctx.fill(); const g = ctx.createRadialGradient(20, oy, 1, 20, oy, 6); g.addColorStop(0, "#fff2c0"); g.addColorStop(.5, "#ff8a2a"); g.addColorStop(1, "rgba(255,90,20,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(20, oy, 6, 0, 7); ctx.fill(); }
+            ctx.restore(); break;
+          }
           ctx.fillStyle = shade(col, -35); roundRect(ctx, x - 10, top - 15, 20, 16, 3); ctx.fill();
           ctx.fillStyle = col; roundRect(ctx, x - 10, top - 17, 20, 6, 3); ctx.fill();
           for (let i = -1; i <= 1; i++) { ctx.fillStyle = shade(col, -20); roundRect(ctx, x - 9 + (i + 1) * 6, top - 20, 4, 4, 1); ctx.fill(); }
@@ -359,23 +362,50 @@
           const g = ctx.createRadialGradient(17, 0, 1, 17, 0, 6); g.addColorStop(0, "#fff2c0"); g.addColorStop(.5, "#ff8a2a"); g.addColorStop(1, "rgba(255,90,20,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(17, 0, 6, 0, 7); ctx.fill(); ctx.restore(); break;
         }
         case "bang": { // Tháp Băng: cụm pha lê
+          if (isMax) {   // ĐÀI PHA LÊ: trụ trung tâm cao + cụm 5 tinh thể
+            diamond(ctx, x, top - 16, 10, 28, col, "#eaffff");
+            diamond(ctx, x - 10, top - 6, 6, 15, shade(col, -20), "#cdf3ff");
+            diamond(ctx, x + 10, top - 7, 6, 16, shade(col, -20), "#cdf3ff");
+            diamond(ctx, x - 5, top - 2, 4, 10, shade(col, -8), "#dff7ff");
+            diamond(ctx, x + 5, top - 3, 4, 11, shade(col, -8), "#dff7ff"); break;
+          }
           diamond(ctx, x, top - 12, 8, 20, col, "#eaffff");
           diamond(ctx, x - 8, top - 4, 5, 12, shade(col, -20), "#cdf3ff");
           diamond(ctx, x + 8, top - 5, 5, 13, shade(col, -20), "#cdf3ff"); break;
         }
         case "set": { // Tháp Sét: trụ kim loại + cầu điện + tia
+          if (isMax) {   // THÁP TESLA: trụ to hơn + cầu điện lớn + vành tia dày (5 tia)
+            ctx.fillStyle = "#8a8a6a"; roundRect(ctx, x - 4, top - 16, 8, 18, 1); ctx.fill();
+            ctx.fillStyle = "#6a6a4a"; roundRect(ctx, x - 9, top + 2, 18, 5, 2); ctx.fill();
+            ctx.fillStyle = "#ffd24a"; roundRect(ctx, x - 5, top - 5, 10, 2, 1); ctx.fill();
+            const g = ctx.createRadialGradient(x, top - 20, 1, x, top - 20, 10); g.addColorStop(0, "#fffbe0"); g.addColorStop(.6, col); g.addColorStop(1, shade(col, -50)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, top - 20, 9, 0, 7); ctx.fill();
+            ctx.strokeStyle = "#fff7c0"; ctx.lineWidth = 1.5; for (let i = 0; i < 5; i++) { const an = a + i * 1.257; ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * 9, top - 20 + Math.sin(an) * 9); ctx.lineTo(x + Math.cos(an) * 16, top - 20 + Math.sin(an) * 16); ctx.stroke(); } break;
+          }
           ctx.fillStyle = "#8a8a6a"; roundRect(ctx, x - 3, top - 14, 6, 16, 1); ctx.fill();
           ctx.fillStyle = "#6a6a4a"; roundRect(ctx, x - 7, top + 1, 14, 4, 2); ctx.fill();
           const g = ctx.createRadialGradient(x, top - 17, 1, x, top - 17, 8); g.addColorStop(0, "#fffbe0"); g.addColorStop(.6, col); g.addColorStop(1, shade(col, -50)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, top - 17, 7, 0, 7); ctx.fill();
           ctx.strokeStyle = "#fff7c0"; ctx.lineWidth = 1.3; for (let i = 0; i < 3; i++) { const an = a + i * 2.1; ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * 7, top - 17 + Math.sin(an) * 7); ctx.lineTo(x + Math.cos(an) * 13, top - 17 + Math.sin(an) * 13); ctx.stroke(); } break;
         }
         case "doc": { // Tháp Độc: vạc độc sủi bọt
+          if (isMax) {   // ĐẠI VẠC ĐỘC: vạc to hơn + vành vàng + nhiều bọt hơn
+            ctx.fillStyle = "#33263a"; ctx.beginPath(); ctx.arc(x, top - 5, 13, Math.PI * .08, Math.PI * .92, false); ctx.lineTo(x - 11, top - 13); ctx.lineTo(x + 11, top - 13); ctx.fill();
+            ctx.fillStyle = "#241a2b"; roundRect(ctx, x - 14, top - 14, 28, 5, 2); ctx.fill();
+            ctx.fillStyle = "#ffd24a"; roundRect(ctx, x - 14, top - 15, 28, 2, 1); ctx.fill();
+            const g = ctx.createRadialGradient(x, top - 12, 1, x, top - 12, 12); g.addColorStop(0, "#e29bff"); g.addColorStop(1, col); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, top - 12, 11, 4.2, 0, 0, 7); ctx.fill();
+            ctx.fillStyle = "rgba(220,150,255,.85)"; ctx.beginPath(); ctx.arc(x - 4, top - 16, 2.2, 0, 7); ctx.arc(x + 4, top - 18, 1.8, 0, 7); ctx.arc(x + 1, top - 20, 1.4, 0, 7); ctx.fill(); break;
+          }
           ctx.fillStyle = "#33263a"; ctx.beginPath(); ctx.arc(x, top - 6, 11, Math.PI * .1, Math.PI * .9, false); ctx.lineTo(x - 9, top - 12); ctx.lineTo(x + 9, top - 12); ctx.fill();
           ctx.fillStyle = "#241a2b"; roundRect(ctx, x - 12, top - 13, 24, 4, 2); ctx.fill();
           const g = ctx.createRadialGradient(x, top - 11, 1, x, top - 11, 10); g.addColorStop(0, "#e29bff"); g.addColorStop(1, col); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, top - 11, 9, 3.5, 0, 0, 7); ctx.fill();
           ctx.fillStyle = "rgba(220,150,255,.85)"; ctx.beginPath(); ctx.arc(x - 3, top - 14, 1.8, 0, 7); ctx.arc(x + 4, top - 16, 1.4, 0, 7); ctx.fill(); break;
         }
         case "nangluong": { // Tháp Năng Lượng: bệ + quả cầu năng lượng lơ lửng
+          if (isMax) {   // LÒ PHẢN ỨNG: bệ lớn + cầu năng lượng to + 2 vành quỹ đạo chéo
+            ctx.fillStyle = "#243842"; roundRect(ctx, x - 8, top - 5, 16, 11, 2); ctx.fill();
+            ctx.fillStyle = "#33525e"; roundRect(ctx, x - 10, top - 8, 20, 5, 2); ctx.fill();
+            const g = ctx.createRadialGradient(x - 2, top - 19, 1, x, top - 17, 11); g.addColorStop(0, "#fff"); g.addColorStop(.4, d.color2 || col); g.addColorStop(1, shade(col, -40)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, top - 17, 10, 0, 7); ctx.fill();
+            ctx.strokeStyle = "rgba(180,250,255,.7)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(x, top - 17, 14, 5, .6, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.ellipse(x, top - 17, 14, 5, -.6, 0, 7); ctx.stroke(); break;
+          }
           ctx.fillStyle = "#243842"; roundRect(ctx, x - 7, top - 6, 14, 10, 2); ctx.fill();
           ctx.fillStyle = "#33525e"; roundRect(ctx, x - 9, top - 8, 18, 4, 2); ctx.fill();
           const g = ctx.createRadialGradient(x - 2, top - 18, 1, x, top - 16, 9); g.addColorStop(0, "#fff"); g.addColorStop(.4, d.color2 || col); g.addColorStop(1, shade(col, -40)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, top - 16, 8, 0, 7); ctx.fill();
