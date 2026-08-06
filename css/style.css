@@ -95,6 +95,13 @@ body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif; color:
 .tp-title .lv { color: var(--jade); margin-left: 8px; font-size: 12px; }
 .tp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px 12px; font-size: 13.5px; color: var(--dim); }
 .tp-stats b { color: #fff; } .tp-stats .plus { color: var(--jade); }
+/* Bảng buff đầy đủ lv1→5 cho Tháp Năng Lượng (tra cứu) */
+.tp-lvtable { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; }
+.tp-lvhead { font-size: 12.5px; color: var(--dim); margin-bottom: 4px; }
+.tp-lvrow { display: grid; grid-template-columns: 48px 1fr 1fr; gap: 10px; padding: 2px 7px; border-radius: 5px; font-size: 13px; }
+.tp-lvrow .lc { color: var(--dim); }
+.tp-lvrow.cur { background: rgba(255, 214, 80, .14); }
+.tp-lvrow.cur .lc { color: var(--gold); font-weight: 700; }
 .tp-prev { margin-top: 6px; font-size: 12.5px; color: #a7d8ae; border-top: 1px dashed var(--line); padding-top: 5px; }
 .tp-prev b { color: #7ee0a8; } .tp-prev:empty { display: none; }
 .tp-actions { display: flex; flex-direction: column; gap: 5px; flex: none; }

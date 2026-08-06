@@ -308,7 +308,11 @@
   const shortName = (n) => n.replace("Tháp ", "").replace("Bẫy ", "");
   function statsHTML(t) {
     if (t.trap) return `<div>Loại: <b>Dùng 1 lần</b> (kích hoạt là biến mất)</div><div>Bán kính: <b>${t.def.radius}</b></div>`;
-    if (t.support && !t.fused) { const s = t.stats; return `<div>Buff ST: <b class="plus">+${Math.round(s.dmgBonus * 100)}%</b></div><div>Buff Tốc: <b class="plus">+${Math.round(s.rateBonus * 100)}%</b></div><div>Tầm Xa: <b>${s.range.toFixed(1)}</b></div>`; }
+    if (t.support && !t.fused) {   // Tháp Năng Lượng: BẢNG buff đầy đủ lv1→5 (tô đậm cấp hiện tại)
+      const s = t.stats;
+      const rows = t.def.lv.map((l, i) => `<div class="tp-lvrow${i + 1 === t.level ? " cur" : ""}"><span class="lc">Lv${i + 1}</span><span>ST <b class="plus">+${Math.round(l.dmgBonus * 100)}%</b></span><span>Tốc <b class="plus">+${Math.round(l.rateBonus * 100)}%</b></span></div>`).join("");
+      return `<div class="tp-lvtable"><div class="tp-lvhead">Buff tháp bắn quanh · Tầm phủ <b>${s.range.toFixed(1)}</b> ô</div>${rows}</div>`;
+    }
     // base = chỉ số GỐC tháp cầm nòng; "+bonus" gộp cả dung hợp (tháp kia) lẫn lõi (cm)
     const s = t.fused ? t.fstats : t.stats, raw = t.fused ? t.shooterStats : s, cm = t.coreMul(), om = t.origMul || 1;
     const base = Math.round(raw.dmg), bonus = Math.round(t.effDmg() - raw.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / (raw.rate || 1);
