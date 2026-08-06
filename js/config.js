@@ -153,8 +153,8 @@
     nguoi_khong_lo: { key: "nguoi_khong_lo", name: "Người Khổng Lồ", shape: "giant", fly: false, color: "#a1887f", hp: 320, speed: 36, reward: 9, armor: 10, radius: 16, cf: 0.4 },
     yeu_sen: { key: "yeu_sen", name: "Yêu Sên", shape: "snail", fly: false, color: "#4fc3f7", hp: 66, speed: 50, reward: 4, armor: 0, radius: 12, cf: 0.7, split: 2, splitInto: "yeu_sen_nho" },
     yeu_sen_nho: { key: "yeu_sen_nho", name: "Yêu Sên Nhỏ", shape: "snail", fly: false, color: "#4fc3f7", hp: 20, speed: 62, reward: 1, armor: 0, radius: 8, cf: 1.0 },
-    rong_tinh: { key: "rong_tinh", name: "Rồng Tinh", shape: "dragon", fly: true, color: "#ef5350", hp: 64, speed: 72, reward: 4, armor: 0, radius: 12, cf: 1.5 },   // bay bầy ĐÔNG, máu TRÂU, CHẬM
-    ac_dieu: { key: "ac_dieu", name: "Ác Điểu", shape: "bird", fly: true, color: "#42a5f5", hp: 27, speed: 140, reward: 4, armor: 0, radius: 10, cf: 0.7 },   // bay bầy ÍT, máu MỎNG, NHANH
+    rong_tinh: { key: "rong_tinh", name: "Rồng Tinh", shape: "dragon", fly: true, color: "#ef5350", hp: 46, speed: 72, reward: 4, armor: 0, radius: 12, cf: 1.0 },   // CHẬM hơn ác điểu
+    ac_dieu: { key: "ac_dieu", name: "Ác Điểu", shape: "bird", fly: true, color: "#42a5f5", hp: 27, speed: 122, reward: 4, armor: 0, radius: 10, cf: 0.7 },   // bầy ÍT hơn, máu MỎNG hơn
     cao_tinh: { key: "cao_tinh", name: "Cáo Tinh", shape: "fox", fly: false, color: "#ff8f2d", hp: 48, speed: 138, reward: 5, armor: 1, radius: 11, cf: 0.9, slowResist: 0.4 },
     // Cóc Độc: bản thân là loài độc nên KHÁNG ĐỘC — giảm 10% ST độc & rút ngắn thời gian nhiễm (5s -> 3s)
     coc_doc: { key: "coc_doc", name: "Cóc Độc", shape: "toad", fly: false, color: "#7cb342", hp: 62, speed: 72, reward: 5, armor: 1, radius: 12, cf: 0.9, poisonResist: { dmg: 0.10, dur: 0.4 } },
