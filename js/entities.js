@@ -277,7 +277,10 @@
       const t = this.findTarget(game.enemies); if (!t) return;
       this.angle = Math.atan2(t.y - this.y, t.x - this.x);
       if (this.cooldown <= 0) {
-        if (this.boon === "ten") { for (const tg of this.findTargets(game.enemies, this.level)) game.projectiles.push(new Projectile(this, tg)); }   // Tên boon: đa mục tiêu = cấp tháp
+        // Multishot: boon Tên (=cấp) và/hoặc L6 Tên (=cấp); có CẢ hai -> cấp + 3
+        const bTen = this.boon === "ten", l6Ten = this.level >= 6 && this.type === "ten";
+        const nShots = (bTen && l6Ten) ? this.level + CFG.TEN_L6_BONUS : (bTen || l6Ten) ? this.level : 1;
+        if (nShots > 1) { for (const tg of this.findTargets(game.enemies, nShots)) game.projectiles.push(new Projectile(this, tg)); }
         else game.projectiles.push(new Projectile(this, t));
         this.cooldown = this.effRate();
       }
@@ -506,16 +509,23 @@
       // BOON (combo 3x Tháp): loại tháp được cường hóa
       this.boon = tower.boon || null;
       this.boonDistMul = (this.boon === "set") ? 1 + CFG.SET_DIST_PER * (dist(tower.x, tower.y, target.x, target.y) / TILE) : 1;   // Sét: +10%/ô, không cap
+      // CẤP 6: dấu ấn theo LOẠI tháp nền
+      this.l6 = tower.level >= 6; this.ttype = tower.def.key;
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e, primary) {
       let dmg = this.dmg * this.boonDistMul;   // Sét boon: +dmg theo khoảng cách
+      if (this.l6 && this.ttype === "set") dmg += CFG.SET_L6_HP * e.hp;   // Sét L6: +3% máu HIỆN TẠI/đòn (bỏ giáp)
       if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng
       e.applyDamage(dmg);
       if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm
       if (primary && this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);   // GEM Thổ: choáng 1s — CHỈ mục tiêu chính (không loang)
-      if (this.boon === "bang" && Math.random() < CFG.FREEZE_CHANCE) e.freeze(CFG.FREEZE_DUR);        // Băng boon: 10% đóng băng 1s
-      if (this.boon === "lua" && Math.random() < CFG.BURN_CHANCE) e.burnMiss(CFG.BURN_MISS_PCT, CFG.BURN_DUR);   // Lửa boon: đốt %máu đã mất
+      if (primary && this.boon === "bang" && Math.random() < CFG.FREEZE_CHANCE) e.freeze(CFG.FREEZE_DUR);   // Băng boon: đóng băng 1s — CHỈ mục tiêu chính
+      if (this.l6 && this.ttype === "bang" && Math.random() < CFG.BANG_L6_CHANCE) e.freeze(CFG.BANG_L6_DUR);   // Băng L6: mini-stun 0.4s — CÓ loang
+      if (this.ttype === "lua") {   // Lửa: 1 cơ chế đốt %máu đã mất — L6 đốt LUÔN (×1.5 nếu có boon); chỉ boon (không L6) = 15% cơ hội
+        if (this.l6) e.burnMiss(CFG.BURN_MISS_PCT * (this.boon === "lua" ? CFG.LUA_L6_MUL : 1), CFG.BURN_DUR);
+        else if (this.boon === "lua" && Math.random() < CFG.BURN_CHANCE) e.burnMiss(CFG.BURN_MISS_PCT, CFG.BURN_DUR);
+      }
       for (const fx of this.effects) {   // dung hợp có thể có nhiều hiệu ứng (làm chậm + độc...)
         if (fx === "slow") e.slow(1 - Math.min(0.95, (this.st.slowPct || 0) * this.effMul), 1.2);
         else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4, this.boon === "doc");  // độc: %máu HIỆN TẠI (hoặc TỐI ĐA nếu boon Độc), 5s

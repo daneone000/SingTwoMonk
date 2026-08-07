@@ -404,6 +404,16 @@
   }
   // Xem trước nâng cấp: cấp kế sẽ +chỉ số gì (để cân nhắc)
   // Dòng gem của tháp đang chọn (ô trống + gem đã gắn)
+  // Dòng dấu ấn Cấp 6 (siêu cấp)
+  const L6_TEXT = {
+    ten: "🏹 bắn ĐA MỤC TIÊU (= cấp tháp; +3 nếu có cường hóa Tên)",
+    lua: "🔥 THIÊU ĐỐT: 2%/giây máu ĐÃ MẤT ×3s (×1.5 nếu có cường hóa Lửa)",
+    bang: "❄ 8% mỗi đòn mini-stun 0.4s (CÓ loang)",
+    set: "⚡ +3% máu HIỆN TẠI mỗi đòn (xé quái trâu/bay)",
+    doc: "☠ độc 30% máu hiện tại (cường hóa Độc → %máu TỐI ĐA)",
+    nangluong: "✦ buff mạnh hơn (×1.5)",
+  };
+  function l6LineHTML(t) { if (t.trap || t.level < 6) return ""; return `<div class="tp-l6">⭐ Cấp 6: ${L6_TEXT[t.type] || ""}</div>`; }
   function gemLineHTML(t) {
     if (t.trap) return "";
     const gems = t.gems || [], slots = [];
@@ -445,7 +455,7 @@
     if (!t) return;
     // cập nhật phần ĐỘNG tại chỗ (đổi text/disabled, không thay nút)
     $("tpLv").textContent = t.trap ? "Dùng 1 lần" : `Cấp Độ: ${t.level}/${t.def.lv.length}`;
-    $("tpStats").innerHTML = statsHTML(t) + gemLineHTML(t);
+    $("tpStats").innerHTML = statsHTML(t) + l6LineHTML(t) + gemLineHTML(t);
     $("tpPrev").innerHTML = (t.ready && !t.trap && !t.maxLevel) ? upgradePreviewHTML(t) : "";
     const bu = $("tpUp");
     if (t.trap) { bu.textContent = "Không nâng cấp"; bu.disabled = true; bu.className = "tp-up"; }

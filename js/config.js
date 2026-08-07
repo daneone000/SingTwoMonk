@@ -56,64 +56,64 @@
   const TOWERS = {
     ten: {
       key: "ten", name: "Tháp Tên", glyph: "🏹", color: "#c8a165", target: "both", block: true,
-      cost: 5, up: [10, 20, 45, 110], projSpeed: 720, projColor: "#ffe8b0",
-      // L1 đúng bảng gốc; L2-L5 ƯỚC LƯỢNG theo quy luật (chờ số liệu gốc)
+      cost: 5, up: [10, 20, 45, 110, 220], projSpeed: 720, projColor: "#ffe8b0",   // lv6: giá 2× lv5
+      // L1 đúng bảng gốc; L2-L5 ƯỚC LƯỢNG theo quy luật (chờ số liệu gốc). L6 = siêu cấp (dấu ấn: bắn ĐA MỤC TIÊU = cấp)
       lv: [
         { dmg: 10, rate: R(1.5), range: 1.5, splash: 0 }, { dmg: 26, rate: R(1.7), range: 1.8, splash: 0 },
         { dmg: 68, rate: R(1.9), range: 2.1, splash: 0 }, { dmg: 170, rate: R(2.1), range: 2.4, splash: 0 },
-        { dmg: 420, rate: R(2.4), range: 2.7, splash: 0 },
+        { dmg: 420, rate: R(2.4), range: 2.7, splash: 0 }, { dmg: 1000, rate: R(2.6), range: 3.0, splash: 0 },
       ],
       desc: "Bắn tên rẻ, đánh cả BAY & BỘ.",
     },
     lua: {
       key: "lua", name: "Tháp Lửa", glyph: "🔥", color: "#ff5722", target: "ground", block: true,
-      cost: 10, up: [20, 40, 80, 200], projSpeed: 160, projColor: "#ffb057",
+      cost: 10, up: [20, 40, 80, 200, 400], projSpeed: 160, projColor: "#ffb057",   // lv6: giá 2× lv5
       lv: [
         { dmg: 15, rate: R(0.6), range: 2, splash: 1 }, { dmg: 45, rate: R(0.6), range: 2.5, splash: 1 },
         { dmg: 135, rate: R(0.6), range: 3, splash: 1 }, { dmg: 405, rate: R(0.6), range: 3.5, splash: 1 },
-        { dmg: 1013, rate: R(0.6), range: 4, splash: 2 },
+        { dmg: 1013, rate: R(0.6), range: 4, splash: 2 }, { dmg: 2500, rate: R(0.6), range: 4.5, splash: 2 },   // L6: dấu ấn = THIÊU ĐỐT
       ],
       desc: "Bắn chậm, ST rất cao, nổ lan. CHỈ đánh quái BỘ.",
     },
     bang: {
       key: "bang", name: "Tháp Băng", glyph: "❄", color: "#29b6f6", target: "both", block: true, effect: "slow",
-      cost: 20, up: [40, 80, 160, 320], projSpeed: 560, projColor: "#bdeaff",
+      cost: 20, up: [40, 80, 160, 320, 640], projSpeed: 560, projColor: "#bdeaff",   // lv6: giá 2× lv5
       lv: [
         { dmg: 5, rate: R(2), range: 1.5, splash: 1, slowPct: 0.10 }, { dmg: 10, rate: R(2.5), range: 1.5, splash: 1, slowPct: 0.20 },
         { dmg: 20, rate: R(3), range: 1.5, splash: 2, slowPct: 0.30 }, { dmg: 40, rate: R(3.5), range: 1.5, splash: 2, slowPct: 0.40 },
-        { dmg: 80, rate: R(4), range: 1.5, splash: 2, slowPct: 0.50 },
+        { dmg: 80, rate: R(4), range: 1.5, splash: 2, slowPct: 0.50 }, { dmg: 160, rate: R(4.5), range: 1.5, splash: 2, slowPct: 0.60 },   // L6: dấu ấn = mini-stun loang
       ],
       desc: "Bắn nhanh, nổ lan, LÀM CHẬM (10-50%). Cả BAY & BỘ.",
     },
     set: {
       key: "set", name: "Tháp Sét", glyph: "⚡", color: "#ffd54f", target: "air", block: true,
-      cost: 15, up: [30, 60, 120, 240], projSpeed: 900, projColor: "#fff3b0",
+      cost: 15, up: [30, 60, 120, 240, 480], projSpeed: 900, projColor: "#fff3b0",   // lv6: giá 2× lv5
       lv: [
         { dmg: 20, rate: R(5), range: 2, splash: 2 }, { dmg: 50, rate: R(5.5), range: 2.5, splash: 2 },
         { dmg: 125, rate: R(6), range: 3, splash: 2 }, { dmg: 313, rate: R(6.5), range: 3.5, splash: 2 },
-        { dmg: 782, rate: R(7), range: 4, splash: 2 },
+        { dmg: 782, rate: R(7), range: 4, splash: 2 }, { dmg: 1900, rate: R(7.5), range: 4.5, splash: 2 },   // L6: dấu ấn = +3% máu hiện tại/đòn
       ],
       desc: "Bắn RẤT nhanh, nổ lan. CHỈ đánh quái BAY.",
     },
     doc: {
       key: "doc", name: "Tháp Độc", glyph: "☠", color: "#9c27b0", target: "ground", block: true, effect: "poison",
-      cost: 20, up: [40, 80, 160, 320], projSpeed: 180, projColor: "#e29bff",
+      cost: 20, up: [40, 80, 160, 320, 640], projSpeed: 180, projColor: "#e29bff",   // lv6: giá 2× lv5
       lv: [
         { dmg: 1, rate: R(1), range: 1.5, splash: 1, poisonPct: 0.05 }, { dmg: 2, rate: R(1.1), range: 1.7, splash: 1, poisonPct: 0.10 },
         { dmg: 3, rate: R(1.2), range: 2, splash: 1, poisonPct: 0.15 }, { dmg: 4, rate: R(1.2), range: 2.5, splash: 1, poisonPct: 0.20 },
-        { dmg: 5, rate: R(1.5), range: 3, splash: 1, poisonPct: 0.25 },
+        { dmg: 5, rate: R(1.5), range: 3, splash: 1, poisonPct: 0.25 }, { dmg: 6, rate: R(1.6), range: 3.2, splash: 1, poisonPct: 0.30 },   // L6: độc 25%->30% (boon mới đổi sang %máu TỐI ĐA)
       ],
       desc: "Gây NHIỄM ĐỘC: mỗi giây trừ % máu HIỆN TẠI (bỏ giáp), 5s. Xé Boss/quái trâu. Chỉ BỘ.",
     },
     nangluong: {
       key: "nangluong", name: "Tháp Năng Lượng", glyph: "✦", color: "#00e5ff", target: "none", block: true, support: true,
-      cost: 30, up: [40, 80, 150, 300], color2: "#7bf4ff",
+      cost: 30, up: [40, 80, 150, 300, 600], color2: "#7bf4ff",   // lv6: giá 2× lv5
       // lv1 = +10%/+10% ĐÚNG BẢNG GỐC (ảnh play.zing). lv2-5 ƯỚC LƯỢNG: tăng dần, giữ F1=(1+dmg)(1+rate)≈1.90 < 2 ở lv5
       // -> 1 NL buff 1 tháp vẫn < xây THÊM 1 tháp; chỉ LỜI rõ khi 1 NL buff >=2 tháp (dồn nhiều tháp bắn quanh 1 NL). Tầm GIỮ 1.5.
       lv: [
         { range: 1.5, dmgBonus: 0.10, rateBonus: 0.10 }, { range: 1.5, dmgBonus: 0.20, rateBonus: 0.15 },
         { range: 1.5, dmgBonus: 0.30, rateBonus: 0.20 }, { range: 1.5, dmgBonus: 0.40, rateBonus: 0.25 },
-        { range: 1.5, dmgBonus: 0.50, rateBonus: 0.30 },
+        { range: 1.5, dmgBonus: 0.50, rateBonus: 0.30 }, { range: 1.5, dmgBonus: 0.75, rateBonus: 0.45 },   // L6: buff ×1.5 (dấu ấn)
       ],
       desc: "KHÔNG bắn — buff sức mạnh (+10→50%) & tốc bắn (+10→30%) cho tháp quanh (tầm 1.5). 1 NL < xây thêm 1 tháp: chỉ thật lời khi buff ≥2 tháp cùng lúc.",
     },
@@ -138,7 +138,12 @@
   // xếp vào ô theo thứ tự -> phím theo Ô, không theo tên phép. Mặc định 6 ô: Q W E A S D.
   const DEFAULT_KEYS = { ten: "1", lua: "2", bang: "3", set: "4", doc: "5", nangluong: "6", dinh: "7", hut: "8" };
   const DEFAULT_SLOT_KEYS = ["q", "w", "e", "a", "s", "d", "z", "x", "c"];   // 6 ô gốc + tối đa 3 ô mở thêm bằng lõi Tham Lam
-  const MAX_LEVEL = 5;
+  const MAX_LEVEL = 6;
+  // Cấp 6 (siêu cấp) — dấu ấn theo loại tháp
+  const SET_L6_HP = 0.03;                 // Sét: +3% máu HIỆN TẠI/đòn
+  const BANG_L6_CHANCE = 0.08, BANG_L6_DUR = 0.4;   // Băng: mini-stun 0.4s CÓ loang
+  const TEN_L6_BONUS = 3;                 // Tên: nếu đã có boon multishot -> +3 mũi
+  const LUA_L6_MUL = 1.5;                 // Lửa: trùng boon -> ×1.5 tỉ lệ đốt (dùng lại BURN_MISS_PCT/BURN_DUR)
   function upgradeCost(def, level) { return (def.up && def.up[level - 1]) || 0; }  // giá lên cấp (level -> level+1)
   function statAt(def, level) { return def.lv[Math.min(level, def.lv.length) - 1]; } // thông số cấp `level`
   // Thời gian chờ xây/nâng/bán: tỉ lệ THUẬN với vàng của hành động & số thứ tự đợt hiện tại
@@ -323,6 +328,7 @@
     COMBO_GROUPS, COMBOS, COMBO_ECO_GOLD, SP_TO_GOLD_SP, SP_TO_GOLD_GOLD,
     GEMS, GEM_ORDER, GEM_PER, CRIT_MULT, MAX_GEMS, NGUHANH_MUL,
     TOWER_COMBO_BONUS, BURN_CHANCE, BURN_MISS_PCT, BURN_DUR, FREEZE_CHANCE, FREEZE_DUR, SET_DIST_PER, ENERGY_RANGE_MUL,
+    SET_L6_HP, BANG_L6_CHANCE, BANG_L6_DUR, TEN_L6_BONUS, LUA_L6_MUL,
     GRID_W: TILE * COLS, GRID_H: TILE * ROWS,
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,
