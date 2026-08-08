@@ -141,7 +141,7 @@
   const MAX_LEVEL = 6;
   // Cấp 6 (siêu cấp) — dấu ấn theo loại tháp
   const SET_L6_HP = 0.03;                 // Sét: +3% máu HIỆN TẠI/đòn
-  const BANG_L6_CHANCE = 0.08, BANG_L6_DUR = 0.4;   // Băng: mini-stun 0.4s CÓ loang
+  const BANG_L6_CHANCE = 0.01, BANG_L6_DUR = 0.3;   // Băng: mini-stun 0.3s CÓ loang (nerf: 1% để tránh khống chế quá mạnh)
   const TEN_L6_BONUS = 3;                 // Tên: nếu đã có boon multishot -> +3 mũi
   const LUA_L6_MUL = 1.5;                 // Lửa: trùng boon -> ×1.5 tỉ lệ đốt (dùng lại BURN_MISS_PCT/BURN_DUR)
   function upgradeCost(def, level) { return (def.up && def.up[level - 1]) || 0; }  // giá lên cấp (level -> level+1)
