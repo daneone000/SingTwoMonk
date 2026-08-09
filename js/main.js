@@ -465,7 +465,7 @@
     else { const uc = g.buyCost(t.upgradeCost), afford = g.gold >= uc; bu.textContent = `Nâng Cấp −${uc}💰`; bu.disabled = false; bu.className = "tp-up" + (afford ? "" : " poor"); }
     const sb = $("tpSell");
     if (!t.trap && t.action === "sell") { sb.textContent = "Đang tháo dỡ…"; sb.disabled = true; }
-    else { sb.textContent = `Bán +${g.gainGold(t.sellValue)}💰`; sb.disabled = false; }
+    else { sb.textContent = `Bán +${g.sellRefund(t)}💰`; sb.disabled = false; }
     { const mv = $("tpMove"); if (mv) { mv.classList.toggle("hidden", !g.hasCore("backKingXay")); mv.classList.toggle("on", g.pendingMove === t); mv.textContent = g.pendingMove === t ? "↔ Chọn ô…" : "↔ Dời"; } }
     { const rb = $("tpRaise"); if (rb) { const show = g.hasCore("trumBanDo") && !t.trap; rb.classList.toggle("hidden", !show); if (show) { const raised = g.raised.has(t.col + "," + t.row); rb.textContent = raised ? "⛰ Đã nâng" : `⛰ Nâng −${CFG.RAISE_SP}KN`; rb.disabled = raised || g.sp < CFG.RAISE_SP; rb.classList.toggle("on", raised); } } }
   }
@@ -538,7 +538,7 @@
     tqUp.classList.toggle("hidden", !!t.trap);   // bẫy không nâng cấp -> ẩn nút nâng
     tqUp.disabled = !canUp;
     tqUp.title = t.trap ? "" : canUp ? ("Nâng cấp (phím " + keyGlyph(GKEYS.upgrade) + ") −" + g.buyCost(t.upgradeCost) + "💰") : t.maxLevel ? "Đã tối đa cấp" : "Đang bận";
-    tqSell.title = (t.action === "sell" ? "Đang tháo dỡ" : "Bán (phím " + keyGlyph(GKEYS.sell) + ") +" + g.gainGold(t.sellValue) + "💰");
+    tqSell.title = (t.action === "sell" ? "Đang tháo dỡ" : "Bán (phím " + keyGlyph(GKEYS.sell) + ") +" + g.sellRefund(t) + "💰");
   }
 
   /* ---------- 2v2: PHỐI HỢP — Ping (đánh dấu ô) + Chat ---------- */

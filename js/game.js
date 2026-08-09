@@ -411,16 +411,18 @@
       if (this.mirror) { const id = ++this._cmdSeq; this._pendingCmds[id] = { kind: "up", c: t.col, r: t.row, goldDelta: -cost }; this.gold -= cost; this._coreActed(); this.netMatch.sendCmd({ act: "up", c: t.col, r: t.row, id }); t.action = "up"; t.buildTimer = CFG.UP_TIME; t.buildDur = CFG.UP_TIME; t._predAct = Date.now(); this.emit(); return; }   // DỰ ĐOÁN: hiện "đang nâng cấp" ngay; ACK/NACK xử lý sau
       this.gold -= cost; t.upgrade(); t.startWork("up", CFG.workTime(cost, this.wave)); this._coreActed(); this.recomputeAuras(); this.emit();
     }
+    // Vàng hoàn khi bán: Back King Xây → 100% (đúng số đã chi, không cộng Tay Buôn để tránh vòng lặp vô hạn vàng); mặc định 50% (có cộng Tay Buôn như cũ).
+    sellRefund(t) { return this.hasCore("backKingXay") ? t.totalSpent : this.gainGold(t.sellValue); }
     // Bán/tháo dỡ: KHÔNG gỡ ngay — vào trạng thái "sell" chờ SELL_TIME rồi mới gỡ & hoàn vàng.
     sellSelected() {
       const t = this.selected; if (!t) return;
-      if (this.mirror) {   // 2v2 đồng đội: hoàn ½ vào VÍ MÌNH ngay, gửi lệnh gỡ cho chủ-bàn (bàn không hoàn lại)
-        const id = ++this._cmdSeq, refund = this.gainGold(t.sellValue); this._pendingCmds[id] = { kind: "sell", c: t.col, r: t.row, goldDelta: +refund };
+      if (this.mirror) {   // 2v2 đồng đội: hoàn vào VÍ MÌNH ngay, gửi lệnh gỡ cho chủ-bàn (bàn không hoàn lại)
+        const id = ++this._cmdSeq, refund = this.sellRefund(t); this._pendingCmds[id] = { kind: "sell", c: t.col, r: t.row, goldDelta: +refund };
         this.gold += refund; this._coreActed(); this.netMatch.sendCmd({ act: "sell", c: t.col, r: t.row, id });
         if (!t.trap && t.action !== "sell") { t.action = "sell"; t.buildTimer = CFG.SELL_TIME; t.buildDur = CFG.SELL_TIME; t._predAct = Date.now(); }   // DỰ ĐOÁN: hiện "đang tháo dỡ" ngay
         this.selected = null; this.emit(); return;
       }
-      if (t.trap) { this.gold += this.gainGold(t.sellValue); this._coreActed(); this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
+      if (t.trap) { this.gold += this.sellRefund(t); this._coreActed(); this.occupied.delete(t.col + "," + t.row); this.traps.splice(this.traps.indexOf(t), 1); this.selected = null; this.emit(); return; }
       if (t.action === "sell") return;   // đang tháo rồi
       t.startWork("sell", CFG.workTime(t.sellValue, this.wave)); this._coreActed(); this.emit();
     }
@@ -958,7 +960,7 @@
       for (const t of this.towers) t.update(pdt, this);
       // tháp đang "bán/phá" hết giờ -> gỡ khỏi sân (+ hoàn vàng nếu do người chơi bán)
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
-      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.gainGold(t.sellValue); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; if (!t.trap) { this._lastSoldType = t.type; this._tieAfterSell = true; } } this.computeFlow(); this.recomputeAuras(); this.emit(); }
+      if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.sellRefund(t); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; if (!t.trap) { this._lastSoldType = t.type; this._tieAfterSell = true; } } this.computeFlow(); this.recomputeAuras(); this.emit(); }
       if (this._towerDone) { this._towerDone = false; this.recomputeAuras(); this.emit(); }   // xây/nâng xong -> cập nhật aura
       for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);

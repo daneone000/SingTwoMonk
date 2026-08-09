@@ -260,7 +260,7 @@
     giaCo: { id: "giaCo", name: "Gia Cố", icon: "🔧", group: "Tháp", impl: true, aim: "tower",
       tiers: { bac: 10, vang: 20, kimcuong: 30 }, desc: (v) => `Tăng ${v}% chỉ số (ST/tốc/tầm/loang) cho MỘT tháp được chọn (ST & tốc nhân đôi hiệu quả → DPS tăng mạnh).` },
     backKingXay: { id: "backKingXay", name: "Back King Xây", icon: "🧲", group: "Tháp", impl: true,
-      tiers: { vang: 1 }, desc: () => "Có thể di chuyển tháp đã xây sang vị trí khác." },
+      tiers: { vang: 1 }, desc: () => "Có thể di chuyển tháp đã xây sang vị trí khác. Bán tháp/bẫy hoàn 100% vàng đã chi." },
     nguyenBan: { id: "nguyenBan", name: "Nguyên Bản", icon: "⭐", group: "Tháp", impl: true,
       tiers: { bac: 50 }, desc: (v) => `Mọi tháp CHƯA nâng cấp (cấp 1) được tăng ${v}% chỉ số & hiệu ứng (KHÔNG buff tầm).` },
     // --- Phép ---
