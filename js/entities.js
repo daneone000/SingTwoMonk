@@ -515,7 +515,7 @@
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e, primary) {
       let dmg = this.dmg * this.boonDistMul;   // Sét boon: +dmg theo khoảng cách
-      if (this.l6 && this.ttype === "set") dmg += CFG.SET_L6_HP * e.hp;   // Sét L6: +3% máu HIỆN TẠI/đòn (bỏ giáp)
+      if (this.l6 && this.ttype === "set") dmg += CFG.SET_L6_HP * e.hp;   // Sét L6: +0.1% máu HIỆN TẠI/đòn (bỏ giáp)
       if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng
       e.applyDamage(dmg);
       if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm

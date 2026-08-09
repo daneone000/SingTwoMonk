@@ -409,7 +409,7 @@
     ten: "🏹 bắn ĐA MỤC TIÊU (= cấp tháp; +3 nếu có cường hóa Tên)",
     lua: "🔥 THIÊU ĐỐT: 2%/giây máu ĐÃ MẤT ×3s (×1.5 nếu có cường hóa Lửa)",
     bang: "❄ 1% mỗi đòn mini-stun 0.3s (CÓ loang)",
-    set: "⚡ +3% máu HIỆN TẠI mỗi đòn (xé quái trâu/bay)",
+    set: "⚡ +0.1% máu HIỆN TẠI mỗi đòn (xé quái trâu/bay)",
     doc: "☠ độc 30% máu hiện tại (cường hóa Độc → %máu TỐI ĐA)",
     nangluong: "✦ buff mạnh hơn (×1.5)",
   };
