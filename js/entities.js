@@ -253,7 +253,7 @@
     }
     startWork(action, t) { this.action = action; this.buildTimer = t; this.buildDur = t; }
     get stats() { return CFG.statAt(this.def, this.level); }
-    get range() { return this.fstats.range * TILE * this.coreMul(); }
+    get range() { return this.fstats.range * TILE * (1 + (this.reinforce || 0)); }   // Gia Cố nới tầm; Nguyên Bản KHÔNG buff tầm
     get maxLevel() { return this.level >= this.def.lv.length; }
     get upgradeCost() { return this.maxLevel ? 0 : CFG.upgradeCost(this.def, this.level); }
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }

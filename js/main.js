@@ -386,9 +386,9 @@
       return `<div class="tp-lvtable"><div class="tp-lvhead">Buff tháp bắn quanh · Tầm phủ <b>${s.range.toFixed(1)}</b> ô</div>${rows}</div>`;
     }
     // base = chỉ số GỐC tháp cầm nòng; "+bonus" gộp cả dung hợp (tháp kia) lẫn lõi (cm)
-    const s = t.fused ? t.fstats : t.stats, raw = t.fused ? t.shooterStats : s, cm = t.coreMul(), om = t.origMul || 1;
+    const s = t.fused ? t.fstats : t.stats, raw = t.fused ? t.shooterStats : s, cm = t.coreMul(), om = t.origMul || 1, rm = 1 + (t.reinforce || 0);
     const base = Math.round(raw.dmg), bonus = Math.round(t.effDmg() - raw.dmg), sps = 1 / t.effRate(), spsBonus = sps - 1 / (raw.rate || 1);
-    const rngBonus = s.range * cm - raw.range, splBonus = (s.splash || 0) * cm - (raw.splash || 0);
+    const rngBonus = s.range * rm - raw.range, splBonus = (s.splash || 0) * cm - (raw.splash || 0);   // tầm chỉ theo Gia Cố (Nguyên Bản không buff tầm)
     const plus = (b) => b > 0.01 ? ` <span class="plus">+${b.toFixed(1)}</span>` : "";
     // hiệu ứng (chậm/độc) — Nguyên Bản (origMul) NHÂN đôi hiệu ứng; hiện giá trị đã nhân
     const effLine = (label, pct, suf) => `<div>${label}: <b class="plus">${Math.round(pct * om * 100)}%${suf || ""}</b>${om > 1 ? ` <span class="plus">(×${om})</span>` : ``}</div>`;

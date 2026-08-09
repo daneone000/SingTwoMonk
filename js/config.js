@@ -262,7 +262,7 @@
     backKingXay: { id: "backKingXay", name: "Back King Xây", icon: "🧲", group: "Tháp", impl: true,
       tiers: { vang: 1 }, desc: () => "Có thể di chuyển tháp đã xây sang vị trí khác." },
     nguyenBan: { id: "nguyenBan", name: "Nguyên Bản", icon: "⭐", group: "Tháp", impl: true,
-      tiers: { bac: 100 }, desc: (v) => `Mọi tháp CHƯA nâng cấp (cấp 1) được tăng ${v}% chỉ số & hiệu ứng.` },
+      tiers: { bac: 50 }, desc: (v) => `Mọi tháp CHƯA nâng cấp (cấp 1) được tăng ${v}% chỉ số & hiệu ứng (KHÔNG buff tầm).` },
     // --- Phép ---
     kePhaLuat: { id: "kePhaLuat", name: "Kẻ Phá Luật", icon: "📜", group: "Phép", impl: true,
       tiers: { vang: 1 }, desc: () => "Học phép không cần theo nhánh cây phép." },
