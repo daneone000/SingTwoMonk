@@ -598,3 +598,9 @@ body.campaign .core-banner, body.campaign #coreSlots, body.campaign #comboBar, b
 .camp-up { margin-top: 6px; background: #3a7d46; color: #fff; border: none; border-radius: 7px; padding: 4px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }
 .camp-up:hover { filter: brightness(1.15); }
 .camp-champ-lock { margin-top: 5px; font-size: 10.5px; color: var(--dim); }
+
+/* ===== Phase 4: huy hiệu kỹ năng shop + tra cứu ===== */
+.tw-ic { position: relative; }
+.tw-ab { position: absolute; top: -4px; right: -4px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 7px; background: #7fb2ff; color: #10161f; font-size: 9px; font-weight: 900; line-height: 13px; text-align: center; box-shadow: 0 0 0 1.5px rgba(0,0,0,.45); }
+.camp-champ-tg { font-size: 9px; font-weight: 800; color: #9fb4d8; background: rgba(127,178,255,.15); border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+.camp-champ-sum { font-size: 10.5px; color: var(--dim); line-height: 1.4; margin-top: 5px; }

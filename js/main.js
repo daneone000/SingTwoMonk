@@ -27,7 +27,8 @@
   function addTower(key, def, isTrap) {
     const b = document.createElement("button"); b.className = "tw-btn"; b.dataset.key = key;
     const tag = isTrap ? "BẪY" : def.support ? "HỖ TRỢ" : def.target === "both" ? "BAY+BỘ" : def.target === "air" ? "BAY" : "BỘ";
-    b.innerHTML = `<span class="hk" data-act="${key}"></span><span class="tw-ic" style="background:${def.color}">${def.glyph}</span><span class="tw-nm">${def.name.replace("Tháp ", "").replace("Bẫy ", "B.")}</span><span class="tw-tg">${tag}</span><span class="tw-cost">💰${def.cost}</span>`;
+    const abBadge = def.ability ? `<span class="tw-ab" title="${def.ability.name}">${def.ability.key}</span>` : "";   // TƯỚNG: huy hiệu phím kỹ năng
+    b.innerHTML = `<span class="hk" data-act="${key}"></span><span class="tw-ic" style="background:${def.color}">${def.glyph}${abBadge}</span><span class="tw-nm">${def.name.replace("Tháp ", "").replace("Bẫy ", "B.")}</span><span class="tw-tg">${tag}</span><span class="tw-cost">💰${def.cost}</span>`;
     if (def.champion) b.classList.add("champion");   // CHIẾN DỊCH × LMHT: viền phân biệt tướng
     b.title = def.name + " — " + def.desc; b.onclick = () => game.setBuild(key); grid.appendChild(b); shopBtns[key] = b;
   }
@@ -608,6 +609,22 @@
   function closeCampaign() { campaignModal.classList.add("hidden"); }
   $("campClose").onclick = closeCampaign;
 
+  // Tóm tắt kỹ năng (kiêm tra cứu) theo loại — số liệu gốc LMHT
+  function champAbilitySummary(c) {
+    const ab = c.ability, v = (x) => Array.isArray(x) ? `${x[0]}→${x[x.length - 1]}` : x;
+    const cd = Array.isArray(ab.cd) ? (ab.cd[0] === ab.cd[ab.cd.length - 1] ? `${ab.cd[0]}s` : `${ab.cd[0]}→${ab.cd[ab.cd.length - 1]}s`) : `${ab.cd}s`;
+    let eff = "";
+    if (ab.kind === "multishot") eff = `${ab.shots} mũi đa mục tiêu, ST ${v(ab.dmg)} (+${Math.round(ab.adMul * 100)}% đòn đánh) + làm chậm`;
+    else if (ab.kind === "steroid_bounce") eff = `${ab.dur}s: +tốc ${Math.round((ab.rateMul[0] - 1) * 100)}→${Math.round((ab.rateMul[4] - 1) * 100)}%, nảy tối đa ${ab.bounces} (mỗi lần ${Math.round(ab.bouncePct[0] * 100)}→${Math.round(ab.bouncePct[4] * 100)}% ST)`;
+    else if (ab.kind === "steroid_pctdmg") eff = `${ab.dur}s: +tầm, mỗi đòn +${Math.round(ab.pct[0] * 100)}→${Math.round(ab.pct[4] * 100)}% máu tối đa (xé trâu/bay)`;
+    else if (ab.kind === "root_shot") eff = `trói ${ab.targets} mục tiêu ${v(ab.rootDur)}s, ST ${v(ab.dmg)}`;
+    else if (ab.kind === "area_nuke") eff = `nổ vùng ${ab.radius} ô, ST ${v(ab.dmg)} + thiêu đốt`;
+    else if (ab.kind === "dot_field") eff = `vùng ${ab.radius} ô ×${ab.dur}s: ${v(ab.dps)} ST/giây + làm chậm ${Math.round(ab.slowPct[0] * 100)}→${Math.round(ab.slowPct[4] * 100)}%`;
+    else if (ab.kind === "pierce_line") eff = `xuyên cả hàng, ST ${v(ab.dmg)} (+${Math.round(ab.adMul * 100)}% đòn đánh)`;
+    else if (ab.kind === "place_trap") eff = ab.trap.kind === "root" ? `đặt bẫy TRÓI ${v(ab.trap.rootDur)}s (tối đa ${v(ab.maxTraps)} bẫy)` : `đặt nấm NỔ VÙNG độc + chậm (tối đa ${v(ab.maxTraps)})`;
+    return `⏱ hồi ${cd} · ${eff}`;
+  }
+
   function renderCampaign() {
     $("campPoints").textContent = "★ Điểm nội tại: " + campaign.points;
     // --- ladder ---
@@ -621,14 +638,15 @@
     }).join("");
     $("campStages").innerHTML = sh;
     for (const b of $("campStages").querySelectorAll(".camp-play")) b.onclick = () => { const st = CFG.CAMPAIGN.find((s) => s.id === +b.dataset.stage); if (st) startStage(st); };
-    // --- collection / mastery ---
+    // --- collection / mastery (kiêm tra cứu kỹ năng) ---
     const ch = CFG.CHAMPION_ORDER.map((k) => {
       const c = CFG.CHAMPIONS[k], on = campaign.unlocked.includes(k), lv = campaign.mastery[k] | 0;
       const stars = Array.from({ length: CFG.MASTERY_MAX }, (_, i) => `<span class="ms-dot${i < lv ? " on" : ""}">●</span>`).join("");
       const unlockAt = CFG.CAMPAIGN.find((s) => s.reward === k);
       const upBtn = (on && lv < CFG.MASTERY_MAX && campaign.points > 0) ? `<button class="camp-up" data-champ="${k}">Nâng ▲ (1 điểm)</button>` : "";
       const lock = on ? "" : `<div class="camp-champ-lock">🔒 Mở ở màn ${unlockAt ? unlockAt.id : "?"}</div>`;
-      return `<div class="camp-champ${on ? "" : " locked"}"><div class="camp-champ-head"><span class="tw-ic" style="background:${c.color}">${c.glyph}</span><div><div class="camp-champ-nm">${c.name}</div><div class="camp-champ-ab">[${c.ability.key}] ${c.ability.name}</div></div></div><div class="camp-stars">${stars} <span class="ms-buff">+${Math.round(lv * CFG.MASTERY_PER * 100)}% ST/tốc</span></div>${upBtn}${lock}</div>`;
+      const tgt = c.target === "both" ? "Bay+Bộ" : c.target === "air" ? "Bay" : "Bộ";
+      return `<div class="camp-champ${on ? "" : " locked"}"><div class="camp-champ-head"><span class="tw-ic" style="background:${c.color}">${c.glyph}</span><div><div class="camp-champ-nm">${c.name} <span class="camp-champ-tg">${tgt}</span></div><div class="camp-champ-ab">[${c.ability.key}] ${c.ability.name}</div></div></div><div class="camp-champ-sum">${champAbilitySummary(c)}</div><div class="camp-stars">${stars} <span class="ms-buff">+${Math.round(lv * CFG.MASTERY_PER * 100)}% ST/tốc</span></div>${upBtn}${lock}</div>`;
     }).join("");
     $("campChamps").innerHTML = ch;
     for (const b of $("campChamps").querySelectorAll(".camp-up")) b.onclick = () => { const k = b.dataset.champ; if (campaign.points > 0 && (campaign.mastery[k] | 0) < CFG.MASTERY_MAX) { campaign.mastery[k] = (campaign.mastery[k] | 0) + 1; campaign.points--; saveCampaign(); renderCampaign(); } };

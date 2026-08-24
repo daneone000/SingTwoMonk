@@ -402,7 +402,24 @@
         ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, TILE * .5, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();
         ctx.fillStyle = col; ctx.font = "bold 15px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(Math.ceil(this.buildTimer), x, y); ctx.restore();
       }
+      if (!working && this.def.ability) this.drawAbility(ctx, x, y);   // TƯỚNG: vòng hồi chiêu + hào quang sẵn sàng + huy hiệu kỹ năng
       if (sel) selectHighlight(ctx, x, y, this.range, this.glowT || 0);
+    }
+    // TƯỚNG: vòng hồi chiêu kỹ năng (cung tiến độ), hào quang khi SẴN SÀNG, aura khi đang cường hóa, huy hiệu phím
+    drawAbility(ctx, x, y) {
+      const ab = this.def.ability, R = TILE * .5;
+      const maxCd = this.abVal(ab.cd) || 1, cd = Math.max(0, this.abilityCd || 0), p = Math.max(0, Math.min(1, 1 - cd / maxCd));
+      const col = this.def.color2 || this.def.color, ready = cd <= 0.02, g = this.glowT || 0;
+      ctx.save();
+      ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.stroke();   // nền vòng
+      ctx.strokeStyle = ready ? col : "rgba(180,200,255,.85)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();   // cung tiến độ hồi chiêu
+      if (ready) { const pl = .5 + .5 * Math.sin(g * 5); ctx.globalAlpha = .3 + .4 * pl; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, R + 3, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }   // hào quang sẵn sàng
+      if (this.steroidTime > 0) { const pl = .5 + .5 * Math.sin(g * 7); ctx.globalAlpha = .4 + .4 * pl; ctx.strokeStyle = "#fff2a8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R - 4, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }   // aura cường hóa (Sivir/Kog)
+      const by = y - R;   // huy hiệu phím kỹ năng (Q/W/R…) ở TRÊN
+      ctx.fillStyle = ready ? col : "rgba(28,38,58,.9)"; ctx.beginPath(); ctx.arc(x, by, 7, 0, 7); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = ready ? "#10161f" : "#cfe0ff"; ctx.font = "bold 9px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(ab.key, x, by + .5);
+      ctx.restore();
     }
     // Vòng đồng gia cố (quay + nhấp nháy) quanh chân tháp — dấu hiệu tháp đã Gia Cố
     drawReinforce(ctx, x, y) {
