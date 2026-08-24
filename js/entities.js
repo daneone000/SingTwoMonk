@@ -328,8 +328,15 @@
         // Cassiopeia Nọc Độc: thả vùng độc gây ST theo thời gian
         game.effects.push(new PoisonCloud(t.x, t.y, this.abVal(ab.radius) * TILE, this.abVal(ab.dps) || 0, ab.dur, ab.pctps || 0));
       } else if (ab.kind === "empower_next") {
-        // Caitlyn Đầu Ruồi: đòn đánh KẾ +ST nền (+adMul AD) và chí mạng
+        // (dự phòng) đòn đánh KẾ +ST nền (+adMul AD) và chí mạng
         this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit;
+      } else if (ab.kind === "place_trap") {
+        // Caitlyn Bẫy Yordle / Teemo Nấm Độc: đặt 1 bẫy vào ô của mục tiêu (trong tầm), giới hạn số bẫy còn sống
+        const c = Math.floor(t.x / TILE), r = Math.floor(t.y / TILE);
+        const spec = {}; for (const key in ab.trap) spec[key] = Array.isArray(ab.trap[key]) ? this.abVal(ab.trap[key]) : ab.trap[key];   // chỉ số bẫy scale theo cấp
+        spec.color = col;
+        spec.dmg = (this.abVal(ab.trap.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();   // ST bẫy = nền theo cấp + tỉ lệ AD
+        game.dropChampTrap(this, c, r, spec, this.abVal(ab.maxTraps) || 3);
       } else if (ab.kind === "steroid_bounce") {
         this.steroidKind = "bounce"; this.steroidAttacks = this.abVal(ab.attacks); this.steroidRateMul = this.abVal(ab.rateMul) || 1;
         this.steroidBounces = this.abVal(ab.bounces) || 0; const f = this.abVal(ab.bounceFalloff); this.steroidFalloff = f != null ? f : 1; this.steroidDmgMul = this.abVal(ab.dmgMul) || 1;
@@ -640,6 +647,32 @@
   class BlastFx { constructor(x, y, r, c) { this.x = x; this.y = y; this.r = r; this.color = c; this.t = 0; this.dur = .3; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, this.r * f, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
   // TƯỚNG (Varus Xuyên Thâu): tia sáng dọc đường bắn, mờ dần
   class BeamFx { constructor(x1, y1, x2, y2, c) { this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2; this.color = c; this.t = 0; this.dur = .25; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = 1 - this.t / this.dur; ctx.save(); ctx.globalAlpha = f; ctx.strokeStyle = this.color; ctx.lineWidth = 5 * f + 1; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(this.x1, this.y1); ctx.lineTo(this.x2, this.y2); ctx.stroke(); ctx.restore(); } }
+  // TƯỚNG: bẫy do tướng tự đặt (Caitlyn Bẫy Yordle = trói+ST; Teemo Nấm Độc = nổ vùng độc+chậm). Kích hoạt khi quái BỘ giẫm ô.
+  class ChampTrap {
+    constructor(owner, col, row, spec) { this.owner = owner; this.col = col; this.row = row; this.x = (col + .5) * TILE; this.y = (row + .5) * TILE; this.spec = spec; this.dead = false; this.pulse = 0; this.arm = 0.35; this.glyph = spec.glyph || "◇"; }
+    update(dt, game) {
+      this.pulse += dt; if (this.dead) return; if (this.arm > 0) { this.arm -= dt; return; }
+      const s = this.spec;
+      let on = null;
+      for (const e of game.enemies) { if (e.dead || e.leaked || e.fly) continue; if (Math.floor(e.x / TILE) === this.col && Math.floor(e.y / TILE) === this.row) { on = e; break; } }
+      if (!on) return;
+      if (s.kind === "shroom") {   // Teemo Nấm Độc: nổ vùng — ST + làm chậm + nhiễm độc
+        const R = (s.radius || 1.3) * TILE;
+        for (const e of game.enemies) { if (e.dead || e.leaked || e.fly) continue; if (dist(e.x, e.y, this.x, this.y) <= R + e.radius) { if (s.dmg) e.applyDamage(s.dmg); if (s.slowPct) e.slow(1 - s.slowPct, s.slowDur || 2); if (s.poisonPct) e.addPoison(s.poisonPct, s.poisonDur || 4, 4, false); e._spellHit = true; } }
+        game.effects.push(new BlastFx(this.x, this.y, R, s.color));
+      } else {   // Caitlyn Bẫy Yordle: trói + ST quái giẫm bẫy
+        on.freeze(s.rootDur || 1); if (s.dmg) { on.applyDamage(s.dmg); on._spellHit = true; }
+        game.effects.push(new BlastFx(this.x, this.y, TILE * 0.6, s.color));
+      }
+      this.dead = true;
+    }
+    draw(ctx) {
+      const x = this.x, y = this.y, a = this.arm > 0 ? 0.4 : 0.7 + 0.2 * Math.sin(this.pulse * 5);
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = this.spec.color; ctx.beginPath(); ctx.arc(x, y, TILE * 0.22, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.font = "bold 11px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(this.glyph, x, y + .5); ctx.restore();
+    }
+  }
   class SwirlFx { constructor(x, y) { this.x = x; this.y = y; this.t = 0; this.dur = .35; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = "#9fa8ff"; ctx.lineWidth = 2.5; ctx.beginPath(); for (let a = 0; a < 12; a++) { const ang = a * .6 + f * 6, rr = a * 1.6 * (1 - f * .3); const px = this.x + Math.cos(ang) * rr, py = this.y + Math.sin(ang) * rr; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.globalAlpha = 1; } }
   class PoisonCloud { constructor(x, y, r, dps, dur, pctps) { this.x = x; this.y = y; this.r = r; this.dps = dps; this.pctps = pctps || 0; this.dur = dur; this.t = 0; this.dead = false; } update(dt, game) { this.t += dt; if (this.t >= this.dur) { this.dead = true; return; } for (const e of game.enemies) if (!e.dead && !e.leaked && dist(e.x, e.y, this.x, this.y) <= this.r + e.radius) { e.applyDamage((this.dps + this.pctps * e.maxHp) * dt, true); e._spellHit = true; } } draw(ctx) { ctx.save(); ctx.globalAlpha = .3 * (1 - this.t / this.dur) + .15; ctx.fillStyle = "#8e24aa"; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, 7); ctx.fill(); ctx.restore(); } }
 
@@ -706,6 +739,6 @@
     ctx.fillStyle = "#ffcf6a"; ctx.font = "bold 8px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("+" + pct + "%", x, y + .5);
   }
 
-  STM.Enemy = Enemy; STM.Tower = Tower; STM.Trap = Trap;
+  STM.Enemy = Enemy; STM.Tower = Tower; STM.Trap = Trap; STM.ChampTrap = ChampTrap;
   STM.Projectile = Projectile; STM.PoisonCloud = PoisonCloud; STM.util = { dist };
 })(window.STM || (window.STM = {}));

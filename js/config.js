@@ -230,11 +230,12 @@
         { dmg: 80, rate: R(1.2), range: 3.6, splash: 0 }, { dmg: 165, rate: R(1.25), range: 3.8, splash: 0 },
         { dmg: 360, rate: R(1.3), range: 4.0, splash: 0 },
       ],
-      // [Passive] Đầu Ruồi (Headshot) — đòn đánh kế +ST lớn & chí mạng
-      ability: { key: "P", name: "Đầu Ruồi", kind: "empower_next",
-        cd: [10, 9, 8, 7, 6], dmg: [40, 70, 100, 130, 160], adMul: 0.5, crit: true,
-        desc: "Nạp đạn: đòn đánh KẾ gây thêm ST nền (+50% đòn đánh) và luôn CHÍ MẠNG (×2)." },
-      desc: "Xạ thủ tầm xa nhất: nạp Đầu Ruồi cho đòn đánh chí mạng cực mạnh. Đánh cả BAY & BỘ.",
+      // [W] Bẫy Yordle (Yordle Snap Trap) — đặt bẫy TRÓI trong tầm đánh (nội tại: Thiện Xạ)
+      ability: { key: "W", name: "Bẫy Yordle", kind: "place_trap", maxTraps: 3, adMul: 0.5,
+        cd: [9, 8, 7, 6, 5],
+        trap: { kind: "root", rootDur: [1.0, 1.2, 1.4, 1.6, 1.8], dmg: [40, 70, 100, 130, 160], glyph: "🪤" },
+        desc: "Cứ hết hồi chiêu, đặt 1 Bẫy Yordle vào ô quái đi qua (trong tầm đánh). Quái giẫm bẫy bị TRÓI (đứng yên) + nhận ST. Tối đa 3 bẫy." },
+      desc: "Cảnh sát trưởng (nội tại Thiện Xạ): W đặt Bẫy Yordle trói quái. Đánh cả BAY & BỘ.",
     },
     varus: {
       key: "varus", name: "Varus", title: "Mũi Tên Trừng Phạt", glyph: "🎯", champion: true,
@@ -266,8 +267,24 @@
         desc: "Mấy đòn đánh kế tăng tốc đánh và gây thêm % MÁU TỐI ĐA (phép, bỏ giáp) — xé quái trâu & quái bay." },
       desc: "Xạ thủ xé giáp: W khiến đòn đánh gây %máu tối đa, khắc chế quái trâu/bay. Đánh cả BAY & BỘ.",
     },
+    teemo: {
+      key: "teemo", name: "Teemo", title: "Trinh Sát Nhanh Nhẹn", glyph: "🍄", champion: true,
+      color: "#4fae5a", color2: "#a6e08a", target: "both", block: true, effect: "poison",
+      cost: 25, up: [35, 70, 140, 280], projSpeed: 560, projColor: "#a6e08a",
+      lv: [
+        { dmg: 10, rate: R(1.6), range: 2.2, splash: 0, poisonPct: 0.04 }, { dmg: 20, rate: R(1.7), range: 2.3, splash: 0, poisonPct: 0.06 },
+        { dmg: 40, rate: R(1.8), range: 2.4, splash: 0, poisonPct: 0.08 }, { dmg: 82, rate: R(1.9), range: 2.5, splash: 0, poisonPct: 0.10 },
+        { dmg: 180, rate: R(2.0), range: 2.6, splash: 0, poisonPct: 0.13 },
+      ],
+      // [R] Nấm Độc (Noxious Trap) — đặt nấm; quái giẫm -> nổ vùng ST + làm chậm + nhiễm độc
+      ability: { key: "R", name: "Nấm Độc", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.3,
+        cd: [8, 7, 6, 5, 4],
+        trap: { kind: "shroom", radius: 1.3, slowPct: 0.3, slowDur: 2, poisonPct: [0.03, 0.04, 0.05, 0.06, 0.07], poisonDur: 4, dmg: [30, 55, 80, 105, 130], glyph: "🍄" },
+        desc: "Cứ hết hồi chiêu, đặt 1 Nấm Độc vào ô quái đi qua (trong tầm). Quái giẫm nấm → NỔ vùng: ST + làm chậm 30% + nhiễm độc. Tối đa 3→5 nấm." },
+      desc: "Trinh sát: đòn đánh gây độc; R rải Nấm Độc nổ vùng làm chậm + độc. Đánh cả BAY & BỘ.",
+    },
   };
-  const CHAMPION_ORDER = ["ashe", "sivir", "caitlyn", "varus", "kogmaw", "lux", "brand", "cassiopeia"];
+  const CHAMPION_ORDER = ["ashe", "sivir", "caitlyn", "teemo", "varus", "kogmaw", "lux", "brand", "cassiopeia"];
   Object.assign(TOWERS, CHAMPIONS);   // tướng dùng chung lookup với tháp -> Tower/statAt/upgradeCost/buyCost chạy nguyên vẹn
   function buildOrder(mode) { return mode === "campaign" ? CHAMPION_ORDER : TOWER_ORDER; }
 

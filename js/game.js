@@ -13,7 +13,7 @@
       this.mode = mode; this.campaign = (mode === "campaign"); this.map = CFG.buildMap(); this.grid = this.map.grid;
       this.gold = CFG.START_GOLD; this.sp = CFG.START_SP; this.lives = CFG.START_LIVES;
       this.score = 0; this.wave = 0;
-      this.enemies = []; this.towers = []; this.traps = []; this.projectiles = []; this.effects = [];
+      this.enemies = []; this.towers = []; this.traps = []; this.champTraps = []; this.projectiles = []; this.effects = [];
       this.blockSet = new Set(); this.occupied = new Set(); this.raised = new Set();   // raised: ô đã nâng cao (Trùm Bản Đồ) chặn quái BAY
       this.spawnQueue = []; this.gameOver = false; this.victory = false;
       this.started = false; this.spawnClock = 0; this.waveTimer = 0;  // đợt quái ra ĐỊNH KỲ
@@ -386,6 +386,13 @@
       return false;
     }
     canPlaceTower(c, r) { return this.isLandFree(c, r) && !this.enemyOnCell(c, r) && !this.wouldBlockPath(c, r); }
+    // TƯỚNG (Caitlyn/Teemo): đặt 1 bẫy vào ô quái đi qua; cắt bớt bẫy CŨ nhất của cùng tướng khi vượt trần
+    dropChampTrap(owner, col, row, spec, maxTraps) {
+      if (!this.inBounds(col, row) || !this.walkable(col, row)) return;
+      owner._champTraps = (owner._champTraps || []).filter((t) => !t.dead && this.champTraps.includes(t));
+      while (owner._champTraps.length >= Math.max(1, maxTraps)) { const old = owner._champTraps.shift(); old.dead = true; }
+      const tr = new STM.ChampTrap(owner, col, row, spec); this.champTraps.push(tr); owner._champTraps.push(tr);
+    }
     placeSelected(c, r) {
       const type = this.buildType; if (!type) return;
       const isTrap = !!CFG.TRAPS[type], def = isTrap ? CFG.TRAPS[type] : CFG.TOWERS[type];
@@ -957,6 +964,7 @@
       for (const e of this.enemies.slice()) e.update(pdt, this);
       for (const t of this.traps) t.update(pdt, this);
       if (this.traps.some((t) => t.dead)) { for (const t of this.traps) if (t.dead) { this.occupied.delete(t.col + "," + t.row); if (this.selected === t) this.selected = null; } this.traps = this.traps.filter((t) => !t.dead); this.emit(); }
+      if (this.champTraps.length) { for (const t of this.champTraps) t.update(pdt, this); if (this.champTraps.some((t) => t.dead)) this.champTraps = this.champTraps.filter((t) => !t.dead); }   // TƯỚNG: bẫy tự đặt (Caitlyn/Teemo)
       for (const t of this.towers) t.update(pdt, this);
       // tháp đang "bán/phá" hết giờ -> gỡ khỏi sân (+ hoàn vàng nếu do người chơi bán)
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
@@ -979,6 +987,7 @@
       this.drawGates(ctx);
       this.drawRaised(ctx);
       for (const t of this.traps) t.draw(ctx, t === this.selected);
+      for (const t of this.champTraps) t.draw(ctx);   // TƯỚNG: bẫy tự đặt
       this.drawPreview(ctx);
       for (const t of this.towers) t.draw(ctx, t === this.selected);
       for (const e of this.enemies) e.draw(ctx);

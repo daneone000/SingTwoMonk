@@ -432,6 +432,7 @@
     else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b>+${Math.round((ab.pctps || 0) * 100)}% máu/giây`;
     else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}`;
     else if (ab.kind === "pierce_line") stat += ` · xuyên hàng · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
+    else if (ab.kind === "place_trap") { const tr = ab.trap; stat += ` · tối đa <b>${t.abVal(ab.maxTraps)}</b> bẫy`; stat += tr.kind === "root" ? ` · trói <b>${t.abVal(tr.rootDur).toFixed(1)}s</b> + ST nền <b>${t.abVal(tr.dmg)}</b>${ad}` : ` · nổ vùng <b>${tr.radius}</b> ô · chậm ${Math.round((tr.slowPct || 0) * 100)}% + độc · ST nền <b>${t.abVal(tr.dmg)}</b>`; }
     return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
   function gemLineHTML(t) {
