@@ -553,6 +553,8 @@ body.netplay #btnPause { display: none; }
 
 /* ===== CHIẾN DỊCH × LMHT ===== */
 body.campaign .core-banner, body.campaign #coreSlots, body.campaign #comboBar, body.campaign #gemBar { display: none !important; }
+/* các khối MÔ TẢ chiếm CẢ hàng trong lưới 4 cột chỉ số (tránh bị ép 1/4 ô -> cao lấp nút nâng/bán) */
+.tp-stats > .tp-fuse, .tp-stats > .tp-l6, .tp-stats > .tp-ability, .tp-stats > .tp-gemline { grid-column: 1 / -1; }
 .tp-ability { margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: rgba(120,170,255,.12); border: 1px solid rgba(120,170,255,.35); }
 .tp-ability .ab-head { font-size: 12px; font-weight: 800; color: #cfe4ff; display: flex; align-items: center; gap: 6px; }
 .tp-ability .ab-key { font-size: 10px; font-weight: 900; color: #0f1a2b; background: #7fb2ff; border-radius: 4px; padding: 1px 5px; }

@@ -437,7 +437,7 @@
     return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
   function gemLineHTML(t) {
-    if (t.trap) return "";
+    if (t.trap || (t.def && t.def.champion)) return "";   // tướng (chiến dịch) không dùng hệ gem
     const gems = t.gems || [], slots = [];
     for (let i = 0; i < CFG.MAX_GEMS; i++) { const k = gems[i]; if (k) { const gd = CFG.GEMS[k]; slots.push(`<span class="tp-gem" style="--gc:${gd.color}" title="${gd.name}">${gd.icon}</span>`); } else slots.push(`<span class="tp-gem empty">◦</span>`); }
     const nh = t.nguHanh ? ` <span class="tp-nguhanh">☯ NGŨ HÀNH ×2</span>` : "";
