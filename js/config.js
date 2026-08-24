@@ -147,32 +147,32 @@
     ashe: {
       key: "ashe", name: "Ashe", title: "Nữ Hoàng Băng Giá", glyph: "🏹", champion: true,
       color: "#5aa9d6", color2: "#bde8f5", target: "both", block: true, effect: "slow",
-      cost: 20, up: [30, 60, 120, 240, 480], projSpeed: 760, projColor: "#bde8f5",
+      cost: 20, up: [30, 60, 120, 240], projSpeed: 760, projColor: "#bde8f5",   // tướng: TỐI ĐA cấp 5 (up dài 4)
       // đòn đánh thường LÀM CHẬM (Frost Shot). Chỉ số tiệm cận đường cong tháp Tên nhưng có slow.
       lv: [
         { dmg: 14, rate: R(1.4), range: 2.2, splash: 0, slowPct: 0.15 }, { dmg: 30, rate: R(1.5), range: 2.4, splash: 0, slowPct: 0.18 },
         { dmg: 62, rate: R(1.6), range: 2.6, splash: 0, slowPct: 0.22 }, { dmg: 130, rate: R(1.7), range: 2.8, splash: 0, slowPct: 0.26 },
-        { dmg: 300, rate: R(1.8), range: 3.0, splash: 0, slowPct: 0.30 }, { dmg: 640, rate: R(1.9), range: 3.2, splash: 0, slowPct: 0.35 },
+        { dmg: 300, rate: R(1.8), range: 3.0, splash: 0, slowPct: 0.30 },
       ],
-      // [W] Tán Xạ Tiễn (Volley) — chỉ số gốc LMHT, scale theo CẤP tháp (cấp 1→6)
+      // [W] Tán Xạ Tiễn (Volley) — chỉ số gốc LMHT, 5 bậc theo CẤP tháp (cấp 1→5)
       ability: { key: "W", name: "Tán Xạ Tiễn", kind: "multishot",
-        cd: [16, 13, 10, 7, 4, 4], shots: 7, dmg: [40, 50, 60, 70, 80, 100], adMul: 1.0,
+        cd: [16, 13, 10, 7, 4], shots: 7, dmg: [40, 50, 60, 70, 80], adMul: 1.0,
         desc: "Bắn loạt tên hình nón vào tối đa 7 mục tiêu, mỗi mũi gây ST nền + 100% ST đòn đánh và làm chậm (mỗi kẻ địch chỉ chịu ST một lần)." },
       desc: "Xạ thủ băng: đòn đánh làm CHẬM; W bắn 7 mũi tên đa mục tiêu. Đánh cả BAY & BỘ.",
     },
     sivir: {
       key: "sivir", name: "Sivir", title: "Chiến Binh Sa Mạc", glyph: "🪃", champion: true,
       color: "#d99a4e", color2: "#f5cd8a", target: "both", block: true,
-      cost: 25, up: [35, 70, 140, 280, 560], projSpeed: 840, projColor: "#f5cd8a",
+      cost: 25, up: [35, 70, 140, 280], projSpeed: 840, projColor: "#f5cd8a",   // tướng: TỐI ĐA cấp 5 (up dài 4)
       lv: [
         { dmg: 18, rate: R(1.5), range: 2.0, splash: 0 }, { dmg: 38, rate: R(1.6), range: 2.1, splash: 0 },
         { dmg: 78, rate: R(1.7), range: 2.2, splash: 0 }, { dmg: 160, rate: R(1.8), range: 2.3, splash: 0 },
-        { dmg: 360, rate: R(1.9), range: 2.4, splash: 0 }, { dmg: 760, rate: R(2.0), range: 2.5, splash: 0 },
+        { dmg: 360, rate: R(1.9), range: 2.4, splash: 0 },
       ],
-      // [W] Búa Xoay (Ricochet) — đạn nảy nhiều mục tiêu (số lần nảy & tốc đánh scale theo cấp)
-      ability: { key: "W", name: "Búa Xoay", kind: "steroid_bounce",
-        cd: [10, 9, 8, 7, 6, 5], attacks: [3, 3, 4, 4, 5, 5], rateMul: [1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
-        bounces: [4, 5, 6, 7, 8, 9], bounceFalloff: 0.7, dmgMul: 1.0,
+      // [W] Nảy Bật (Ricochet) — đạn nảy nhiều mục tiêu (số lần nảy & tốc đánh scale theo cấp), 5 bậc
+      ability: { key: "W", name: "Nảy Bật", kind: "steroid_bounce",
+        cd: [10, 9, 8, 7, 6], attacks: [3, 3, 4, 4, 5], rateMul: [1.3, 1.4, 1.5, 1.6, 1.7],
+        bounces: [4, 5, 6, 7, 8], bounceFalloff: 0.7, dmgMul: 1.0,
         desc: "Mấy đòn đánh kế: tăng tốc đánh và đạn NẢY sang nhiều mục tiêu gần (số lần nảy tăng theo cấp), mỗi lần nảy còn 70% ST." },
       desc: "Xạ thủ boomerang: W tăng tốc đánh vài đòn và đạn nảy sang nhiều mục tiêu. Đánh cả BAY & BỘ.",
     },
