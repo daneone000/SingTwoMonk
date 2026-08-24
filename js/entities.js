@@ -231,6 +231,7 @@
       this.steroidTime = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): đòn đánh cường hóa trong X giây
       this.steroidBounces = 0; this.steroidBouncePct = 0; this.steroidPct = 0; this.steroidRange = 0;
       this.empowerDmg = 0; this.empowerCrit = false;   // (dự phòng) đòn kế +ST & chí mạng
+      this.champMul = 1;   // CHIẾN DỊCH: nội tại (mastery) tướng — +ST & tốc đánh vĩnh viễn
     }
     get ready() { return this.buildTimer <= 0; }
     coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
@@ -265,8 +266,8 @@
     upgrade() { if (this.maxLevel) return false; this.totalSpent += this.upgradeCost; this.level++; return true; }
     buff(m, d) { this.buffMult = m; this.buffTime = d; }
     comboBuffMul() { return this.comboBuff ? 1 + CFG.TOWER_COMBO_BONUS : 1; }   // 2x Tháp: +10% cho loại xây nhiều nhất
-    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul() * (this.gemDmgMul || 1) * this.comboBuffMul(); }
-    effRate() { return this.fstats.rate * this.auraRate / this.coreMul() / (this.gemRateMul || 1) / this.comboBuffMul(); }   // chia -> bắn nhanh hơn (lõi + gem Mộc + combo 2x tháp)
+    effDmg() { return this.fstats.dmg * this.auraDmg * (this.buffTime > 0 ? this.buffMult : 1) * this.coreMul() * (this.gemDmgMul || 1) * this.comboBuffMul() * (this.champMul || 1); }
+    effRate() { return this.fstats.rate * this.auraRate / this.coreMul() / (this.gemRateMul || 1) / this.comboBuffMul() / (this.champMul || 1); }   // chia -> bắn nhanh hơn (lõi + gem Mộc + combo 2x tháp + nội tại tướng)
     canHit(e) { const t = this.fireTarget; return t === "both" || (t === "ground" && !e.fly) || (t === "air" && e.fly); }
     findTarget(en) {
       let best = null, br = 1e18; const rng = this.range;

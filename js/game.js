@@ -11,6 +11,7 @@
 
     reset(mode) {
       this.mode = mode; this.campaign = (mode === "campaign"); this.map = CFG.buildMap(); this.grid = this.map.grid;
+      this.campaignTarget = 0; this.campaignStageId = null; this.campaignUnlocked = null; this.champMastery = null;   // CHIẾN DỊCH: đặt bởi startStage (main.js)
       this.gold = CFG.START_GOLD; this.sp = CFG.START_SP; this.lives = CFG.START_LIVES;
       this.score = 0; this.wave = 0;
       this.enemies = []; this.towers = []; this.traps = []; this.champTraps = []; this.projectiles = []; this.effects = [];
@@ -386,6 +387,8 @@
       return false;
     }
     canPlaceTower(c, r) { return this.isLandFree(c, r) && !this.enemyOnCell(c, r) && !this.wouldBlockPath(c, r); }
+    // CHIẾN DỊCH: gán hệ số nội tại (mastery) cho tướng khi xây
+    _applyChampMul(t) { if (this.campaign && this.champMastery) t.champMul = 1 + (this.champMastery[t.type] || 0) * CFG.MASTERY_PER; }
     // TƯỚNG (Caitlyn/Teemo): đặt 1 bẫy vào ô quái đi qua; cắt bớt bẫy CŨ nhất của cùng tướng khi vượt trần
     dropChampTrap(owner, col, row, spec, maxTraps) {
       if (!this.inBounds(col, row) || !this.walkable(col, row)) return;
@@ -408,7 +411,7 @@
         this.emit(); return;
       }
       if (isTrap) { if (!this.isLandFree(c, r)) return; const t = new STM.Trap(type, c, r); this.traps.push(t); this.occupied.add(c + "," + r); this.gold -= cost; this.selected = t; }
-      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this._lastBuiltType = type; this._tieAfterSell = false; this.computeFlow(); this.recomputeAuras(); }
+      else { if (!this.canPlaceTower(c, r)) return; const t = new STM.Tower(type, c, r); this._applyChampMul(t); t.startWork("build", CFG.workTime(cost, this.wave)); this.towers.push(t); this.occupied.add(c + "," + r); this.blockSet.add(c + "," + r); this.gold -= cost; this.selected = t; this._lastBuiltType = type; this._tieAfterSell = false; this.computeFlow(); this.recomputeAuras(); }
       this._coreActed(); this.emit();
     }
     // Nâng cấp: trừ vàng ngay, tăng cấp, nhưng CHỜ (chưa hiệu lực) trong UP_TIME.
@@ -580,6 +583,7 @@
     // Gọi đợt kế: xếp quái vào hàng chờ theo thời gian tuyệt đối (spawnClock), KHÔNG xoá đợt cũ.
     launchWave() {
       if (this.gameOver || this.victory) return;
+      if (this.campaign && this.campaignTarget && this.wave >= this.campaignTarget) return;   // CHIẾN DỊCH: không gọi quá đợt mục tiêu
       this.wave++; this._afkOnWave(this.wave); this._defenseOnWave(this.wave);   // chốt AFK + Phòng thủ đợt trước
       const w = CFG.buildWave(this.wave); let t = this.spawnClock + 0.2;
       for (let i = 0; i < w.count; i++) { this.spawnQueue.push({ at: t, w, n: this.wave }); t += w.gap; }
@@ -970,6 +974,10 @@
       const doneSell = this.towers.filter((t) => t.action === "sell" && t.buildTimer <= 0);
       if (doneSell.length) { for (const t of doneSell) { if (!t.noRefund) this.gold += this.sellRefund(t); this.occupied.delete(t.col + "," + t.row); this.blockSet.delete(t.col + "," + t.row); this.raised.delete(t.col + "," + t.row); this.towers.splice(this.towers.indexOf(t), 1); if (this.selected === t) this.selected = null; if (!t.trap) { this._lastSoldType = t.type; this._tieAfterSell = true; } } this.computeFlow(); this.recomputeAuras(); this.emit(); }
       if (this._towerDone) { this._towerDone = false; this.recomputeAuras(); this.emit(); }   // xây/nâng xong -> cập nhật aura
+      // CHIẾN DỊCH: thắng màn khi trụ hết đợt mục tiêu (đã dọn sạch quái, không còn quái chờ ra)
+      if (this.campaign && this.campaignTarget && !this.victory && !this.gameOver && this.started && this.wave >= this.campaignTarget && this.enemies.length === 0 && this.spawnQueue.length === 0) {
+        this.victory = true; this.autoNext = false; if (this.onCampaignWin) this.onCampaignWin(this.campaignStageId); this.emit();
+      }
       for (const p of this.projectiles) p.update(pdt, this); this.projectiles = this.projectiles.filter((p) => !p.dead);
       for (const f of this.effects) f.update(pdt, this); this.effects = this.effects.filter((f) => !f.dead);
       // làm mới HUD định kỳ để đồng hồ đếm (xây/nâng/tháo, chờ đợt) chạy mượt

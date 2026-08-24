@@ -288,6 +288,23 @@
   Object.assign(TOWERS, CHAMPIONS);   // tướng dùng chung lookup với tháp -> Tower/statAt/upgradeCost/buyCost chạy nguyên vẹn
   function buildOrder(mode) { return mode === "campaign" ? CHAMPION_ORDER : TOWER_ORDER; }
 
+  // ----- CHIẾN DỊCH: bậc màn (ladder) + mở khóa tướng + nội tại (mastery) -----
+  const CAMPAIGN_START = ["ashe"];      // tướng mở sẵn khi bắt đầu chiến dịch
+  const MASTERY_PER = 0.10;             // mỗi bậc nội tại: +10% ST & tốc đánh cho tướng
+  const MASTERY_MAX = 5;                // trần bậc nội tại
+  const MASTERY_REWARD = 2;             // điểm nội tại nhận khi qua màn LẦN ĐẦU
+  const CAMPAIGN = [
+    { id: 1, name: "Cửa Ải Mở Màn", map: "ho_tu_than", target: 8, reward: "sivir", desc: "Trụ tới hết đợt 8." },
+    { id: 2, name: "Miền Đất Chết", map: "dat_chet", target: 10, reward: "caitlyn", desc: "Trụ tới hết đợt 10." },
+    { id: 3, name: "Đồng Hoang", map: "ho_tu_than", target: 12, reward: "teemo", desc: "Trụ tới hết đợt 12." },
+    { id: 4, name: "Khe Nứt Lửa", map: "dat_chet", target: 14, reward: "varus", desc: "Trụ tới hết đợt 14." },
+    { id: 5, name: "Bầu Trời Tối", map: "ho_tu_than", target: 16, reward: "kogmaw", desc: "Trụ tới hết đợt 16 — nhiều quái BAY." },
+    { id: 6, name: "Thành Đổ Nát", map: "dat_chet", target: 18, reward: "lux", desc: "Trụ tới hết đợt 18." },
+    { id: 7, name: "Hỏa Ngục", map: "ho_tu_than", target: 20, reward: "brand", desc: "Trụ tới hết đợt 20." },
+    { id: 8, name: "Hang Rắn", map: "dat_chet", target: 24, reward: "cassiopeia", desc: "Trụ tới hết đợt 24." },
+    { id: 9, name: "Tử Địa", map: "ho_tu_than", target: 30, reward: null, desc: "Thử thách cuối — trụ tới hết đợt 30." },
+  ];
+
   // ----- PHÍM TẮT MẶC ĐỊNH (người chơi cấu hình lại được, lưu ở localStorage) -----
   // Tháp/bẫy: gán theo từng loại. Phép: gán theo 6 Ô (học tối đa 6 phép), phép học được
   // xếp vào ô theo thứ tự -> phím theo Ô, không theo tên phép. Mặc định 6 ô: Q W E A S D.
@@ -489,6 +506,7 @@
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,
     TOWERS, TRAPS, TOWER_ORDER, TRAP_ORDER, MAX_LEVEL, upgradeCost, statAt, workTime,
     CHAMPIONS, CHAMPION_ORDER, CHAMP_BOUNCE_RANGE, buildOrder,
+    CAMPAIGN, CAMPAIGN_START, MASTERY_PER, MASTERY_MAX, MASTERY_REWARD,
     ENEMIES, buildWave, waveInfo, pickType, randomSummonType, FLY_FROM,
     VS_START_DELAY: 30, VS_AI_PERIOD: 1.6, MAX_PLAYERS: 5,
     // 2v2: mỗi người nhận 0.75× vàng so với thường (2v -> 1.5v) nhưng TỔNG cả đội cao hơn 1 người thường (2 × 1.5 = 3v)

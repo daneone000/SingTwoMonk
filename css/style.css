@@ -559,3 +559,42 @@ body.campaign .core-banner, body.campaign #coreSlots, body.campaign #comboBar, b
 .tp-ability .ab-cd { margin-left: auto; font-size: 11px; font-weight: 700; color: #ffd24a; }
 .tp-ability .ab-desc { font-size: 11.5px; color: var(--dim); line-height: 1.4; margin-top: 3px; }
 .tw-btn.champion .tw-ic { box-shadow: 0 0 0 2px rgba(127,178,255,.5) inset; }
+
+/* ===== CHIẾN DỊCH × LMHT: màn chọn + bộ sưu tập ===== */
+.campaign-box { max-width: 860px; width: 92vw; }
+.camp-points { font-size: 13px; font-weight: 800; color: #ffd24a; margin-left: 10px; }
+#campClose { float: right; }
+.camp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+@media (max-width: 720px) { .camp-cols { grid-template-columns: 1fr; } }
+.camp-sub { font-size: 12px; font-weight: 800; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.camp-ladder, .camp-collection { max-height: 62vh; overflow-y: auto; padding-right: 4px; }
+.camp-stage { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+.camp-stage.next { border-color: rgba(127,178,255,.6); box-shadow: 0 0 0 1px rgba(127,178,255,.3) inset; }
+.camp-stage.done { opacity: .82; }
+.camp-stage-main { flex: 1; min-width: 0; }
+.camp-stage-name { font-size: 13px; font-weight: 800; color: var(--txt); }
+.camp-stage-desc { font-size: 11px; color: var(--dim); }
+.camp-reward { flex: 0 0 auto; }
+.camp-reward .tw-ic { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+.camp-final { font-size: 22px; }
+.camp-stage-act { flex: 0 0 auto; text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.camp-ok { color: #8bff9c; font-size: 11px; font-weight: 800; }
+.camp-go { color: #7fb2ff; font-size: 11px; font-weight: 800; }
+.camp-lock { color: var(--dim); font-size: 11px; font-weight: 700; }
+.camp-play { background: linear-gradient(180deg,#4f8fe0,#3f79c8); color: #fff; border: none; border-radius: 8px; padding: 5px 12px; font-weight: 800; font-size: 12px; cursor: pointer; }
+.camp-play:hover { filter: brightness(1.1); }
+.camp-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 720px) { .camp-champs { grid-template-columns: 1fr; } }
+.camp-champ { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 8px; }
+.camp-champ.locked { opacity: .55; }
+.camp-champ-head { display: flex; align-items: center; gap: 8px; }
+.camp-champ-head .tw-ic { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; flex: 0 0 auto; }
+.camp-champ-nm { font-size: 12.5px; font-weight: 800; color: var(--txt); }
+.camp-champ-ab { font-size: 10.5px; color: var(--dim); }
+.camp-stars { margin-top: 6px; font-size: 11px; }
+.ms-dot { color: rgba(255,255,255,.22); }
+.ms-dot.on { color: #ffd24a; }
+.ms-buff { color: #8bff9c; font-size: 10.5px; font-weight: 700; margin-left: 4px; }
+.camp-up { margin-top: 6px; background: #3a7d46; color: #fff; border: none; border-radius: 7px; padding: 4px 10px; font-weight: 800; font-size: 11px; cursor: pointer; }
+.camp-up:hover { filter: brightness(1.15); }
+.camp-champ-lock { margin-top: 5px; font-size: 10.5px; color: var(--dim); }

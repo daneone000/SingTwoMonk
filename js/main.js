@@ -516,7 +516,7 @@
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
-    const activeShop = g.campaign ? CFG.CHAMPION_ORDER : [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER];   // chiến dịch: hiện TƯỚNG; còn lại: THÁP + BẪY
+    const activeShop = g.campaign ? CFG.CHAMPION_ORDER.filter((k) => !g.campaignUnlocked || g.campaignUnlocked.includes(k)) : [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER];   // chiến dịch: chỉ TƯỚNG đã mở khóa; còn lại: THÁP + BẪY
     const activeSet = new Set(activeShop);
     for (const k in shopBtns) { const b = shopBtns[k]; const on = activeSet.has(k); b.classList.toggle("hidden", !on); if (!on) continue;
       const def = CFG.TOWERS[k] || CFG.TRAPS[k], cost = g.buyCost(def.cost);
@@ -586,6 +586,76 @@
     setTimeout(() => { d.classList.add("fade"); setTimeout(() => { if (d.parentNode) d.remove(); }, 500); }, 4500);
   }
 
+  /* ========== CHIẾN DỊCH × LMHT: trạng thái + ladder + bộ sưu tập ========== */
+  const CAMPAIGN_LS = "stm.campaign";
+  function loadCampaign() {
+    let s = null; try { s = JSON.parse(localStorage.getItem(CAMPAIGN_LS) || "null"); } catch (e) {}
+    if (!s || typeof s !== "object") s = {};
+    return {
+      unlocked: Array.isArray(s.unlocked) && s.unlocked.length ? s.unlocked.slice() : CFG.CAMPAIGN_START.slice(),
+      cleared: Array.isArray(s.cleared) ? s.cleared.slice() : [],
+      points: s.points | 0,
+      mastery: (s.mastery && typeof s.mastery === "object") ? Object.assign({}, s.mastery) : {},
+    };
+  }
+  let campaign = loadCampaign();
+  function saveCampaign() { try { localStorage.setItem(CAMPAIGN_LS, JSON.stringify(campaign)); } catch (e) {} }
+  const stageAvailable = (st) => st.id === 1 || campaign.cleared.includes(st.id - 1);
+  const stageCleared = (st) => campaign.cleared.includes(st.id);
+
+  const campaignModal = $("campaignModal");
+  function openCampaign() { closeMenu(); renderCampaign(); campaignModal.classList.remove("hidden"); }
+  function closeCampaign() { campaignModal.classList.add("hidden"); }
+  $("campClose").onclick = closeCampaign;
+
+  function renderCampaign() {
+    $("campPoints").textContent = "★ Điểm nội tại: " + campaign.points;
+    // --- ladder ---
+    const sh = CFG.CAMPAIGN.map((st) => {
+      const cleared = stageCleared(st), avail = stageAvailable(st);
+      const rw = st.reward ? CFG.CHAMPIONS[st.reward] : null;
+      const status = cleared ? `<span class="camp-ok">✔ Đã qua</span>` : avail ? `<span class="camp-go">▶ Sẵn sàng</span>` : `<span class="camp-lock">🔒 Khóa</span>`;
+      const rwHtml = rw ? `<span class="camp-reward" title="Mở khóa ${rw.name}"><span class="tw-ic" style="background:${rw.color}">${rw.glyph}</span></span>` : `<span class="camp-reward camp-final">🏁</span>`;
+      const btn = (cleared || avail) ? `<button class="camp-play" data-stage="${st.id}">${cleared ? "Chơi lại" : "Chơi"}</button>` : "";
+      return `<div class="camp-stage${avail && !cleared ? " next" : ""}${cleared ? " done" : ""}"><div class="camp-stage-main"><div class="camp-stage-name">Màn ${st.id}: ${st.name}</div><div class="camp-stage-desc">${st.desc} · mục tiêu đợt <b>${st.target}</b></div></div>${rwHtml}<div class="camp-stage-act">${status}${btn}</div></div>`;
+    }).join("");
+    $("campStages").innerHTML = sh;
+    for (const b of $("campStages").querySelectorAll(".camp-play")) b.onclick = () => { const st = CFG.CAMPAIGN.find((s) => s.id === +b.dataset.stage); if (st) startStage(st); };
+    // --- collection / mastery ---
+    const ch = CFG.CHAMPION_ORDER.map((k) => {
+      const c = CFG.CHAMPIONS[k], on = campaign.unlocked.includes(k), lv = campaign.mastery[k] | 0;
+      const stars = Array.from({ length: CFG.MASTERY_MAX }, (_, i) => `<span class="ms-dot${i < lv ? " on" : ""}">●</span>`).join("");
+      const unlockAt = CFG.CAMPAIGN.find((s) => s.reward === k);
+      const upBtn = (on && lv < CFG.MASTERY_MAX && campaign.points > 0) ? `<button class="camp-up" data-champ="${k}">Nâng ▲ (1 điểm)</button>` : "";
+      const lock = on ? "" : `<div class="camp-champ-lock">🔒 Mở ở màn ${unlockAt ? unlockAt.id : "?"}</div>`;
+      return `<div class="camp-champ${on ? "" : " locked"}"><div class="camp-champ-head"><span class="tw-ic" style="background:${c.color}">${c.glyph}</span><div><div class="camp-champ-nm">${c.name}</div><div class="camp-champ-ab">[${c.ability.key}] ${c.ability.name}</div></div></div><div class="camp-stars">${stars} <span class="ms-buff">+${Math.round(lv * CFG.MASTERY_PER * 100)}% ST/tốc</span></div>${upBtn}${lock}</div>`;
+    }).join("");
+    $("campChamps").innerHTML = ch;
+    for (const b of $("campChamps").querySelectorAll(".camp-up")) b.onclick = () => { const k = b.dataset.champ; if (campaign.points > 0 && (campaign.mastery[k] | 0) < CFG.MASTERY_MAX) { campaign.mastery[k] = (campaign.mastery[k] | 0) + 1; campaign.points--; saveCampaign(); renderCampaign(); } };
+  }
+
+  function startStage(st) {
+    closeCampaign(); CFG.setMap(st.map);
+    newGame("campaign");
+    game.campaignStageId = st.id; game.campaignTarget = st.target;
+    game.campaignUnlocked = campaign.unlocked.slice(); game.champMastery = Object.assign({}, campaign.mastery);
+    game.onCampaignWin = onCampaignWin;
+    log(`⚔ Màn ${st.id}: ${st.name} — trụ tới hết đợt ${st.target}. Tướng mở khóa: ${game.campaignUnlocked.length}.`, "good");
+    game.emit();
+  }
+
+  function onCampaignWin(stageId) {
+    const st = CFG.CAMPAIGN.find((s) => s.id === stageId); if (!st) return;
+    const first = !campaign.cleared.includes(stageId);
+    if (first) {
+      campaign.cleared.push(stageId); campaign.points += CFG.MASTERY_REWARD;
+      if (st.reward && !campaign.unlocked.includes(st.reward)) { campaign.unlocked.push(st.reward); log(`🎉 Mở khóa tướng mới: ${CFG.CHAMPIONS[st.reward].name}!`, "good"); }
+      log(`🏆 Qua màn ${st.id}! +${CFG.MASTERY_REWARD} điểm nội tại.`, "good");
+      saveCampaign();
+    } else log(`🏆 Qua lại màn ${st.id}.`, "good");
+    setTimeout(() => openCampaign(), 900);   // mở lại màn chọn để chơi tiếp / nâng nội tại
+  }
+
   /* ---------- điều khiển ---------- */
   $("startWave").onclick = () => game.startWave();
   $("btnPause").onclick = () => { if (net) return; game.paused = !game.paused; game.emit(); };
@@ -603,13 +673,13 @@
   const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận", campaign: "Chiến Dịch × LMHT" };
   function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); boonModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); document.body.classList.toggle("campaign", mode === "campaign"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "campaign") log("⚔ Chiến Dịch × LMHT: chọn TƯỚNG thay cho tháp. Kỹ năng tự thi triển khi hết hồi chiêu.", "ev"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
   $("modeEndless").onclick = () => newGame("endless");
-  $("modeCampaign").onclick = () => newGame("campaign");
+  $("modeCampaign").onclick = () => openCampaign();
   $("modeDesign").onclick = () => newGame("design");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame(game.mode || "endless"); };
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "F2") { e.preventDefault(); modal.classList.contains("hidden") ? openTree() : closeTree(); return; }
-    if (e.key === "Escape") { if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.pendingPing = null; game.pendingGem = null; game.emit(); return; }
+    if (e.key === "Escape") { if (!campaignModal.classList.contains("hidden")) return closeCampaign(); if (!modal.classList.contains("hidden")) return closeTree(); if (!rules.classList.contains("hidden")) return rules.classList.add("hidden"); if (!mainMenu.classList.contains("hidden")) return closeMenu(); if (!coreWiki.classList.contains("hidden")) return coreWiki.classList.add("hidden"); if (!coreModal.classList.contains("hidden")) { game.cancelCoreOffer(); return coreModal.classList.add("hidden"); } game.buildType = null; game.selected = null; game.pendingSkill = null; game.pendingCore = null; game.pendingMove = null; game.pendingPing = null; game.pendingGem = null; game.emit(); return; }
     if (kbCapture) return;                                   // đang chờ gán phím -> modal xử lý
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;   // đang gõ chữ -> bỏ qua
     if (e.key === " ") { e.preventDefault(); if (!net) { game.paused = !game.paused; game.emit(); } }
@@ -1002,7 +1072,7 @@
   function openVsTab(tab) { closeMenu(); buildNameInputs(); refreshLanAddr(); showTab(tab); vsModal.classList.remove("hidden"); }
   $("btnMenu").onclick = openMenu;
   $("mmEndless").onclick = () => { closeMenu(); newGame("endless"); };
-  $("mmCampaign").onclick = () => { closeMenu(); newGame("campaign"); };
+  $("mmCampaign").onclick = () => { closeMenu(); openCampaign(); };
   $("mmDesign").onclick = () => { closeMenu(); newGame("design"); };
   $("mmAI").onclick = () => openVsTab("AI");
   $("mmLan").onclick = () => openVsTab("LAN");
