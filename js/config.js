@@ -176,8 +176,98 @@
         desc: "Mấy đòn đánh kế: tăng tốc đánh và đạn NẢY sang nhiều mục tiêu gần (số lần nảy tăng theo cấp), mỗi lần nảy còn 70% ST." },
       desc: "Xạ thủ boomerang: W tăng tốc đánh vài đòn và đạn nảy sang nhiều mục tiêu. Đánh cả BAY & BỘ.",
     },
+    brand: {
+      key: "brand", name: "Brand", title: "Phục Hận Rực Cháy", glyph: "🔥", champion: true,
+      color: "#e2582a", color2: "#ffb057", target: "both", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 300, projColor: "#ff8a3d",
+      lv: [
+        { dmg: 16, rate: R(0.9), range: 2.4, splash: 0 }, { dmg: 34, rate: R(0.95), range: 2.6, splash: 0 },
+        { dmg: 72, rate: R(1.0), range: 2.8, splash: 0 }, { dmg: 150, rate: R(1.05), range: 3.0, splash: 0 },
+        { dmg: 330, rate: R(1.1), range: 3.2, splash: 0 },
+      ],
+      // [W] Cột Lửa — nổ vùng + thiêu đốt
+      ability: { key: "W", name: "Cột Lửa", kind: "area_nuke",
+        cd: [10, 9, 8, 7, 6], radius: 1.6, dmg: [60, 95, 130, 165, 200], adMul: 0.8, burn: true,   // burnPct/burnDur mặc định = BURN_MISS_PCT/BURN_DUR (castArea)
+        desc: "Tạo cột lửa nổ trong vùng quanh mục tiêu, gây ST vùng và THIÊU ĐỐT (%máu đã mất)." },
+      desc: "Pháp sư lửa: W 'Cột Lửa' nổ vùng + đốt. Đánh cả BAY & BỘ.",
+    },
+    cassiopeia: {
+      key: "cassiopeia", name: "Cassiopeia", title: "Nữ Hoàng Rắn Độc", glyph: "🐍", champion: true,
+      color: "#3fa66a", color2: "#8be0a0", target: "ground", block: true, effect: "poison",
+      cost: 25, up: [35, 70, 140, 280], projSpeed: 360, projColor: "#8be0a0",
+      lv: [
+        { dmg: 6, rate: R(1.3), range: 2.0, splash: 0, poisonPct: 0.05 }, { dmg: 12, rate: R(1.4), range: 2.2, splash: 0, poisonPct: 0.08 },
+        { dmg: 22, rate: R(1.5), range: 2.4, splash: 0, poisonPct: 0.11 }, { dmg: 40, rate: R(1.6), range: 2.6, splash: 0, poisonPct: 0.14 },
+        { dmg: 75, rate: R(1.7), range: 2.8, splash: 0, poisonPct: 0.18 },
+      ],
+      // [W] Màn Sương Độc (Miasma) — vùng độc gây ST theo thời gian
+      ability: { key: "W", name: "Màn Sương Độc", kind: "dot_field",
+        cd: [9, 8, 7, 6, 5], radius: 1.6, dps: [30, 45, 60, 75, 90], pctps: 0.01, dur: 4,
+        desc: "Thả màn sương độc: mỗi giây gây (ST nền + 1% máu tối đa) cho quái BỘ trong vùng, kéo dài 4s." },
+      desc: "Nữ hoàng rắn: đòn đánh gây độc; W thả màn sương độc gây ST theo thời gian. CHỈ đánh quái BỘ.",
+    },
+    lux: {
+      key: "lux", name: "Lux", title: "Thiếu Nữ Ánh Sáng", glyph: "✨", champion: true,
+      color: "#e7c14b", color2: "#fff2a8", target: "both", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 700, projColor: "#fff2a8",
+      lv: [
+        { dmg: 14, rate: R(1.0), range: 2.8, splash: 0 }, { dmg: 30, rate: R(1.05), range: 3.0, splash: 0 },
+        { dmg: 64, rate: R(1.1), range: 3.2, splash: 0 }, { dmg: 135, rate: R(1.15), range: 3.4, splash: 0 },
+        { dmg: 300, rate: R(1.2), range: 3.6, splash: 0 },
+      ],
+      // [Q] Trói Buộc Ánh Sáng (Light Binding) — trói tối đa 2 mục tiêu
+      ability: { key: "Q", name: "Trói Buộc Ánh Sáng", kind: "root_shot",
+        cd: [14, 13, 12, 11, 10], targets: [1, 2, 2, 2, 2], rootDur: [1.0, 1.1, 1.2, 1.3, 1.4], dmg: [50, 90, 130, 170, 210], adMul: 0.6,
+        desc: "Bắn quả cầu ánh sáng TRÓI (đứng yên) tối đa 2 kẻ địch và gây ST." },
+      desc: "Pháp sư ánh sáng: Q trói giữ quái. Đánh cả BAY & BỘ.",
+    },
+    caitlyn: {
+      key: "caitlyn", name: "Caitlyn", title: "Cảnh Sát Trưởng Piltover", glyph: "🔫", champion: true,
+      color: "#8a6fc0", color2: "#c9b6ef", target: "both", block: true,
+      cost: 30, up: [45, 90, 180, 360], projSpeed: 820, projColor: "#e6d8ff",
+      lv: [
+        { dmg: 18, rate: R(1.1), range: 3.2, splash: 0 }, { dmg: 38, rate: R(1.15), range: 3.4, splash: 0 },
+        { dmg: 80, rate: R(1.2), range: 3.6, splash: 0 }, { dmg: 165, rate: R(1.25), range: 3.8, splash: 0 },
+        { dmg: 360, rate: R(1.3), range: 4.0, splash: 0 },
+      ],
+      // [Passive] Đầu Ruồi (Headshot) — đòn đánh kế +ST lớn & chí mạng
+      ability: { key: "P", name: "Đầu Ruồi", kind: "empower_next",
+        cd: [10, 9, 8, 7, 6], dmg: [40, 70, 100, 130, 160], adMul: 0.5, crit: true,
+        desc: "Nạp đạn: đòn đánh KẾ gây thêm ST nền (+50% đòn đánh) và luôn CHÍ MẠNG (×2)." },
+      desc: "Xạ thủ tầm xa nhất: nạp Đầu Ruồi cho đòn đánh chí mạng cực mạnh. Đánh cả BAY & BỘ.",
+    },
+    varus: {
+      key: "varus", name: "Varus", title: "Mũi Tên Trừng Phạt", glyph: "🎯", champion: true,
+      color: "#6a4fb0", color2: "#b39ff0", target: "both", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 780, projColor: "#b39ff0",
+      lv: [
+        { dmg: 15, rate: R(1.0), range: 3.0, splash: 0 }, { dmg: 32, rate: R(1.05), range: 3.2, splash: 0 },
+        { dmg: 68, rate: R(1.1), range: 3.4, splash: 0 }, { dmg: 140, rate: R(1.15), range: 3.6, splash: 0 },
+        { dmg: 310, rate: R(1.2), range: 3.8, splash: 0 },
+      ],
+      // [Q] Xuyên Thâu (Piercing Arrow) — mũi tên xuyên thẳng, trúng mọi quái trên đường
+      ability: { key: "Q", name: "Xuyên Thâu", kind: "pierce_line",
+        cd: [14, 12, 10, 8, 6], width: 0.55, dmg: [50, 90, 130, 170, 210], adMul: 1.0,
+        desc: "Giương cung bắn mũi tên XUYÊN qua mọi kẻ địch trên đường thẳng, gây ST lớn (+100% đòn đánh)." },
+      desc: "Xạ thủ xuyên phá: Q bắn mũi tên xuyên hàng dài. Đánh cả BAY & BỘ.",
+    },
+    kogmaw: {
+      key: "kogmaw", name: "Kog'Maw", title: "Miệng Vực Thẳm", glyph: "🐸", champion: true,
+      color: "#7fb04a", color2: "#c2e08a", target: "both", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 620, projColor: "#c2e08a",
+      lv: [
+        { dmg: 16, rate: R(1.4), range: 2.4, splash: 0 }, { dmg: 32, rate: R(1.5), range: 2.6, splash: 0 },
+        { dmg: 64, rate: R(1.6), range: 2.8, splash: 0 }, { dmg: 130, rate: R(1.7), range: 3.0, splash: 0 },
+        { dmg: 280, rate: R(1.8), range: 3.2, splash: 0 },
+      ],
+      // [W] Cuồng Nộ Sinh Hóa (Bio-Arcane Barrage) — mấy đòn kế +tầm & +%máu tối đa
+      ability: { key: "W", name: "Cuồng Nộ Sinh Hóa", kind: "steroid_pctdmg",
+        cd: [12, 11, 10, 9, 8], attacks: [4, 5, 6, 7, 8], rateMul: [1.2, 1.3, 1.4, 1.5, 1.6], pct: [0.015, 0.02, 0.025, 0.03, 0.035],
+        desc: "Mấy đòn đánh kế tăng tốc đánh và gây thêm % MÁU TỐI ĐA (phép, bỏ giáp) — xé quái trâu & quái bay." },
+      desc: "Xạ thủ xé giáp: W khiến đòn đánh gây %máu tối đa, khắc chế quái trâu/bay. Đánh cả BAY & BỘ.",
+    },
   };
-  const CHAMPION_ORDER = ["ashe", "sivir"];
+  const CHAMPION_ORDER = ["ashe", "sivir", "caitlyn", "varus", "kogmaw", "lux", "brand", "cassiopeia"];
   Object.assign(TOWERS, CHAMPIONS);   // tướng dùng chung lookup với tháp -> Tower/statAt/upgradeCost/buyCost chạy nguyên vẹn
   function buildOrder(mode) { return mode === "campaign" ? CHAMPION_ORDER : TOWER_ORDER; }
 

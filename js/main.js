@@ -422,9 +422,16 @@
     const cd = Math.max(0, t.abilityCd || 0);
     const cdTxt = cd > 0.05 ? `⏳ ${cd.toFixed(1)}s` : "✔ sẵn sàng";
     const cdMax = t.abVal(ab.cd);   // hồi chiêu theo cấp hiện tại
+    const ad = ab.adMul ? ` +${Math.round(ab.adMul * 100)}% đòn đánh` : "";
     let stat = `hồi chiêu <b>${cdMax}s</b>`;
-    if (ab.kind === "multishot") stat += ` · <b>${t.abVal(ab.shots)}</b> mũi · ST nền <b>${t.abVal(ab.dmg)}</b>${ab.adMul ? ` +${Math.round(ab.adMul * 100)}% đòn đánh` : ""}`;
+    if (ab.kind === "multishot") stat += ` · <b>${t.abVal(ab.shots)}</b> mũi · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
     else if (ab.kind === "steroid_bounce") stat += ` · <b>${t.abVal(ab.attacks)}</b> đòn ×tốc <b>${t.abVal(ab.rateMul).toFixed(1)}</b> · nảy <b>${t.abVal(ab.bounces)}</b> lần`;
+    else if (ab.kind === "steroid_pctdmg") stat += ` · <b>${t.abVal(ab.attacks)}</b> đòn ×tốc <b>${t.abVal(ab.rateMul).toFixed(1)}</b> · +<b>${(t.abVal(ab.pct) * 100).toFixed(1)}%</b> máu tối đa/đòn`;
+    else if (ab.kind === "root_shot") stat += ` · trói <b>${t.abVal(ab.targets)}</b> mục tiêu <b>${t.abVal(ab.rootDur).toFixed(1)}s</b> · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
+    else if (ab.kind === "area_nuke") stat += ` · nổ vùng <b>${t.abVal(ab.radius)}</b> ô · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.burn ? " · đốt" : ""}`;
+    else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b>+${Math.round((ab.pctps || 0) * 100)}% máu/giây`;
+    else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}`;
+    else if (ab.kind === "pierce_line") stat += ` · xuyên hàng · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
     return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
   function gemLineHTML(t) {
