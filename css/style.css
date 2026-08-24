@@ -606,3 +606,6 @@ body.campaign .core-banner, body.campaign #coreSlots, body.campaign #comboBar, b
 .tw-ab { position: absolute; top: -4px; right: -4px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 7px; background: #7fb2ff; color: #10161f; font-size: 9px; font-weight: 900; line-height: 13px; text-align: center; box-shadow: 0 0 0 1.5px rgba(0,0,0,.45); }
 .camp-champ-tg { font-size: 9px; font-weight: 800; color: #9fb4d8; background: rgba(127,178,255,.15); border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
 .camp-champ-sum { font-size: 10.5px; color: var(--dim); line-height: 1.4; margin-top: 5px; }
+
+/* nhóm Tay dài / Cận chiến trong bộ sưu tập (chiếm cả 2 cột) */
+.camp-grp { grid-column: 1 / -1; font-size: 11px; font-weight: 800; color: #ffd24a; margin: 6px 0 2px; letter-spacing: .03em; }

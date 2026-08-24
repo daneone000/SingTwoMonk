@@ -230,7 +230,7 @@
       this.abilityCd = 0;                      // hồi chiêu còn lại (giây); 0 = sẵn sàng
       this.steroidTime = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): đòn đánh cường hóa trong X giây
       this.steroidBounces = 0; this.steroidBouncePct = 0; this.steroidPct = 0; this.steroidRange = 0;
-      this.empowerDmg = 0; this.empowerCrit = false;   // (dự phòng) đòn kế +ST & chí mạng
+      this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0;   // đòn kế cường hóa: +ST / chí mạng / choáng (Renekton, Fiora)
       this.champMul = 1;   // CHIẾN DỊCH: nội tại (mastery) tướng — +ST & tốc đánh vĩnh viễn
     }
     get ready() { return this.buildTimer <= 0; }
@@ -299,7 +299,7 @@
             if (this.steroidKind === "bounce") { p.bounces = this.steroidBounces; p.bounceDmg = this.steroidBouncePct * this.effDmg(); }   // Sivir Nảy Bật: đạn nảy tối đa N lần, mỗi lần gây % ST đòn đánh cố định
             else if (this.steroidKind === "pct") p.pctMaxDmg = this.steroidPct;   // Kog'Maw W: +% máu tối đa
           }
-          if (this.empowerDmg > 0 || this.empowerCrit) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; this.empowerDmg = 0; this.empowerCrit = false; }   // (dự phòng) đòn kế cường hóa
+          if (this.empowerDmg > 0 || this.empowerCrit || this.empowerStun) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; if (this.empowerStun) p.rootDur = this.empowerStun; this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; }   // đòn kế cường hóa (Renekton +choáng, Fiora +ST…)
           game.projectiles.push(p);
         }
         this.cooldown = this.effRate() / (steroid ? this.steroidRateMul : 1);
@@ -330,8 +330,16 @@
         const dps = (this.abVal(ab.dps) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
         game.effects.push(new PoisonCloud(t.x, t.y, this.abVal(ab.radius) * TILE, dps, ab.dur, 0, this.abVal(ab.slowPct) || 0));
       } else if (ab.kind === "empower_next") {
-        // (dự phòng) đòn đánh KẾ +ST nền (+adMul AD) và chí mạng
-        this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit;
+        // đòn đánh KẾ +ST nền (+adMul AD), tùy chọn chí mạng (Caitlyn cũ) / choáng (Renekton) / xuyên giáp (Fiora)
+        this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit; this.empowerStun = ab.stun ? this.abVal(ab.stun) : 0;
+      } else if (ab.kind === "strike") {
+        // Đòn chém đơn mục tiêu: true (bỏ giáp) / +%máu tối đa (Warwick) / hành quyết vs máu thấp (Darius) / choáng
+        let dmg = (this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
+        if (ab.pctMax) dmg += this.abVal(ab.pctMax) * t.maxHp;
+        if (ab.execute && t.hp < t.maxHp * (ab.executeBelow || 0.3)) dmg *= (ab.executeMul || 2);   // Darius Chém Đầu: máu thấp -> ×2
+        t.applyDamage(dmg, !!ab.true); t._spellHit = true;
+        if (ab.stun) t.freeze(this.abVal(ab.stun));
+        game.effects.push(new BlastFx(t.x, t.y, TILE * 0.5, col));
       } else if (ab.kind === "place_trap") {
         // Caitlyn Bẫy Yordle / Teemo Nấm Độc: đặt 1 bẫy vào ô của mục tiêu (trong tầm), giới hạn số bẫy còn sống
         const c = Math.floor(t.x / TILE), r = Math.floor(t.y / TILE);
@@ -358,11 +366,12 @@
       for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; const ex = e.x - this.x, ey = e.y - this.y; const pr = ex * ux + ey * uy; if (pr < 0 || pr > rng + e.radius) continue; const perp = Math.abs(ex * uy - ey * ux); if (perp <= w + e.radius) { e.applyDamage(dmg); e._spellHit = true; } }
       game.effects.push(new BeamFx(this.x, this.y, this.x + ux * rng, this.y + uy * rng, col));
     }
-    // Brand Cột Lửa: nổ vùng quanh vị trí mục tiêu chính; tùy chọn ĐỐT (%máu đã mất)
+    // Nổ vùng: quanh mục tiêu (Brand) hoặc quanh CHÍNH MÌNH (atSelf: Garen Xoáy Kiếm, Jax Phản Đòn); tùy chọn ĐỐT / CHOÁNG
     castArea(ab, game, t, dmg, col) {
-      const r = this.abVal(ab.radius) * TILE;
-      for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, t.x, t.y) <= r + e.radius) { e.applyDamage(dmg); if (ab.burn) e.burnMiss(ab.burnPct || CFG.BURN_MISS_PCT, ab.burnDur || CFG.BURN_DUR); e._spellHit = true; } }
-      game.effects.push(new BlastFx(t.x, t.y, r, col));
+      const cx = ab.atSelf ? this.x : t.x, cy = ab.atSelf ? this.y : t.y;
+      const r = this.abVal(ab.radius) * TILE, stun = ab.stun ? this.abVal(ab.stun) : 0;
+      for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, cx, cy) <= r + e.radius) { e.applyDamage(dmg); if (ab.burn) e.burnMiss(ab.burnPct || CFG.BURN_MISS_PCT, ab.burnDur || CFG.BURN_DUR); if (stun) e.freeze(stun); e._spellHit = true; } }
+      game.effects.push(new BlastFx(cx, cy, r, col));
     }
     // n mục tiêu gần đích nhất trong tầm (Tên boon: bắn đa mục tiêu)
     findTargets(en, n) {

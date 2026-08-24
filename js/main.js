@@ -429,10 +429,11 @@
     else if (ab.kind === "steroid_bounce") stat += ` · <b>${ab.dur}s</b> ×tốc <b>${t.abVal(ab.rateMul).toFixed(2)}</b> · nảy tối đa <b>${t.abVal(ab.bounces)}</b> (mỗi lần ${Math.round(t.abVal(ab.bouncePct) * 100)}% ST)`;
     else if (ab.kind === "steroid_pctdmg") stat += ` · <b>${ab.dur}s</b> · +<b>${(t.abVal(ab.pct) * 100).toFixed(0)}%</b> máu tối đa/đòn · +tầm <b>${t.abVal(ab.range)}</b>`;
     else if (ab.kind === "root_shot") stat += ` · trói <b>${t.abVal(ab.targets)}</b> mục tiêu <b>${t.abVal(ab.rootDur).toFixed(1)}s</b> · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
-    else if (ab.kind === "area_nuke") stat += ` · nổ vùng <b>${t.abVal(ab.radius)}</b> ô · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.burn ? " · đốt" : ""}`;
-    else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b> ST/giây${ad} · chậm ${Math.round(t.abVal(ab.slowPct) * 100)}%`;
-    else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}`;
+    else if (ab.kind === "area_nuke") stat += ` · nổ vùng <b>${t.abVal(ab.radius)}</b> ô${ab.atSelf ? " (quanh mình)" : ""} · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.burn ? " · đốt" : ""}${ab.stun ? ` · choáng ${t.abVal(ab.stun)}s` : ""}`;
+    else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b> ST/giây${ad}${ab.slowPct ? ` · chậm ${Math.round(t.abVal(ab.slowPct) * 100)}%` : ""}`;
+    else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}${ab.stun ? ` · choáng ${t.abVal(ab.stun)}s` : ""}`;
     else if (ab.kind === "pierce_line") stat += ` · xuyên hàng · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
+    else if (ab.kind === "strike") stat += ` · ${ab.true ? "ST CHUẨN " : ""}1 mục tiêu${ab.dmg ? ` <b>${t.abVal(ab.dmg)}</b>` : ""}${ad}${ab.pctMax ? ` · +${Math.round(t.abVal(ab.pctMax) * 100)}% máu tối đa` : ""}${ab.execute ? " · hành quyết ×2" : ""}${ab.stun ? ` · choáng ${t.abVal(ab.stun)}s` : ""}`;
     else if (ab.kind === "place_trap") { const tr = ab.trap; stat += ` · tối đa <b>${t.abVal(ab.maxTraps)}</b> bẫy`; stat += tr.kind === "root" ? ` · trói <b>${t.abVal(tr.rootDur).toFixed(1)}s</b> + ST nền <b>${t.abVal(tr.dmg)}</b>${ad}` : ` · nổ vùng <b>${tr.radius}</b> ô · độc tổng <b>${t.abVal(tr.burnTotal)}</b>/${tr.burnDur}s + chậm ${Math.round(t.abVal(tr.slowPct) * 100)}%`; }
     return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
@@ -618,9 +619,11 @@
     else if (ab.kind === "steroid_bounce") eff = `${ab.dur}s: +tốc ${Math.round((ab.rateMul[0] - 1) * 100)}→${Math.round((ab.rateMul[4] - 1) * 100)}%, nảy tối đa ${ab.bounces} (mỗi lần ${Math.round(ab.bouncePct[0] * 100)}→${Math.round(ab.bouncePct[4] * 100)}% ST)`;
     else if (ab.kind === "steroid_pctdmg") eff = `${ab.dur}s: +tầm, mỗi đòn +${Math.round(ab.pct[0] * 100)}→${Math.round(ab.pct[4] * 100)}% máu tối đa (xé trâu/bay)`;
     else if (ab.kind === "root_shot") eff = `trói ${ab.targets} mục tiêu ${v(ab.rootDur)}s, ST ${v(ab.dmg)}`;
-    else if (ab.kind === "area_nuke") eff = `nổ vùng ${ab.radius} ô, ST ${v(ab.dmg)} + thiêu đốt`;
-    else if (ab.kind === "dot_field") eff = `vùng ${ab.radius} ô ×${ab.dur}s: ${v(ab.dps)} ST/giây + làm chậm ${Math.round(ab.slowPct[0] * 100)}→${Math.round(ab.slowPct[4] * 100)}%`;
+    else if (ab.kind === "area_nuke") eff = `nổ vùng ${ab.radius} ô${ab.atSelf ? " quanh mình" : ""}, ST ${v(ab.dmg)}${ab.burn ? " + thiêu đốt" : ""}${ab.stun ? ` + choáng ${v(ab.stun)}s` : ""}`;
+    else if (ab.kind === "dot_field") eff = `vùng ${ab.radius} ô ×${ab.dur}s: ${v(ab.dps)} ST/giây${Array.isArray(ab.slowPct) ? ` + làm chậm ${Math.round(ab.slowPct[0] * 100)}→${Math.round(ab.slowPct[4] * 100)}%` : ""}`;
     else if (ab.kind === "pierce_line") eff = `xuyên cả hàng, ST ${v(ab.dmg)} (+${Math.round(ab.adMul * 100)}% đòn đánh)`;
+    else if (ab.kind === "strike") eff = `đòn ${ab.true ? "CHUẨN " : ""}1 mục tiêu${ab.dmg ? ` ST ${v(ab.dmg)}` : ""}${ab.adMul ? ` (+${Math.round(ab.adMul * 100)}% đòn đánh)` : ""}${ab.pctMax ? ` +${Math.round(v(ab.pctMax) * 100)}% máu tối đa` : ""}${ab.execute ? " · hành quyết máu thấp ×2" : ""}${ab.stun ? ` · choáng ${v(ab.stun)}s` : ""}`;
+    else if (ab.kind === "empower_next") eff = `đòn kế +ST ${v(ab.dmg)} (+${Math.round((ab.adMul || 0) * 100)}% đòn đánh)${ab.crit ? " chí mạng ×2" : ""}${ab.stun ? ` + choáng ${v(ab.stun)}s` : ""}`;
     else if (ab.kind === "place_trap") eff = ab.trap.kind === "root" ? `đặt bẫy TRÓI ${v(ab.trap.rootDur)}s (tối đa ${v(ab.maxTraps)} bẫy)` : `đặt nấm NỔ VÙNG độc + chậm (tối đa ${v(ab.maxTraps)})`;
     return `⏱ hồi ${cd} · ${eff}`;
   }
@@ -638,8 +641,8 @@
     }).join("");
     $("campStages").innerHTML = sh;
     for (const b of $("campStages").querySelectorAll(".camp-play")) b.onclick = () => { const st = CFG.CAMPAIGN.find((s) => s.id === +b.dataset.stage); if (st) startStage(st); };
-    // --- collection / mastery (kiêm tra cứu kỹ năng) ---
-    const ch = CFG.CHAMPION_ORDER.map((k) => {
+    // --- collection / mastery (kiêm tra cứu kỹ năng), chia nhóm Tay dài / Cận chiến ---
+    const champCard = (k) => {
       const c = CFG.CHAMPIONS[k], on = campaign.unlocked.includes(k), lv = campaign.mastery[k] | 0;
       const stars = Array.from({ length: CFG.MASTERY_MAX }, (_, i) => `<span class="ms-dot${i < lv ? " on" : ""}">●</span>`).join("");
       const unlockAt = CFG.CAMPAIGN.find((s) => s.reward === k);
@@ -647,8 +650,9 @@
       const lock = on ? "" : `<div class="camp-champ-lock">🔒 Mở ở màn ${unlockAt ? unlockAt.id : "?"}</div>`;
       const tgt = c.target === "both" ? "Bay+Bộ" : c.target === "air" ? "Bay" : "Bộ";
       return `<div class="camp-champ${on ? "" : " locked"}"><div class="camp-champ-head"><span class="tw-ic" style="background:${c.color}">${c.glyph}</span><div><div class="camp-champ-nm">${c.name} <span class="camp-champ-tg">${tgt}</span></div><div class="camp-champ-ab">[${c.ability.key}] ${c.ability.name}</div></div></div><div class="camp-champ-sum">${champAbilitySummary(c)}</div><div class="camp-stars">${stars} <span class="ms-buff">+${Math.round(lv * CFG.MASTERY_PER * 100)}% ST/tốc</span></div>${upBtn}${lock}</div>`;
-    }).join("");
-    $("campChamps").innerHTML = ch;
+    };
+    const grp = (label, order) => `<div class="camp-grp">${label}</div>` + order.map(champCard).join("");
+    $("campChamps").innerHTML = grp("🏹 Tay dài (10)", CFG.RANGED_ORDER) + grp("⚔ Cận chiến — chỉ đánh Bộ (10)", CFG.MELEE_ORDER);
     for (const b of $("campChamps").querySelectorAll(".camp-up")) b.onclick = () => { const k = b.dataset.champ; if (campaign.points > 0 && (campaign.mastery[k] | 0) < CFG.MASTERY_MAX) { campaign.mastery[k] = (campaign.mastery[k] | 0) + 1; campaign.points--; saveCampaign(); renderCampaign(); } };
   }
 
