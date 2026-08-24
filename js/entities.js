@@ -282,7 +282,7 @@
       this.angle = Math.atan2(t.y - this.y, t.x - this.x);
       // TƯỚNG: tự thi triển kỹ năng khi hết hồi chiêu & có mục tiêu
       const ab = this.def.ability;
-      if (ab && this.abilityCd <= 0 && this.abilityReady(ab)) { this.castAbility(ab, game, t); this.abilityCd = ab.cd; }
+      if (ab && this.abilityCd <= 0 && this.abilityReady(ab)) { this.castAbility(ab, game, t); this.abilityCd = this.abVal(ab.cd); }
       if (this.cooldown <= 0) {
         // Multishot: boon Tên (=cấp) và/hoặc L6 Tên (=cấp); có CẢ hai -> cấp + 3
         const bTen = this.boon === "ten", l6Ten = this.level >= 6 && this.type === "ten";
@@ -294,15 +294,19 @@
         this.cooldown = this.effRate() / (steroid ? this.steroidRateMul : 1);
       }
     }
+    // TƯỚNG: chỉ số kỹ năng theo CẤP tháp (mảng dài 6 -> chọn theo cấp; số vô hướng -> giữ nguyên)
+    abVal(v) { return Array.isArray(v) ? v[Math.min(this.level, v.length) - 1] : v; }
     // TƯỚNG: có được phép thi triển kỹ năng lúc này không (chặn tái kích hoạt khi steroid còn hiệu lực)
     abilityReady(ab) { if (ab.kind === "steroid_bounce" && this.steroidAttacks > 0) return false; return true; }
-    // TƯỚNG: bộ điều phối kỹ năng theo ab.kind
+    // TƯỚNG: bộ điều phối kỹ năng theo ab.kind (chỉ số scale theo cấp qua abVal)
     castAbility(ab, game, t) {
       if (ab.kind === "multishot") {
-        for (const tg of this.findTargets(game.enemies, ab.shots)) { const p = new Projectile(this, tg); p.dmg *= (ab.dmgMul || 1); game.projectiles.push(p); }
+        // ST mỗi mũi = ST nền theo cấp + adMul × ST đòn đánh (vd Ashe W: +100% AD). Mỗi mục tiêu chỉ trúng 1 mũi (bắn N mục tiêu riêng).
+        const dmg = (this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 1) * this.effDmg();
+        for (const tg of this.findTargets(game.enemies, this.abVal(ab.shots))) { const p = new Projectile(this, tg); p.dmg = dmg; game.projectiles.push(p); }
       } else if (ab.kind === "steroid_bounce") {
-        this.steroidAttacks = ab.attacks; this.steroidRateMul = ab.rateMul || 1;
-        this.steroidBounces = ab.bounces || 0; this.steroidFalloff = ab.bounceFalloff != null ? ab.bounceFalloff : 1; this.steroidDmgMul = ab.dmgMul || 1;
+        this.steroidAttacks = this.abVal(ab.attacks); this.steroidRateMul = this.abVal(ab.rateMul) || 1;
+        this.steroidBounces = this.abVal(ab.bounces) || 0; const f = this.abVal(ab.bounceFalloff); this.steroidFalloff = f != null ? f : 1; this.steroidDmgMul = this.abVal(ab.dmgMul) || 1;
       }
       game.effects.push(new BlastFx(this.x, this.y, this.range * 0.35, this.def.color2 || this.def.color));   // FX thi triển
     }

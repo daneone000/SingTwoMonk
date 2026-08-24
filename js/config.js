@@ -154,8 +154,10 @@
         { dmg: 62, rate: R(1.6), range: 2.6, splash: 0, slowPct: 0.22 }, { dmg: 130, rate: R(1.7), range: 2.8, splash: 0, slowPct: 0.26 },
         { dmg: 300, rate: R(1.8), range: 3.0, splash: 0, slowPct: 0.30 }, { dmg: 640, rate: R(1.9), range: 3.2, splash: 0, slowPct: 0.35 },
       ],
-      ability: { key: "W", name: "Mưa Tên Xối Xả", cd: 12, kind: "multishot", shots: 7, dmgMul: 0.9,
-        desc: "Bắn 7 mũi tên vào 7 mục tiêu gần đích nhất (mỗi mũi 90% ST đòn đánh, vẫn làm chậm)." },
+      // [W] Tán Xạ Tiễn (Volley) — chỉ số gốc LMHT, scale theo CẤP tháp (cấp 1→6)
+      ability: { key: "W", name: "Tán Xạ Tiễn", kind: "multishot",
+        cd: [16, 13, 10, 7, 4, 4], shots: 7, dmg: [40, 50, 60, 70, 80, 100], adMul: 1.0,
+        desc: "Bắn loạt tên hình nón vào tối đa 7 mục tiêu, mỗi mũi gây ST nền + 100% ST đòn đánh và làm chậm (mỗi kẻ địch chỉ chịu ST một lần)." },
       desc: "Xạ thủ băng: đòn đánh làm CHẬM; W bắn 7 mũi tên đa mục tiêu. Đánh cả BAY & BỘ.",
     },
     sivir: {
@@ -167,9 +169,11 @@
         { dmg: 78, rate: R(1.7), range: 2.2, splash: 0 }, { dmg: 160, rate: R(1.8), range: 2.3, splash: 0 },
         { dmg: 360, rate: R(1.9), range: 2.4, splash: 0 }, { dmg: 760, rate: R(2.0), range: 2.5, splash: 0 },
       ],
-      ability: { key: "W", name: "Vũ Điệu Boomerang", cd: 8, kind: "steroid_bounce",
-        attacks: 4, rateMul: 1.6, bounces: 3, bounceFalloff: 0.65, dmgMul: 1.0,
-        desc: "4 đòn đánh kế: +60% tốc đánh, đạn NẢY sang 3 mục tiêu gần (mỗi lần nảy còn 65% ST)." },
+      // [W] Búa Xoay (Ricochet) — đạn nảy nhiều mục tiêu (số lần nảy & tốc đánh scale theo cấp)
+      ability: { key: "W", name: "Búa Xoay", kind: "steroid_bounce",
+        cd: [10, 9, 8, 7, 6, 5], attacks: [3, 3, 4, 4, 5, 5], rateMul: [1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
+        bounces: [4, 5, 6, 7, 8, 9], bounceFalloff: 0.7, dmgMul: 1.0,
+        desc: "Mấy đòn đánh kế: tăng tốc đánh và đạn NẢY sang nhiều mục tiêu gần (số lần nảy tăng theo cấp), mỗi lần nảy còn 70% ST." },
       desc: "Xạ thủ boomerang: W tăng tốc đánh vài đòn và đạn nảy sang nhiều mục tiêu. Đánh cả BAY & BỘ.",
     },
   };

@@ -416,12 +416,16 @@
     nangluong: "✦ buff mạnh hơn (×1.5)",
   };
   function l6LineHTML(t) { if (t.trap || t.level < 6) return ""; return `<div class="tp-l6">⭐ Cấp 6: ${L6_TEXT[t.type] || ""}</div>`; }
-  // CHIẾN DỊCH × LMHT: khối kỹ năng tướng (mô tả + hồi chiêu còn lại)
+  // CHIẾN DỊCH × LMHT: khối kỹ năng tướng (mô tả + chỉ số theo CẤP + hồi chiêu còn lại)
   function abilityLineHTML(t) {
     const ab = t.def && t.def.ability; if (!ab) return "";
     const cd = Math.max(0, t.abilityCd || 0);
     const cdTxt = cd > 0.05 ? `⏳ ${cd.toFixed(1)}s` : "✔ sẵn sàng";
-    return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""} · hồi chiêu ${ab.cd}s</div></div>`;
+    const cdMax = t.abVal(ab.cd);   // hồi chiêu theo cấp hiện tại
+    let stat = `hồi chiêu <b>${cdMax}s</b>`;
+    if (ab.kind === "multishot") stat += ` · <b>${t.abVal(ab.shots)}</b> mũi · ST nền <b>${t.abVal(ab.dmg)}</b>${ab.adMul ? ` +${Math.round(ab.adMul * 100)}% đòn đánh` : ""}`;
+    else if (ab.kind === "steroid_bounce") stat += ` · <b>${t.abVal(ab.attacks)}</b> đòn ×tốc <b>${t.abVal(ab.rateMul).toFixed(1)}</b> · nảy <b>${t.abVal(ab.bounces)}</b> lần`;
+    return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
   function gemLineHTML(t) {
     if (t.trap) return "";
