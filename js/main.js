@@ -28,10 +28,12 @@
     const b = document.createElement("button"); b.className = "tw-btn"; b.dataset.key = key;
     const tag = isTrap ? "BẪY" : def.support ? "HỖ TRỢ" : def.target === "both" ? "BAY+BỘ" : def.target === "air" ? "BAY" : "BỘ";
     b.innerHTML = `<span class="hk" data-act="${key}"></span><span class="tw-ic" style="background:${def.color}">${def.glyph}</span><span class="tw-nm">${def.name.replace("Tháp ", "").replace("Bẫy ", "B.")}</span><span class="tw-tg">${tag}</span><span class="tw-cost">💰${def.cost}</span>`;
+    if (def.champion) b.classList.add("champion");   // CHIẾN DỊCH × LMHT: viền phân biệt tướng
     b.title = def.name + " — " + def.desc; b.onclick = () => game.setBuild(key); grid.appendChild(b); shopBtns[key] = b;
   }
   for (const k of CFG.TOWER_ORDER) addTower(k, CFG.TOWERS[k], false);
   for (const k of CFG.TRAP_ORDER) addTower(k, CFG.TRAPS[k], true);
+  for (const k of CFG.CHAMPION_ORDER) addTower(k, CFG.TOWERS[k], false);   // CHIẾN DỊCH × LMHT: nút tướng (ẩn/hiện theo chế độ)
 
   /* ---------- PHÍM TẮT (người chơi cấu hình được, lưu localStorage) ---------- */
   //  • Tháp/bẫy: gán theo từng loại (KEYS)
@@ -414,6 +416,13 @@
     nangluong: "✦ buff mạnh hơn (×1.5)",
   };
   function l6LineHTML(t) { if (t.trap || t.level < 6) return ""; return `<div class="tp-l6">⭐ Cấp 6: ${L6_TEXT[t.type] || ""}</div>`; }
+  // CHIẾN DỊCH × LMHT: khối kỹ năng tướng (mô tả + hồi chiêu còn lại)
+  function abilityLineHTML(t) {
+    const ab = t.def && t.def.ability; if (!ab) return "";
+    const cd = Math.max(0, t.abilityCd || 0);
+    const cdTxt = cd > 0.05 ? `⏳ ${cd.toFixed(1)}s` : "✔ sẵn sàng";
+    return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""} · hồi chiêu ${ab.cd}s</div></div>`;
+  }
   function gemLineHTML(t) {
     if (t.trap) return "";
     const gems = t.gems || [], slots = [];
@@ -455,7 +464,7 @@
     if (!t) return;
     // cập nhật phần ĐỘNG tại chỗ (đổi text/disabled, không thay nút)
     $("tpLv").textContent = t.trap ? "Dùng 1 lần" : `Cấp Độ: ${t.level}/${t.def.lv.length}`;
-    $("tpStats").innerHTML = statsHTML(t) + l6LineHTML(t) + gemLineHTML(t);
+    $("tpStats").innerHTML = statsHTML(t) + l6LineHTML(t) + abilityLineHTML(t) + gemLineHTML(t);
     $("tpPrev").innerHTML = (t.ready && !t.trap && !t.maxLevel) ? upgradePreviewHTML(t) : "";
     const bu = $("tpUp");
     if (t.trap) { bu.textContent = "Không nâng cấp"; bu.disabled = true; bu.className = "tp-up"; }
@@ -495,8 +504,10 @@
     else { sw.textContent = `⏭ Gọi đợt ${g.wave + 1}` + (g.autoNext ? ` (còn ${Math.ceil(g.waveTimer)}s)` : ""); sw.disabled = false; }
     if (match) renderOpp();
     if (match && match.mode === "2v2") renderMateSkills();
-    for (const k of [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER]) {
-      const def = CFG.TOWERS[k] || CFG.TRAPS[k], b = shopBtns[k], cost = g.buyCost(def.cost);
+    const activeShop = g.campaign ? CFG.CHAMPION_ORDER : [...CFG.TOWER_ORDER, ...CFG.TRAP_ORDER];   // chiến dịch: hiện TƯỚNG; còn lại: THÁP + BẪY
+    const activeSet = new Set(activeShop);
+    for (const k in shopBtns) { const b = shopBtns[k]; const on = activeSet.has(k); b.classList.toggle("hidden", !on); if (!on) continue;
+      const def = CFG.TOWERS[k] || CFG.TRAPS[k], cost = g.buyCost(def.cost);
       b.classList.toggle("active", g.buildType === k); b.classList.toggle("cant", g.gold < cost);
       const sale = cost < def.cost; b.classList.toggle("sale", sale);   // Black Friday: giá giảm
       const cs = b.querySelector(".tw-cost"); const txt = "💰" + cost; if (cs.textContent !== txt) cs.textContent = txt;
@@ -577,9 +588,10 @@
   $("dbClearMobs").onclick = () => { game.clearEnemies(); log("🧹 Đã xóa hết quái.", "ev"); };
   $("dbClearTowers").onclick = () => { game.clearBoard(); log("💣 Đã xóa hết tháp — vẽ lại mê cung.", "ev"); };
   function syncDbAuto() { const b = $("dbAuto"); if (!b) return; b.classList.toggle("on", game.autoNext); b.textContent = game.autoNext ? "⏸ Dừng thả" : "▶ Thả liên tục"; }
-  const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận" };
-  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); boonModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
+  const MODE_NAME = { design: "Sân Thử Nghiệm", endless: "Sinh Tồn Vô Tận", campaign: "Chiến Dịch × LMHT" };
+  function newGame(mode) { endVersus(); game.reset(mode); syncAuto(); lastLearned = -1; treeSel = null; prevWave = 0; prevLives = CFG.START_LIVES; prevEnd = false; coreSig = ""; comboSig = ""; gemSig = ""; coreModal.classList.add("hidden"); boonModal.classList.add("hidden"); logBox.innerHTML = ""; document.body.classList.toggle("design", mode === "design"); document.body.classList.toggle("campaign", mode === "campaign"); log("Ván mới: " + (MODE_NAME[mode] || MODE_NAME.endless) + " — bản đồ " + CFG.curMap().name, "good"); if (mode === "campaign") log("⚔ Chiến Dịch × LMHT: chọn TƯỚNG thay cho tháp. Kỹ năng tự thi triển khi hết hồi chiêu.", "ev"); if (mode === "design") { $("dbWave").value = 1; log("🧪 Sân thử: vàng & KN vô hạn. Bấm 🐾 Thả đợt để thử, 💣 Xóa hết tháp để vẽ lại mê cung.", "ev"); } }
   $("modeEndless").onclick = () => newGame("endless");
+  $("modeCampaign").onclick = () => newGame("campaign");
   $("modeDesign").onclick = () => newGame("design");
   $("btnRestart").onclick = () => { if (match && !match.net) startVersus(vsPlayers()); else newGame(game.mode || "endless"); };
 
@@ -978,6 +990,7 @@
   function openVsTab(tab) { closeMenu(); buildNameInputs(); refreshLanAddr(); showTab(tab); vsModal.classList.remove("hidden"); }
   $("btnMenu").onclick = openMenu;
   $("mmEndless").onclick = () => { closeMenu(); newGame("endless"); };
+  $("mmCampaign").onclick = () => { closeMenu(); newGame("campaign"); };
   $("mmDesign").onclick = () => { closeMenu(); newGame("design"); };
   $("mmAI").onclick = () => openVsTab("AI");
   $("mmLan").onclick = () => openVsTab("LAN");

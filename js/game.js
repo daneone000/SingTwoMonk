@@ -10,7 +10,7 @@
     constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext("2d"); this.reset("endless"); this._bindInput(); this.lastTime = 0; this._raf = null; }
 
     reset(mode) {
-      this.mode = mode; this.map = CFG.buildMap(); this.grid = this.map.grid;
+      this.mode = mode; this.campaign = (mode === "campaign"); this.map = CFG.buildMap(); this.grid = this.map.grid;
       this.gold = CFG.START_GOLD; this.sp = CFG.START_SP; this.lives = CFG.START_LIVES;
       this.score = 0; this.wave = 0;
       this.enemies = []; this.towers = []; this.traps = []; this.projectiles = []; this.effects = [];

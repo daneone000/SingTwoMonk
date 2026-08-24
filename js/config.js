@@ -133,6 +133,50 @@
   const TOWER_ORDER = ["ten", "lua", "bang", "set", "doc", "nangluong"];
   const TRAP_ORDER = ["dinh", "hut"];
 
+  // ============================================================
+  //  CHẾ ĐỘ CHIẾN DỊCH × LMHT — thay THÁP bằng TƯỚNG
+  //  Tướng = 1 tháp (đòn đánh thường + nâng cấp cấp 1→6) GẮN THÊM 1 kỹ năng
+  //  tự thi triển khi hết hồi chiêu (cd tính bằng giây thực). Dùng chung
+  //  engine Tower/Projectile: champion def cùng HÌNH DẠNG với tower def.
+  //  ability.kind -> bộ điều phối trong entities.js:
+  //    "multishot"      : bắn N mũi vào N mục tiêu gần đích (Ashe W)
+  //    "steroid_bounce" : mấy đòn kế tăng tốc đánh + đạn NẢY sang mục tiêu gần (Sivir W)
+  // ============================================================
+  const CHAMP_BOUNCE_RANGE = 2.4;   // tầm nảy của đạn (ô)
+  const CHAMPIONS = {
+    ashe: {
+      key: "ashe", name: "Ashe", title: "Nữ Hoàng Băng Giá", glyph: "🏹", champion: true,
+      color: "#5aa9d6", color2: "#bde8f5", target: "both", block: true, effect: "slow",
+      cost: 20, up: [30, 60, 120, 240, 480], projSpeed: 760, projColor: "#bde8f5",
+      // đòn đánh thường LÀM CHẬM (Frost Shot). Chỉ số tiệm cận đường cong tháp Tên nhưng có slow.
+      lv: [
+        { dmg: 14, rate: R(1.4), range: 2.2, splash: 0, slowPct: 0.15 }, { dmg: 30, rate: R(1.5), range: 2.4, splash: 0, slowPct: 0.18 },
+        { dmg: 62, rate: R(1.6), range: 2.6, splash: 0, slowPct: 0.22 }, { dmg: 130, rate: R(1.7), range: 2.8, splash: 0, slowPct: 0.26 },
+        { dmg: 300, rate: R(1.8), range: 3.0, splash: 0, slowPct: 0.30 }, { dmg: 640, rate: R(1.9), range: 3.2, splash: 0, slowPct: 0.35 },
+      ],
+      ability: { key: "W", name: "Mưa Tên Xối Xả", cd: 12, kind: "multishot", shots: 7, dmgMul: 0.9,
+        desc: "Bắn 7 mũi tên vào 7 mục tiêu gần đích nhất (mỗi mũi 90% ST đòn đánh, vẫn làm chậm)." },
+      desc: "Xạ thủ băng: đòn đánh làm CHẬM; W bắn 7 mũi tên đa mục tiêu. Đánh cả BAY & BỘ.",
+    },
+    sivir: {
+      key: "sivir", name: "Sivir", title: "Chiến Binh Sa Mạc", glyph: "🪃", champion: true,
+      color: "#d99a4e", color2: "#f5cd8a", target: "both", block: true,
+      cost: 25, up: [35, 70, 140, 280, 560], projSpeed: 840, projColor: "#f5cd8a",
+      lv: [
+        { dmg: 18, rate: R(1.5), range: 2.0, splash: 0 }, { dmg: 38, rate: R(1.6), range: 2.1, splash: 0 },
+        { dmg: 78, rate: R(1.7), range: 2.2, splash: 0 }, { dmg: 160, rate: R(1.8), range: 2.3, splash: 0 },
+        { dmg: 360, rate: R(1.9), range: 2.4, splash: 0 }, { dmg: 760, rate: R(2.0), range: 2.5, splash: 0 },
+      ],
+      ability: { key: "W", name: "Vũ Điệu Boomerang", cd: 8, kind: "steroid_bounce",
+        attacks: 4, rateMul: 1.6, bounces: 3, bounceFalloff: 0.65, dmgMul: 1.0,
+        desc: "4 đòn đánh kế: +60% tốc đánh, đạn NẢY sang 3 mục tiêu gần (mỗi lần nảy còn 65% ST)." },
+      desc: "Xạ thủ boomerang: W tăng tốc đánh vài đòn và đạn nảy sang nhiều mục tiêu. Đánh cả BAY & BỘ.",
+    },
+  };
+  const CHAMPION_ORDER = ["ashe", "sivir"];
+  Object.assign(TOWERS, CHAMPIONS);   // tướng dùng chung lookup với tháp -> Tower/statAt/upgradeCost/buyCost chạy nguyên vẹn
+  function buildOrder(mode) { return mode === "campaign" ? CHAMPION_ORDER : TOWER_ORDER; }
+
   // ----- PHÍM TẮT MẶC ĐỊNH (người chơi cấu hình lại được, lưu ở localStorage) -----
   // Tháp/bẫy: gán theo từng loại. Phép: gán theo 6 Ô (học tối đa 6 phép), phép học được
   // xếp vào ô theo thứ tự -> phím theo Ô, không theo tên phép. Mặc định 6 ô: Q W E A S D.
@@ -333,6 +377,7 @@
     CANVAS_W: TILE * COLS + 2 * MARGIN, CANVAS_H: TILE * ROWS + 2 * MARGIN,
     WAVE_INTERVAL: 15, WAVE_INTERVAL_LATE: 20, LATE_WAVE: 30, GAME_PACE: 0.75, BUILD_TIME: 2.0, UP_TIME: 1.5, SELL_TIME: 1.0,
     TOWERS, TRAPS, TOWER_ORDER, TRAP_ORDER, MAX_LEVEL, upgradeCost, statAt, workTime,
+    CHAMPIONS, CHAMPION_ORDER, CHAMP_BOUNCE_RANGE, buildOrder,
     ENEMIES, buildWave, waveInfo, pickType, randomSummonType, FLY_FROM,
     VS_START_DELAY: 30, VS_AI_PERIOD: 1.6, MAX_PLAYERS: 5,
     // 2v2: mỗi người nhận 0.75× vàng so với thường (2v -> 1.5v) nhưng TỔNG cả đội cao hơn 1 người thường (2 × 1.5 = 3v)

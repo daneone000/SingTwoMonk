@@ -226,6 +226,9 @@
       this.origMul = 1;     // Nguyên Bản: ×N khi tháp đã max cấp
       this.fused = false; this.fuseType = null; this.fuseDef = null;   // Dung Hợp
       this.gems = [];   // gem đã gắn (tối đa 3); chỉ số gộp cache: gemDmgMul/gemRateMul/gemCrit/gemSlow/gemStun (game.recomputeGems)
+      // ----- CHIẾN DỊCH × LMHT: kỹ năng tướng (tự thi triển khi hết hồi chiêu) -----
+      this.abilityCd = 0;                      // hồi chiêu còn lại (giây); 0 = sẵn sàng
+      this.steroidAttacks = 0; this.steroidRateMul = 1; this.steroidBounces = 0; this.steroidFalloff = 1; this.steroidDmgMul = 1;   // trạng thái Sivir W
     }
     get ready() { return this.buildTimer <= 0; }
     coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
@@ -274,16 +277,34 @@
       if (!this.firesFused) return;   // Năng Lượng thuần (chưa dung hợp tháp bắn) -> không bắn
       if (this.cooldown > 0) this.cooldown -= dt;
       if (this.buffTime > 0) this.buffTime -= dt;
+      if (this.abilityCd > 0) this.abilityCd -= dt;   // TƯỚNG: hồi chiêu kỹ năng
       const t = this.findTarget(game.enemies); if (!t) return;
       this.angle = Math.atan2(t.y - this.y, t.x - this.x);
+      // TƯỚNG: tự thi triển kỹ năng khi hết hồi chiêu & có mục tiêu
+      const ab = this.def.ability;
+      if (ab && this.abilityCd <= 0 && this.abilityReady(ab)) { this.castAbility(ab, game, t); this.abilityCd = ab.cd; }
       if (this.cooldown <= 0) {
         // Multishot: boon Tên (=cấp) và/hoặc L6 Tên (=cấp); có CẢ hai -> cấp + 3
         const bTen = this.boon === "ten", l6Ten = this.level >= 6 && this.type === "ten";
         const nShots = (bTen && l6Ten) ? this.level + CFG.TEN_L6_BONUS : (bTen || l6Ten) ? this.level : 1;
+        const steroid = this.steroidAttacks > 0;   // Sivir W đang hoạt: đòn đánh tăng tốc + đạn nảy
         if (nShots > 1) { for (const tg of this.findTargets(game.enemies, nShots)) game.projectiles.push(new Projectile(this, tg)); }
-        else game.projectiles.push(new Projectile(this, t));
-        this.cooldown = this.effRate();
+        else { const p = new Projectile(this, t); if (steroid) { p.dmg *= this.steroidDmgMul; p.bounces = this.steroidBounces; p.bounceFalloff = this.steroidFalloff; } game.projectiles.push(p); }
+        if (steroid) this.steroidAttacks--;
+        this.cooldown = this.effRate() / (steroid ? this.steroidRateMul : 1);
       }
+    }
+    // TƯỚNG: có được phép thi triển kỹ năng lúc này không (chặn tái kích hoạt khi steroid còn hiệu lực)
+    abilityReady(ab) { if (ab.kind === "steroid_bounce" && this.steroidAttacks > 0) return false; return true; }
+    // TƯỚNG: bộ điều phối kỹ năng theo ab.kind
+    castAbility(ab, game, t) {
+      if (ab.kind === "multishot") {
+        for (const tg of this.findTargets(game.enemies, ab.shots)) { const p = new Projectile(this, tg); p.dmg *= (ab.dmgMul || 1); game.projectiles.push(p); }
+      } else if (ab.kind === "steroid_bounce") {
+        this.steroidAttacks = ab.attacks; this.steroidRateMul = ab.rateMul || 1;
+        this.steroidBounces = ab.bounces || 0; this.steroidFalloff = ab.bounceFalloff != null ? ab.bounceFalloff : 1; this.steroidDmgMul = ab.dmgMul || 1;
+      }
+      game.effects.push(new BlastFx(this.x, this.y, this.range * 0.35, this.def.color2 || this.def.color));   // FX thi triển
     }
     // n mục tiêu gần đích nhất trong tầm (Tên boon: bắn đa mục tiêu)
     findTargets(en, n) {
@@ -511,6 +532,8 @@
       this.boonDistMul = (this.boon === "set") ? 1 + CFG.SET_DIST_PER * (dist(tower.x, tower.y, target.x, target.y) / TILE) : 1;   // Sét: +10%/ô, không cap
       // CẤP 6: dấu ấn theo LOẠI tháp nền
       this.l6 = tower.level >= 6; this.ttype = tower.def.key;
+      // TƯỚNG (Sivir W): đạn NẢY sang mục tiêu gần, mỗi lần nảy giảm ST theo bounceFalloff
+      this.bounces = 0; this.bounceFalloff = 1; this._hitSet = null;
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e, primary) {
@@ -534,16 +557,33 @@
     update(dt, game) {
       if (this.target && !this.target.dead && !this.target.leaked) { this.tx = this.target.x; this.ty = this.target.y; }
       const dx = this.tx - this.x, dy = this.ty - this.y, d = Math.hypot(dx, dy), s = this.speed * dt;
-      if (d <= s || d < 4) { this.hit(game); this.dead = true; return; }
+      if (d <= s || d < 4) { const cont = this.hit(game); this.dead = !cont; return; }   // cont=true -> đạn NẢY tiếp (Sivir W), chưa chết
       this.x += (dx / d) * s; this.y += (dy / d) * s;
     }
+    // trả về true nếu đạn còn NẢY tiếp (chưa chết)
     hit(game) {
-      if (game.mirror) { if (this.splash > 0) game.effects.push(new BlastFx(this.tx, this.ty, this.splash * TILE, this.projColor)); return; }   // đồng đội: đạn chỉ để NHÌN, không trừ máu (máu do chủ-bàn áp qua board)
+      if (game.mirror) { if (this.splash > 0) game.effects.push(new BlastFx(this.tx, this.ty, this.splash * TILE, this.projColor)); return false; }   // đồng đội: đạn chỉ để NHÌN, không trừ máu (máu do chủ-bàn áp qua board)
       if (this.splash > 0) {   // NỔ LAN: trúng mọi quái đúng loại trong bán kính
         const r = this.splash * TILE;
         for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(e.x, e.y, this.tx, this.ty) <= r + e.radius) this.applyTo(e, e === this.target); }   // stun (Thổ) chỉ mục tiêu chính
         game.effects.push(new BlastFx(this.tx, this.ty, r, this.projColor));
-      } else if (this.target && !this.target.dead && !this.target.leaked) this.applyTo(this.target, true);
+        return false;
+      }
+      if (this.target && !this.target.dead && !this.target.leaked) this.applyTo(this.target, true);
+      // Sivir W: NẢY sang mục tiêu gần chưa trúng
+      if (this.bounces > 0) {
+        if (!this._hitSet) this._hitSet = new Set();
+        this._hitSet.add(this.target);
+        const nxt = this._nextBounce(game);
+        if (nxt) { this.target = nxt; this.tx = nxt.x; this.ty = nxt.y; this.dmg *= this.bounceFalloff; this.bounces--; return true; }
+      }
+      return false;
+    }
+    // mục tiêu nảy tiếp: quái gần nhất trong tầm nảy, chưa trúng, đúng loại đánh
+    _nextBounce(game) {
+      const R = CFG.CHAMP_BOUNCE_RANGE * TILE; let best = null, bd = 1e18;
+      for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e) || (this._hitSet && this._hitSet.has(e))) continue; const d = dist(this.tx, this.ty, e.x, e.y); if (d <= R + e.radius && d < bd) { bd = d; best = e; } }
+      return best;
     }
     draw(ctx) { ctx.fillStyle = this.projColor; ctx.beginPath(); ctx.arc(this.x, this.y, this.splash > 0 ? 6 : 4, 0, 7); ctx.fill(); }
   }
