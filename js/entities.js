@@ -228,9 +228,9 @@
       this.gems = [];   // gem đã gắn (tối đa 3); chỉ số gộp cache: gemDmgMul/gemRateMul/gemCrit/gemSlow/gemStun (game.recomputeGems)
       // ----- CHIẾN DỊCH × LMHT: kỹ năng tướng (tự thi triển khi hết hồi chiêu) -----
       this.abilityCd = 0;                      // hồi chiêu còn lại (giây); 0 = sẵn sàng
-      this.steroidAttacks = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): mấy đòn kế được cường hóa
-      this.steroidBounces = 0; this.steroidFalloff = 1; this.steroidDmgMul = 1; this.steroidPct = 0;
-      this.empowerDmg = 0; this.empowerCrit = false;   // Caitlyn Đầu Ruồi: đòn kế +ST & chí mạng
+      this.steroidTime = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): đòn đánh cường hóa trong X giây
+      this.steroidBounces = 0; this.steroidBouncePct = 0; this.steroidPct = 0; this.steroidRange = 0;
+      this.empowerDmg = 0; this.empowerCrit = false;   // (dự phòng) đòn kế +ST & chí mạng
     }
     get ready() { return this.buildTimer <= 0; }
     coreMul() { return (1 + (this.reinforce || 0)) * (this.origMul || 1); }   // hệ số lõi lên chỉ số
@@ -258,7 +258,7 @@
     }
     startWork(action, t) { this.action = action; this.buildTimer = t; this.buildDur = t; }
     get stats() { return CFG.statAt(this.def, this.level); }
-    get range() { return this.fstats.range * TILE * (1 + (this.reinforce || 0)); }   // Gia Cố nới tầm; Nguyên Bản KHÔNG buff tầm
+    get range() { return this.fstats.range * TILE * (1 + (this.reinforce || 0)) + (this.steroidTime > 0 ? this.steroidRange * TILE : 0); }   // Gia Cố nới tầm; Nguyên Bản KHÔNG buff tầm; Kog'Maw W +tầm khi steroid
     get maxLevel() { return this.level >= this.def.lv.length; }
     get upgradeCost() { return this.maxLevel ? 0 : CFG.upgradeCost(this.def, this.level); }
     get sellValue() { return Math.floor(this.totalSpent * CFG.SELL_RATE); }
@@ -280,6 +280,7 @@
       if (this.cooldown > 0) this.cooldown -= dt;
       if (this.buffTime > 0) this.buffTime -= dt;
       if (this.abilityCd > 0) this.abilityCd -= dt;   // TƯỚNG: hồi chiêu kỹ năng
+      if (this.steroidTime > 0) this.steroidTime -= dt;   // TƯỚNG: cường hóa đòn đánh (Sivir/Kog'Maw) đếm ngược theo giây
       const t = this.findTarget(game.enemies); if (!t) return;
       this.angle = Math.atan2(t.y - this.y, t.x - this.x);
       // TƯỚNG: tự thi triển kỹ năng khi hết hồi chiêu & có mục tiêu
@@ -289,25 +290,24 @@
         // Multishot: boon Tên (=cấp) và/hoặc L6 Tên (=cấp); có CẢ hai -> cấp + 3
         const bTen = this.boon === "ten", l6Ten = this.level >= 6 && this.type === "ten";
         const nShots = (bTen && l6Ten) ? this.level + CFG.TEN_L6_BONUS : (bTen || l6Ten) ? this.level : 1;
-        const steroid = this.steroidAttacks > 0;   // Sivir/Kog'Maw W đang hoạt: đòn đánh được cường hóa
+        const steroid = this.steroidTime > 0;   // Sivir/Kog'Maw W đang hoạt: đòn đánh được cường hóa (theo THỜI GIAN)
         if (nShots > 1) { for (const tg of this.findTargets(game.enemies, nShots)) game.projectiles.push(new Projectile(this, tg)); }
         else {
           const p = new Projectile(this, t);
           if (steroid) {
-            if (this.steroidKind === "bounce") { p.dmg *= this.steroidDmgMul; p.bounces = this.steroidBounces; p.bounceFalloff = this.steroidFalloff; }   // Sivir Nảy Bật
+            if (this.steroidKind === "bounce") { p.bounces = this.steroidBounces; p.bounceDmg = this.steroidBouncePct * this.effDmg(); }   // Sivir Nảy Bật: đạn nảy tối đa N lần, mỗi lần gây % ST đòn đánh cố định
             else if (this.steroidKind === "pct") p.pctMaxDmg = this.steroidPct;   // Kog'Maw W: +% máu tối đa
           }
-          if (this.empowerDmg > 0 || this.empowerCrit) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; this.empowerDmg = 0; this.empowerCrit = false; }   // Caitlyn Đầu Ruồi: dùng cho ĐÚNG đòn kế
+          if (this.empowerDmg > 0 || this.empowerCrit) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; this.empowerDmg = 0; this.empowerCrit = false; }   // (dự phòng) đòn kế cường hóa
           game.projectiles.push(p);
         }
-        if (steroid) this.steroidAttacks--;
         this.cooldown = this.effRate() / (steroid ? this.steroidRateMul : 1);
       }
     }
     // TƯỚNG: chỉ số kỹ năng theo CẤP tháp (mảng dài 6 -> chọn theo cấp; số vô hướng -> giữ nguyên)
     abVal(v) { return Array.isArray(v) ? v[Math.min(this.level, v.length) - 1] : v; }
     // TƯỚNG: có được phép thi triển kỹ năng lúc này không (chặn tái kích hoạt khi steroid còn hiệu lực)
-    abilityReady(ab) { if (this.steroidAttacks > 0) return false; return true; }
+    abilityReady(ab) { if (this.steroidTime > 0) return false; return true; }
     // TƯỚNG: bộ điều phối kỹ năng theo ab.kind (chỉ số scale theo cấp qua abVal)
     castAbility(ab, game, t) {
       const col = this.def.color2 || this.def.color;
@@ -325,8 +325,9 @@
       } else if (ab.kind === "area_nuke") {
         this.castArea(ab, game, t, abDmg(), col);      // Brand Cột Lửa: nổ vùng quanh mục tiêu (+ đốt)
       } else if (ab.kind === "dot_field") {
-        // Cassiopeia Nọc Độc: thả vùng độc gây ST theo thời gian
-        game.effects.push(new PoisonCloud(t.x, t.y, this.abVal(ab.radius) * TILE, this.abVal(ab.dps) || 0, ab.dur, ab.pctps || 0));
+        // Cassiopeia Màn Sương Độc: thả vùng gây ST/giây (nền + adMul AD) + làm chậm, kéo dài ab.dur giây
+        const dps = (this.abVal(ab.dps) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
+        game.effects.push(new PoisonCloud(t.x, t.y, this.abVal(ab.radius) * TILE, dps, ab.dur, 0, this.abVal(ab.slowPct) || 0));
       } else if (ab.kind === "empower_next") {
         // (dự phòng) đòn đánh KẾ +ST nền (+adMul AD) và chí mạng
         this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit;
@@ -334,15 +335,18 @@
         // Caitlyn Bẫy Yordle / Teemo Nấm Độc: đặt 1 bẫy vào ô của mục tiêu (trong tầm), giới hạn số bẫy còn sống
         const c = Math.floor(t.x / TILE), r = Math.floor(t.y / TILE);
         const spec = {}; for (const key in ab.trap) spec[key] = Array.isArray(ab.trap[key]) ? this.abVal(ab.trap[key]) : ab.trap[key];   // chỉ số bẫy scale theo cấp
-        spec.color = col;
-        spec.dmg = (this.abVal(ab.trap.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();   // ST bẫy = nền theo cấp + tỉ lệ AD
+        spec.color = col; const ad = (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
+        if (ab.trap.dmg != null) spec.dmg = this.abVal(ab.trap.dmg) + ad;                              // Caitlyn: ST tức thời khi trói
+        if (ab.trap.burnTotal != null) spec.burnDps = (this.abVal(ab.trap.burnTotal) + ad) / (spec.burnDur || 4);   // Teemo: DoT = (tổng nền + AD) / thời gian
         game.dropChampTrap(this, c, r, spec, this.abVal(ab.maxTraps) || 3);
       } else if (ab.kind === "steroid_bounce") {
-        this.steroidKind = "bounce"; this.steroidAttacks = this.abVal(ab.attacks); this.steroidRateMul = this.abVal(ab.rateMul) || 1;
-        this.steroidBounces = this.abVal(ab.bounces) || 0; const f = this.abVal(ab.bounceFalloff); this.steroidFalloff = f != null ? f : 1; this.steroidDmgMul = this.abVal(ab.dmgMul) || 1;
+        // Sivir Nảy Bật: cường hóa X giây, +tốc đánh, đạn nảy tối đa N lần (mỗi lần % ST đòn đánh)
+        this.steroidKind = "bounce"; this.steroidTime = ab.dur; this.steroidRateMul = this.abVal(ab.rateMul) || 1;
+        this.steroidBounces = this.abVal(ab.bounces) || 0; this.steroidBouncePct = this.abVal(ab.bouncePct) || 0;
       } else if (ab.kind === "steroid_pctdmg") {
-        // Kog'Maw W: mấy đòn kế +% máu TỐI ĐA (xé trâu/bay), có thể tăng tốc đánh
-        this.steroidKind = "pct"; this.steroidAttacks = this.abVal(ab.attacks); this.steroidRateMul = this.abVal(ab.rateMul) || 1; this.steroidPct = this.abVal(ab.pct) || 0;
+        // Kog'Maw W: cường hóa X giây, +% máu TỐI ĐA mỗi đòn (xé trâu/bay) + tăng tầm
+        this.steroidKind = "pct"; this.steroidTime = ab.dur; this.steroidRateMul = this.abVal(ab.rateMul) || 1;
+        this.steroidPct = this.abVal(ab.pct) || 0; this.steroidRange = this.abVal(ab.range) || 0;
       }
       game.effects.push(new BlastFx(this.x, this.y, this.range * 0.35, col));   // FX thi triển
     }
@@ -585,8 +589,8 @@
       this.boonDistMul = (this.boon === "set") ? 1 + CFG.SET_DIST_PER * (dist(tower.x, tower.y, target.x, target.y) / TILE) : 1;   // Sét: +10%/ô, không cap
       // CẤP 6: dấu ấn theo LOẠI tháp nền
       this.l6 = tower.level >= 6; this.ttype = tower.def.key;
-      // TƯỚNG (Sivir W): đạn NẢY sang mục tiêu gần, mỗi lần nảy giảm ST theo bounceFalloff
-      this.bounces = 0; this.bounceFalloff = 1; this._hitSet = null;
+      // TƯỚNG (Sivir W): đạn NẢY sang mục tiêu gần, mỗi lần nảy gây bounceDmg cố định (% ST đòn đánh)
+      this.bounces = 0; this.bounceDmg = 0; this._hitSet = null;
       this.rootDur = 0;      // TƯỚNG (Lux Q): trói/choáng mục tiêu chính khi trúng
       this.pctMaxDmg = 0;    // TƯỚNG (Kog'Maw W): +% máu TỐI ĐA (phép, bỏ giáp)
     }
@@ -632,7 +636,7 @@
         if (!this._hitSet) this._hitSet = new Set();
         this._hitSet.add(this.target);
         const nxt = this._nextBounce(game);
-        if (nxt) { this.target = nxt; this.tx = nxt.x; this.ty = nxt.y; this.dmg *= this.bounceFalloff; this.bounces--; return true; }
+        if (nxt) { this.target = nxt; this.tx = nxt.x; this.ty = nxt.y; this.dmg = this.bounceDmg; this.bounces--; return true; }   // mỗi lần nảy: ST cố định = % ST đòn đánh
       }
       return false;
     }
@@ -656,9 +660,9 @@
       let on = null;
       for (const e of game.enemies) { if (e.dead || e.leaked || e.fly) continue; if (Math.floor(e.x / TILE) === this.col && Math.floor(e.y / TILE) === this.row) { on = e; break; } }
       if (!on) return;
-      if (s.kind === "shroom") {   // Teemo Nấm Độc: nổ vùng — ST + làm chậm + nhiễm độc
+      if (s.kind === "shroom") {   // Teemo Nấm Độc: nổ vùng — DoT (đốt phép) + làm chậm
         const R = (s.radius || 1.3) * TILE;
-        for (const e of game.enemies) { if (e.dead || e.leaked || e.fly) continue; if (dist(e.x, e.y, this.x, this.y) <= R + e.radius) { if (s.dmg) e.applyDamage(s.dmg); if (s.slowPct) e.slow(1 - s.slowPct, s.slowDur || 2); if (s.poisonPct) e.addPoison(s.poisonPct, s.poisonDur || 4, 4, false); e._spellHit = true; } }
+        for (const e of game.enemies) { if (e.dead || e.leaked || e.fly) continue; if (dist(e.x, e.y, this.x, this.y) <= R + e.radius) { if (s.dmg) e.applyDamage(s.dmg); if (s.burnDps) e.burn(s.burnDps, s.burnDur || 4); if (s.slowPct) e.slow(1 - s.slowPct, s.slowDur || 4); e._spellHit = true; } }
         game.effects.push(new BlastFx(this.x, this.y, R, s.color));
       } else {   // Caitlyn Bẫy Yordle: trói + ST quái giẫm bẫy
         on.freeze(s.rootDur || 1); if (s.dmg) { on.applyDamage(s.dmg); on._spellHit = true; }
@@ -674,7 +678,7 @@
     }
   }
   class SwirlFx { constructor(x, y) { this.x = x; this.y = y; this.t = 0; this.dur = .35; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = "#9fa8ff"; ctx.lineWidth = 2.5; ctx.beginPath(); for (let a = 0; a < 12; a++) { const ang = a * .6 + f * 6, rr = a * 1.6 * (1 - f * .3); const px = this.x + Math.cos(ang) * rr, py = this.y + Math.sin(ang) * rr; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.globalAlpha = 1; } }
-  class PoisonCloud { constructor(x, y, r, dps, dur, pctps) { this.x = x; this.y = y; this.r = r; this.dps = dps; this.pctps = pctps || 0; this.dur = dur; this.t = 0; this.dead = false; } update(dt, game) { this.t += dt; if (this.t >= this.dur) { this.dead = true; return; } for (const e of game.enemies) if (!e.dead && !e.leaked && dist(e.x, e.y, this.x, this.y) <= this.r + e.radius) { e.applyDamage((this.dps + this.pctps * e.maxHp) * dt, true); e._spellHit = true; } } draw(ctx) { ctx.save(); ctx.globalAlpha = .3 * (1 - this.t / this.dur) + .15; ctx.fillStyle = "#8e24aa"; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, 7); ctx.fill(); ctx.restore(); } }
+  class PoisonCloud { constructor(x, y, r, dps, dur, pctps, slowPct) { this.x = x; this.y = y; this.r = r; this.dps = dps; this.pctps = pctps || 0; this.dur = dur; this.slowPct = slowPct || 0; this.t = 0; this.dead = false; } update(dt, game) { this.t += dt; if (this.t >= this.dur) { this.dead = true; return; } for (const e of game.enemies) if (!e.dead && !e.leaked && dist(e.x, e.y, this.x, this.y) <= this.r + e.radius) { e.applyDamage((this.dps + this.pctps * e.maxHp) * dt, true); if (this.slowPct) e.slow(1 - this.slowPct, 0.5); e._spellHit = true; } } draw(ctx) { ctx.save(); ctx.globalAlpha = .3 * (1 - this.t / this.dur) + .15; ctx.fillStyle = "#8e24aa"; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, 7); ctx.fill(); ctx.restore(); } }
 
   function shade(hex, amt) { const n = parseInt(hex.slice(1), 16), cl = (v) => Math.max(0, Math.min(255, v)); return `rgb(${cl((n >> 16) + amt)},${cl(((n >> 8) & 255) + amt)},${cl((n & 255) + amt)})`; }
   function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }

@@ -169,11 +169,11 @@
         { dmg: 78, rate: R(1.7), range: 2.2, splash: 0 }, { dmg: 160, rate: R(1.8), range: 2.3, splash: 0 },
         { dmg: 360, rate: R(1.9), range: 2.4, splash: 0 },
       ],
-      // [W] Nảy Bật (Ricochet) — đạn nảy nhiều mục tiêu (số lần nảy & tốc đánh scale theo cấp), 5 bậc
+      // [W] Nảy Bật (Ricochet) — chỉ số gốc LMHT: 4s cường hóa, +tốc đánh, đạn nảy tối đa 8 lần
       ability: { key: "W", name: "Nảy Bật", kind: "steroid_bounce",
-        cd: [10, 9, 8, 7, 6], attacks: [3, 3, 4, 4, 5], rateMul: [1.3, 1.4, 1.5, 1.6, 1.7],
-        bounces: [4, 5, 6, 7, 8], bounceFalloff: 0.7, dmgMul: 1.0,
-        desc: "Mấy đòn đánh kế: tăng tốc đánh và đạn NẢY sang nhiều mục tiêu gần (số lần nảy tăng theo cấp), mỗi lần nảy còn 70% ST." },
+        cd: [12, 12, 12, 12, 12], dur: 4, rateMul: [1.20, 1.25, 1.30, 1.35, 1.40],
+        bounces: 8, bouncePct: [0.40, 0.425, 0.45, 0.475, 0.50],
+        desc: "Trong 4s: +20→40% tốc đánh, đạn NẢY tối đa 8 mục tiêu (mỗi lần nảy gây 40→50% ST đòn đánh)." },
       desc: "Xạ thủ boomerang: W tăng tốc đánh vài đòn và đạn nảy sang nhiều mục tiêu. Đánh cả BAY & BỘ.",
     },
     brand: {
@@ -185,10 +185,10 @@
         { dmg: 72, rate: R(1.0), range: 2.8, splash: 0 }, { dmg: 150, rate: R(1.05), range: 3.0, splash: 0 },
         { dmg: 330, rate: R(1.1), range: 3.2, splash: 0 },
       ],
-      // [W] Cột Lửa — nổ vùng + thiêu đốt
+      // [W] Cột Lửa (Pillar of Flame) — chỉ số gốc LMHT: ST 75→255, hồi 10→8s
       ability: { key: "W", name: "Cột Lửa", kind: "area_nuke",
-        cd: [10, 9, 8, 7, 6], radius: 1.6, dmg: [60, 95, 130, 165, 200], adMul: 0.8, burn: true,   // burnPct/burnDur mặc định = BURN_MISS_PCT/BURN_DUR (castArea)
-        desc: "Tạo cột lửa nổ trong vùng quanh mục tiêu, gây ST vùng và THIÊU ĐỐT (%máu đã mất)." },
+        cd: [10, 9.5, 9, 8.5, 8], radius: 1.5, dmg: [75, 120, 165, 210, 255], adMul: 0.7, burn: true,   // burnPct/burnDur mặc định = BURN_MISS_PCT/BURN_DUR (castArea)
+        desc: "Tạo cột lửa nổ trong vùng quanh mục tiêu, gây ST vùng (+70% đòn đánh) và THIÊU ĐỐT (%máu đã mất)." },
       desc: "Pháp sư lửa: W 'Cột Lửa' nổ vùng + đốt. Đánh cả BAY & BỘ.",
     },
     cassiopeia: {
@@ -200,10 +200,10 @@
         { dmg: 22, rate: R(1.5), range: 2.4, splash: 0, poisonPct: 0.11 }, { dmg: 40, rate: R(1.6), range: 2.6, splash: 0, poisonPct: 0.14 },
         { dmg: 75, rate: R(1.7), range: 2.8, splash: 0, poisonPct: 0.18 },
       ],
-      // [W] Màn Sương Độc (Miasma) — vùng độc gây ST theo thời gian
+      // [W] Màn Sương Độc (Miasma) — chỉ số gốc LMHT: ST/giây 20→40, chậm 40→80%, 5s, hồi 24→16s
       ability: { key: "W", name: "Màn Sương Độc", kind: "dot_field",
-        cd: [9, 8, 7, 6, 5], radius: 1.6, dps: [30, 45, 60, 75, 90], pctps: 0.01, dur: 4,
-        desc: "Thả màn sương độc: mỗi giây gây (ST nền + 1% máu tối đa) cho quái BỘ trong vùng, kéo dài 4s." },
+        cd: [24, 22, 20, 18, 16], radius: 1.6, dps: [20, 25, 30, 35, 40], adMul: 0.1, dur: 5, slowPct: [0.40, 0.50, 0.60, 0.70, 0.80],
+        desc: "Thả màn sương độc (5s): mỗi giây gây ST (nền + 10% đòn đánh) và LÀM CHẬM 40→80% quái BỘ trong vùng." },
       desc: "Nữ hoàng rắn: đòn đánh gây độc; W thả màn sương độc gây ST theo thời gian. CHỈ đánh quái BỘ.",
     },
     lux: {
@@ -215,10 +215,10 @@
         { dmg: 64, rate: R(1.1), range: 3.2, splash: 0 }, { dmg: 135, rate: R(1.15), range: 3.4, splash: 0 },
         { dmg: 300, rate: R(1.2), range: 3.6, splash: 0 },
       ],
-      // [Q] Trói Buộc Ánh Sáng (Light Binding) — trói tối đa 2 mục tiêu
+      // [Q] Trói Buộc Ánh Sáng (Light Binding) — chỉ số gốc LMHT: trói 2s, tối đa 2 mục tiêu, hồi 10s
       ability: { key: "Q", name: "Trói Buộc Ánh Sáng", kind: "root_shot",
-        cd: [14, 13, 12, 11, 10], targets: [1, 2, 2, 2, 2], rootDur: [1.0, 1.1, 1.2, 1.3, 1.4], dmg: [50, 90, 130, 170, 210], adMul: 0.6,
-        desc: "Bắn quả cầu ánh sáng TRÓI (đứng yên) tối đa 2 kẻ địch và gây ST." },
+        cd: [10, 10, 10, 10, 10], targets: 2, rootDur: 2, dmg: [80, 120, 160, 200, 240], adMul: 0.75,
+        desc: "Bắn quả cầu ánh sáng TRÓI 2s tối đa 2 kẻ địch và gây ST." },
       desc: "Pháp sư ánh sáng: Q trói giữ quái. Đánh cả BAY & BỘ.",
     },
     caitlyn: {
@@ -230,11 +230,11 @@
         { dmg: 80, rate: R(1.2), range: 3.6, splash: 0 }, { dmg: 165, rate: R(1.25), range: 3.8, splash: 0 },
         { dmg: 360, rate: R(1.3), range: 4.0, splash: 0 },
       ],
-      // [W] Bẫy Yordle (Yordle Snap Trap) — đặt bẫy TRÓI trong tầm đánh (nội tại: Thiện Xạ)
-      ability: { key: "W", name: "Bẫy Yordle", kind: "place_trap", maxTraps: 3, adMul: 0.5,
-        cd: [9, 8, 7, 6, 5],
-        trap: { kind: "root", rootDur: [1.0, 1.2, 1.4, 1.6, 1.8], dmg: [40, 70, 100, 130, 160], glyph: "🪤" },
-        desc: "Cứ hết hồi chiêu, đặt 1 Bẫy Yordle vào ô quái đi qua (trong tầm đánh). Quái giẫm bẫy bị TRÓI (đứng yên) + nhận ST. Tối đa 3 bẫy." },
+      // [W] Bẫy Yordle (Yordle Snap Trap) — chỉ số gốc LMHT: nạp bẫy mỗi 26→10s, tối đa 3/3/4/4/5, trói 1.5s
+      ability: { key: "W", name: "Bẫy Yordle", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.3,
+        cd: [26, 22, 18, 14, 10],
+        trap: { kind: "root", rootDur: 1.5, dmg: [35, 80, 125, 170, 215], glyph: "🪤" },
+        desc: "Cứ hết hồi chiêu, đặt 1 Bẫy Yordle vào ô quái đi qua (trong tầm đánh). Quái giẫm bẫy bị TRÓI 1.5s + nhận ST (đòn Thiện Xạ). Tối đa 3→5 bẫy." },
       desc: "Cảnh sát trưởng (nội tại Thiện Xạ): W đặt Bẫy Yordle trói quái. Đánh cả BAY & BỘ.",
     },
     varus: {
@@ -246,10 +246,10 @@
         { dmg: 68, rate: R(1.1), range: 3.4, splash: 0 }, { dmg: 140, rate: R(1.15), range: 3.6, splash: 0 },
         { dmg: 310, rate: R(1.2), range: 3.8, splash: 0 },
       ],
-      // [Q] Xuyên Thâu (Piercing Arrow) — mũi tên xuyên thẳng, trúng mọi quái trên đường
+      // [Q] Xuyên Thâu (Piercing Arrow) — chỉ số gốc LMHT (giương tối đa): ST 80→360, hồi 16→12s
       ability: { key: "Q", name: "Xuyên Thâu", kind: "pierce_line",
-        cd: [14, 12, 10, 8, 6], width: 0.55, dmg: [50, 90, 130, 170, 210], adMul: 1.0,
-        desc: "Giương cung bắn mũi tên XUYÊN qua mọi kẻ địch trên đường thẳng, gây ST lớn (+100% đòn đánh)." },
+        cd: [16, 15, 14, 13, 12], width: 0.55, dmg: [80, 150, 220, 290, 360], adMul: 1.2,
+        desc: "Giương cung bắn mũi tên XUYÊN qua mọi kẻ địch trên đường thẳng, gây ST lớn (+120% đòn đánh)." },
       desc: "Xạ thủ xuyên phá: Q bắn mũi tên xuyên hàng dài. Đánh cả BAY & BỘ.",
     },
     kogmaw: {
@@ -261,10 +261,10 @@
         { dmg: 64, rate: R(1.6), range: 2.8, splash: 0 }, { dmg: 130, rate: R(1.7), range: 3.0, splash: 0 },
         { dmg: 280, rate: R(1.8), range: 3.2, splash: 0 },
       ],
-      // [W] Cuồng Nộ Sinh Hóa (Bio-Arcane Barrage) — mấy đòn kế +tầm & +%máu tối đa
+      // [W] Cuồng Nộ Sinh Hóa (Bio-Arcane Barrage) — chỉ số gốc LMHT: 8s, +tầm, +2→6% máu tối đa mỗi đòn
       ability: { key: "W", name: "Cuồng Nộ Sinh Hóa", kind: "steroid_pctdmg",
-        cd: [12, 11, 10, 9, 8], attacks: [4, 5, 6, 7, 8], rateMul: [1.2, 1.3, 1.4, 1.5, 1.6], pct: [0.015, 0.02, 0.025, 0.03, 0.035],
-        desc: "Mấy đòn đánh kế tăng tốc đánh và gây thêm % MÁU TỐI ĐA (phép, bỏ giáp) — xé quái trâu & quái bay." },
+        cd: [17, 17, 17, 17, 17], dur: 8, pct: [0.02, 0.03, 0.04, 0.05, 0.06], range: [0.6, 0.7, 0.8, 0.9, 1.0],
+        desc: "Trong 8s: tăng tầm đánh và mỗi đòn gây thêm 2→6% MÁU TỐI ĐA (phép, bỏ giáp) — xé quái trâu & quái bay." },
       desc: "Xạ thủ xé giáp: W khiến đòn đánh gây %máu tối đa, khắc chế quái trâu/bay. Đánh cả BAY & BỘ.",
     },
     teemo: {
@@ -276,11 +276,11 @@
         { dmg: 40, rate: R(1.8), range: 2.4, splash: 0, poisonPct: 0.08 }, { dmg: 82, rate: R(1.9), range: 2.5, splash: 0, poisonPct: 0.10 },
         { dmg: 180, rate: R(2.0), range: 2.6, splash: 0, poisonPct: 0.13 },
       ],
-      // [R] Nấm Độc (Noxious Trap) — đặt nấm; quái giẫm -> nổ vùng ST + làm chậm + nhiễm độc
-      ability: { key: "R", name: "Nấm Độc", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.3,
-        cd: [8, 7, 6, 5, 4],
-        trap: { kind: "shroom", radius: 1.3, slowPct: 0.3, slowDur: 2, poisonPct: [0.03, 0.04, 0.05, 0.06, 0.07], poisonDur: 4, dmg: [30, 55, 80, 105, 130], glyph: "🍄" },
-        desc: "Cứ hết hồi chiêu, đặt 1 Nấm Độc vào ô quái đi qua (trong tầm). Quái giẫm nấm → NỔ vùng: ST + làm chậm 30% + nhiễm độc. Tối đa 3→5 nấm." },
+      // [R] Nấm Độc (Noxious Trap) — chỉ số gốc LMHT (3 bậc → 5 cấp): tổng độc 200/325/450 trong 4s, chậm 30/40/50%
+      ability: { key: "R", name: "Nấm Độc", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.5,
+        cd: [35, 35, 30, 30, 25],
+        trap: { kind: "shroom", radius: 1.3, burnTotal: [200, 200, 325, 325, 450], burnDur: 4, slowPct: [0.30, 0.30, 0.40, 0.40, 0.50], slowDur: 4, glyph: "🍄" },
+        desc: "Cứ hết hồi chiêu, đặt 1 Nấm Độc vào ô quái đi qua. Quái giẫm nấm → NỔ vùng: nhiễm độc (tổng 200→450 ST trong 4s) + làm chậm 30→50% (4s). Tối đa 3→5 nấm." },
       desc: "Trinh sát: đòn đánh gây độc; R rải Nấm Độc nổ vùng làm chậm + độc. Đánh cả BAY & BỘ.",
     },
   };

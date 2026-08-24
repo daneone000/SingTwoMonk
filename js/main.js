@@ -425,14 +425,14 @@
     const ad = ab.adMul ? ` +${Math.round(ab.adMul * 100)}% đòn đánh` : "";
     let stat = `hồi chiêu <b>${cdMax}s</b>`;
     if (ab.kind === "multishot") stat += ` · <b>${t.abVal(ab.shots)}</b> mũi · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
-    else if (ab.kind === "steroid_bounce") stat += ` · <b>${t.abVal(ab.attacks)}</b> đòn ×tốc <b>${t.abVal(ab.rateMul).toFixed(1)}</b> · nảy <b>${t.abVal(ab.bounces)}</b> lần`;
-    else if (ab.kind === "steroid_pctdmg") stat += ` · <b>${t.abVal(ab.attacks)}</b> đòn ×tốc <b>${t.abVal(ab.rateMul).toFixed(1)}</b> · +<b>${(t.abVal(ab.pct) * 100).toFixed(1)}%</b> máu tối đa/đòn`;
+    else if (ab.kind === "steroid_bounce") stat += ` · <b>${ab.dur}s</b> ×tốc <b>${t.abVal(ab.rateMul).toFixed(2)}</b> · nảy tối đa <b>${t.abVal(ab.bounces)}</b> (mỗi lần ${Math.round(t.abVal(ab.bouncePct) * 100)}% ST)`;
+    else if (ab.kind === "steroid_pctdmg") stat += ` · <b>${ab.dur}s</b> · +<b>${(t.abVal(ab.pct) * 100).toFixed(0)}%</b> máu tối đa/đòn · +tầm <b>${t.abVal(ab.range)}</b>`;
     else if (ab.kind === "root_shot") stat += ` · trói <b>${t.abVal(ab.targets)}</b> mục tiêu <b>${t.abVal(ab.rootDur).toFixed(1)}s</b> · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
     else if (ab.kind === "area_nuke") stat += ` · nổ vùng <b>${t.abVal(ab.radius)}</b> ô · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.burn ? " · đốt" : ""}`;
-    else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b>+${Math.round((ab.pctps || 0) * 100)}% máu/giây`;
+    else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b> ST/giây${ad} · chậm ${Math.round(t.abVal(ab.slowPct) * 100)}%`;
     else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}`;
     else if (ab.kind === "pierce_line") stat += ` · xuyên hàng · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
-    else if (ab.kind === "place_trap") { const tr = ab.trap; stat += ` · tối đa <b>${t.abVal(ab.maxTraps)}</b> bẫy`; stat += tr.kind === "root" ? ` · trói <b>${t.abVal(tr.rootDur).toFixed(1)}s</b> + ST nền <b>${t.abVal(tr.dmg)}</b>${ad}` : ` · nổ vùng <b>${tr.radius}</b> ô · chậm ${Math.round((tr.slowPct || 0) * 100)}% + độc · ST nền <b>${t.abVal(tr.dmg)}</b>`; }
+    else if (ab.kind === "place_trap") { const tr = ab.trap; stat += ` · tối đa <b>${t.abVal(ab.maxTraps)}</b> bẫy`; stat += tr.kind === "root" ? ` · trói <b>${t.abVal(tr.rootDur).toFixed(1)}s</b> + ST nền <b>${t.abVal(tr.dmg)}</b>${ad}` : ` · nổ vùng <b>${tr.radius}</b> ô · độc tổng <b>${t.abVal(tr.burnTotal)}</b>/${tr.burnDur}s + chậm ${Math.round(t.abVal(tr.slowPct) * 100)}%`; }
     return `<div class="tp-ability"><div class="ab-head"><span class="ab-key">${ab.key}</span> ${ab.name}<span class="ab-cd">${cdTxt}</span></div><div class="ab-desc">${ab.desc || ""}</div><div class="ab-desc">▸ Cấp ${t.level}: ${stat}</div></div>`;
   }
   function gemLineHTML(t) {
