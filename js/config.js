@@ -200,8 +200,8 @@
         { dmg: 22, rate: R(1.5), range: 2.4, splash: 0, poisonPct: 0.11 }, { dmg: 40, rate: R(1.6), range: 2.6, splash: 0, poisonPct: 0.14 },
         { dmg: 75, rate: R(1.7), range: 2.8, splash: 0, poisonPct: 0.18 },
       ],
-      // [W] Màn Sương Độc (Miasma) — chỉ số gốc LMHT: ST/giây 20→40, chậm 40→80%, 5s, hồi 24→16s
-      ability: { key: "W", name: "Màn Sương Độc", kind: "dot_field",
+      // [W] Chướng Khí (Miasma) — chỉ số gốc LMHT: ST/giây 20→40, chậm 40→80%, 5s, hồi 24→16s
+      ability: { key: "W", name: "Chướng Khí", kind: "dot_field",
         cd: [24, 22, 20, 18, 16], radius: 1.6, dps: [20, 25, 30, 35, 40], adMul: 0.1, dur: 5, slowPct: [0.40, 0.50, 0.60, 0.70, 0.80],
         desc: "Thả màn sương độc (5s): mỗi giây gây ST (nền + 10% đòn đánh) và LÀM CHẬM 40→80% quái BỘ trong vùng." },
       desc: "Nữ hoàng rắn: đòn đánh gây độc; W thả màn sương độc gây ST theo thời gian. CHỈ đánh quái BỘ.",
@@ -215,8 +215,8 @@
         { dmg: 64, rate: R(1.1), range: 3.2, splash: 0 }, { dmg: 135, rate: R(1.15), range: 3.4, splash: 0 },
         { dmg: 300, rate: R(1.2), range: 3.6, splash: 0 },
       ],
-      // [Q] Trói Buộc Ánh Sáng (Light Binding) — chỉ số gốc LMHT: trói 2s, tối đa 2 mục tiêu, hồi 10s
-      ability: { key: "Q", name: "Trói Buộc Ánh Sáng", kind: "root_shot",
+      // [Q] Khóa Ánh Sáng (Light Binding) — chỉ số gốc LMHT: trói 2s, tối đa 2 mục tiêu, hồi 10s
+      ability: { key: "Q", name: "Khóa Ánh Sáng", kind: "root_shot",
         cd: [10, 10, 10, 10, 10], targets: 2, rootDur: 2, dmg: [80, 120, 160, 200, 240], adMul: 0.75,
         desc: "Bắn quả cầu ánh sáng TRÓI 2s tối đa 2 kẻ địch và gây ST." },
       desc: "Pháp sư ánh sáng: Q trói giữ quái. Đánh cả BAY & BỘ.",
@@ -246,8 +246,8 @@
         { dmg: 68, rate: R(1.1), range: 3.4, splash: 0 }, { dmg: 140, rate: R(1.15), range: 3.6, splash: 0 },
         { dmg: 310, rate: R(1.2), range: 3.8, splash: 0 },
       ],
-      // [Q] Xuyên Thâu (Piercing Arrow) — chỉ số gốc LMHT (giương tối đa): ST 80→360, hồi 16→12s
-      ability: { key: "Q", name: "Xuyên Thâu", kind: "pierce_line",
+      // [Q] Mũi Tên Xuyên Phá (Piercing Arrow) — chỉ số gốc LMHT (giương tối đa): ST 80→360, hồi 16→12s
+      ability: { key: "Q", name: "Mũi Tên Xuyên Phá", kind: "pierce_line",
         cd: [16, 15, 14, 13, 12], width: 0.55, dmg: [80, 150, 220, 290, 360], adMul: 1.2,
         desc: "Giương cung bắn mũi tên XUYÊN qua mọi kẻ địch trên đường thẳng, gây ST lớn (+120% đòn đánh)." },
       desc: "Xạ thủ xuyên phá: Q bắn mũi tên xuyên hàng dài. Đánh cả BAY & BỘ.",
@@ -261,8 +261,8 @@
         { dmg: 64, rate: R(1.6), range: 2.8, splash: 0 }, { dmg: 130, rate: R(1.7), range: 3.0, splash: 0 },
         { dmg: 280, rate: R(1.8), range: 3.2, splash: 0 },
       ],
-      // [W] Cuồng Nộ Sinh Hóa (Bio-Arcane Barrage) — chỉ số gốc LMHT: 8s, +tầm, +2→6% máu tối đa mỗi đòn
-      ability: { key: "W", name: "Cuồng Nộ Sinh Hóa", kind: "steroid_pctdmg",
+      // [W] Cao Xạ Ma Pháp (Bio-Arcane Barrage) — chỉ số gốc LMHT: 8s, +tầm, +2→6% máu tối đa mỗi đòn
+      ability: { key: "W", name: "Cao Xạ Ma Pháp", kind: "steroid_pctdmg",
         cd: [17, 17, 17, 17, 17], dur: 8, pct: [0.02, 0.03, 0.04, 0.05, 0.06], range: [0.6, 0.7, 0.8, 0.9, 1.0],
         desc: "Trong 8s: tăng tầm đánh và mỗi đòn gây thêm 2→6% MÁU TỐI ĐA (phép, bỏ giáp) — xé quái trâu & quái bay." },
       desc: "Xạ thủ xé giáp: W khiến đòn đánh gây %máu tối đa, khắc chế quái trâu/bay. Đánh cả BAY & BỘ.",
@@ -276,12 +276,12 @@
         { dmg: 40, rate: R(1.8), range: 2.4, splash: 0, poisonPct: 0.08 }, { dmg: 82, rate: R(1.9), range: 2.5, splash: 0, poisonPct: 0.10 },
         { dmg: 180, rate: R(2.0), range: 2.6, splash: 0, poisonPct: 0.13 },
       ],
-      // [R] Nấm Độc (Noxious Trap) — chỉ số gốc LMHT (3 bậc → 5 cấp): tổng độc 200/325/450 trong 4s, chậm 30/40/50%
-      ability: { key: "R", name: "Nấm Độc", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.5,
+      // [R] Bẫy Độc (Noxious Trap) — chỉ số gốc LMHT (3 bậc → 5 cấp): tổng độc 200/325/450 trong 4s, chậm 30/40/50%
+      ability: { key: "R", name: "Bẫy Độc", kind: "place_trap", maxTraps: [3, 3, 4, 4, 5], adMul: 0.5,
         cd: [35, 35, 30, 30, 25],
         trap: { kind: "shroom", radius: 1.3, burnTotal: [200, 200, 325, 325, 450], burnDur: 4, slowPct: [0.30, 0.30, 0.40, 0.40, 0.50], slowDur: 4, glyph: "🍄" },
-        desc: "Cứ hết hồi chiêu, đặt 1 Nấm Độc vào ô quái đi qua. Quái giẫm nấm → NỔ vùng: nhiễm độc (tổng 200→450 ST trong 4s) + làm chậm 30→50% (4s). Tối đa 3→5 nấm." },
-      desc: "Trinh sát: đòn đánh gây độc; R rải Nấm Độc nổ vùng làm chậm + độc. Đánh cả BAY & BỘ.",
+        desc: "Cứ hết hồi chiêu, đặt 1 Bẫy Độc vào ô quái đi qua. Quái giẫm nấm → NỔ vùng: nhiễm độc (tổng 200→450 ST trong 4s) + làm chậm 30→50% (4s). Tối đa 3→5 nấm." },
+      desc: "Trinh sát: đòn đánh gây độc; R rải Bẫy Độc nổ vùng làm chậm + độc. Đánh cả BAY & BỘ.",
     },
     veigar: {
       key: "veigar", name: "Veigar", title: "Ác Nhân Tí Hon", glyph: "🎩", champion: true,
@@ -292,8 +292,8 @@
         { dmg: 64, rate: R(1.1), range: 3.1, splash: 0 }, { dmg: 135, rate: R(1.15), range: 3.2, splash: 0 },
         { dmg: 300, rate: R(1.2), range: 3.3, splash: 0 },
       ],
-      // [Q] Đòn Đánh Hiểm Ác (Baleful Strike) — kết liễu → cộng dồn sức mạnh VĨNH VIỄN
-      ability: { key: "Q", name: "Đòn Đánh Hiểm Ác", kind: "strike",
+      // [Q] Điềm Gở (Baleful Strike) — kết liễu → cộng dồn sức mạnh VĨNH VIỄN
+      ability: { key: "Q", name: "Điềm Gở", kind: "strike",
         cd: [6, 5.5, 5, 4.5, 4], dmg: [80, 120, 160, 200, 240], adMul: 0.6,
         stack: { per: 4, kill: 2, killBig: 6 },
         desc: "Bắn năng lượng hắc ám: ST nền + cộng dồn. KẾT LIỄU quái → +sức mạnh VĨNH VIỄN (thường +2, boss +6)." },
@@ -308,8 +308,8 @@
         { dmg: 72, rate: R(1.4), range: 2.4, splash: 0 }, { dmg: 150, rate: R(1.5), range: 2.5, splash: 0 },
         { dmg: 330, rate: R(1.6), range: 2.6, splash: 0 },
       ],
-      // [W] Nỏ Bạc (Silver Bolts) — NỘI TẠI: mỗi đòn thứ 3 gây ST CHUẨN theo %máu tối đa
-      ability: { key: "W", name: "Nỏ Bạc", kind: "onhit_pct", n: 3, flat: [50, 65, 80, 95, 110], pctMax: [0.06, 0.07, 0.08, 0.09, 0.10],
+      // [W] Mũi Tên Bạc (Silver Bolts) — NỘI TẠI: mỗi đòn thứ 3 gây ST CHUẨN theo %máu tối đa
+      ability: { key: "W", name: "Mũi Tên Bạc", kind: "onhit_pct", n: 3, flat: [50, 65, 80, 95, 110], pctMax: [0.06, 0.07, 0.08, 0.09, 0.10],
         desc: "Nội tại: cứ đòn đánh THỨ 3 gây thêm ST CHUẨN = max(cố định, 6→10% máu tối đa) — xé quái trâu." },
       desc: "Thợ săn: mỗi đòn thứ 3 gây %máu tối đa (ST chuẩn). Đánh cả BAY & BỘ.",
     },
@@ -323,8 +323,8 @@
         { dmg: 92, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.15), range: 1.5, splash: 0 },
         { dmg: 410, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [E] Xoáy Kiếm (Judgment) — xoay kiếm gây ST vùng QUANH MÌNH (7 nhịp/3s gộp lại)
-      ability: { key: "E", name: "Xoáy Kiếm", kind: "area_nuke", atSelf: true,
+      // [E] Phán Quyết (Judgment) — xoay kiếm gây ST vùng QUANH MÌNH (7 nhịp/3s gộp lại)
+      ability: { key: "E", name: "Phán Quyết", kind: "area_nuke", atSelf: true,
         cd: [9, 8.25, 7.5, 6.75, 6], radius: 1.3, dmg: [28, 49, 70, 91, 112], adMul: 3.0,
         desc: "Xoay kiếm gây ST cho MỌI quái quanh mình (+300% đòn đánh gộp)." },
       desc: "Chiến binh xoáy kiếm: E gây ST vùng quanh mình. CHỈ đánh quái BỘ.",
@@ -338,8 +338,8 @@
         { dmg: 100, rate: R(0.95), range: 1.4, splash: 0, poisonPct: 0.05 }, { dmg: 205, rate: R(1.0), range: 1.4, splash: 0, poisonPct: 0.06 },
         { dmg: 440, rate: R(1.05), range: 1.5, splash: 0, poisonPct: 0.07 },
       ],
-      // [R] Chém Đầu (Noxian Guillotine) — hành quyết, ST CHUẨN, ×2 máu thấp; KẾT LIỄU → hồi chiêu về 0 (chém liên tục)
-      ability: { key: "R", name: "Chém Đầu", kind: "strike", true: true, execute: true, executeBelow: 0.3, executeMul: 2, resetOnKill: true,
+      // [R] Máy Chém Noxus (Noxian Guillotine) — hành quyết, ST CHUẨN, ×2 máu thấp; KẾT LIỄU → hồi chiêu về 0 (chém liên tục)
+      ability: { key: "R", name: "Máy Chém Noxus", kind: "strike", true: true, execute: true, executeBelow: 0.3, executeMul: 2, resetOnKill: true,
         cd: [120, 120, 100, 100, 80], dmg: [125, 125, 250, 250, 375], adMul: 0.75,
         desc: "Bổ rìu HÀNH QUYẾT: ST chuẩn (bỏ giáp); dưới 30% máu → ×2. KẾT LIỄU mục tiêu → hồi chiêu về 0, chém liên tục." },
       desc: "Đao phủ: đòn đánh gây CHẢY MÁU; R hành quyết ST chuẩn. CHỈ đánh quái BỘ.",
@@ -353,8 +353,8 @@
         { dmg: 92, rate: R(1.0), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.05), range: 1.5, splash: 0 },
         { dmg: 410, rate: R(1.1), range: 1.6, splash: 0 },
       ],
-      // [Q] Móc Tên Lửa (Rocket Grab) — GIẬT quái ở XA về sát tháp + choáng + ST
-      ability: { key: "Q", name: "Móc Tên Lửa", kind: "pull", grabRange: 5, stun: 0.65,
+      // [Q] Bàn Tay Hỏa Tiễn (Rocket Grab) — GIẬT quái ở XA về sát tháp + choáng + ST
+      ability: { key: "Q", name: "Bàn Tay Hỏa Tiễn", kind: "pull", grabRange: 5, stun: 0.65,
         cd: [20, 19, 18, 17, 16], dmg: [110, 160, 210, 260, 310], adMul: 1.2,
         desc: "Phóng móc GIẬT quái ở xa (tối đa 5 ô) về sát mình, gây ST và choáng 0.65s — kéo quái ngược lại từ đầu." },
       desc: "Người máy: Q giật quái ở xa về + choáng, đảo lộn đội hình. CHỈ đánh quái BỘ.",
@@ -368,8 +368,8 @@
         { dmg: 110, rate: R(0.9), range: 1.5, splash: 0 }, { dmg: 225, rate: R(0.95), range: 1.5, splash: 0 },
         { dmg: 480, rate: R(1.0), range: 1.6, splash: 0 },
       ],
-      // [Q] Hút Sinh Lực (Siphoning Strike) — kết liễu → cộng dồn ST VĨNH VIỄN vô hạn
-      ability: { key: "Q", name: "Hút Sinh Lực", kind: "strike",
+      // [Q] Quyền Trượng Linh Hồn (Siphoning Strike) — kết liễu → cộng dồn ST VĨNH VIỄN vô hạn
+      ability: { key: "Q", name: "Quyền Trượng Linh Hồn", kind: "strike",
         cd: [7.5, 6.5, 5.5, 4.5, 3.5], dmg: [40, 60, 80, 100, 120], adMul: 1.0,
         stack: { per: 1, kill: 4, killBig: 10 },
         desc: "Chém HÚT SINH LỰC: ST nền + đòn đánh + số cộng dồn. KẾT LIỄU quái → +cộng dồn VĨNH VIỄN (thường +4, boss +10)." },
@@ -384,8 +384,8 @@
         { dmg: 96, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 198, rate: R(1.15), range: 1.5, splash: 0 },
         { dmg: 425, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [R] Uy Quyền Tối Cao (Keeper's Verdict) — đánh quái VĂNG về CỔNG SINH (đầu đường) + ST lớn
-      ability: { key: "R", name: "Uy Quyền Tối Cao", kind: "knockback", grabRange: 3.5,
+      // [R] Sứ Giả Phán Quyết (Keeper's Verdict) — đánh quái VĂNG về CỔNG SINH (đầu đường) + ST lớn
+      ability: { key: "R", name: "Sứ Giả Phán Quyết", kind: "knockback", grabRange: 3.5,
         cd: [140, 140, 120, 120, 100], dmg: [200, 200, 300, 300, 400], adMul: 0.9,
         desc: "Vung búa đánh quái VĂNG NGƯỢC về cổng sinh (điểm xuất phát) + ST lớn — reset quãng đường của quái đó." },
       desc: "Người gác búa: R hất quái về đầu đường, kéo dài thời gian. CHỈ đánh quái BỘ.",
@@ -399,8 +399,8 @@
         { dmg: 96, rate: R(1.1), range: 1.4, splash: 0 }, { dmg: 198, rate: R(1.15), range: 1.4, splash: 0 },
         { dmg: 425, rate: R(1.2), range: 1.5, splash: 0 },
       ],
-      // [W] Cắn Xé Tàn Bạo (Ruthless Predator) — đòn kế +ST lớn & CHOÁNG
-      ability: { key: "W", name: "Cắn Xé Tàn Bạo", kind: "empower_next", stun: 0.75,
+      // [W] Kẻ Săn Mồi Tàn Nhẫn (Ruthless Predator) — đòn kế +ST lớn & CHOÁNG
+      ability: { key: "W", name: "Kẻ Săn Mồi Tàn Nhẫn", kind: "empower_next", stun: 0.75,
         cd: [16, 14, 12, 10, 8], dmg: [10, 40, 70, 100, 130], adMul: 1.5,
         desc: "Nạp đòn: đòn đánh KẾ +ST nền (+150% đòn đánh) và CHOÁNG 0.75s." },
       desc: "Cá sấu: W nạp đòn choáng cực mạnh. CHỈ đánh quái BỘ.",
