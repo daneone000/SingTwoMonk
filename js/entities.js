@@ -317,7 +317,12 @@
     abilityReady(ab) { if (this.steroidTime > 0) return false; return true; }
     // TƯỚNG: mục tiêu cho kỹ năng theo TẦM RIÊNG của kỹ năng (khác tầm đánh thường)
     abilityTarget(ab, game) {
-      if (ab.kind === "pull") { const gr = (ab.grabRange || 5) * TILE; let best = null, bd = -1; for (const e of game.enemies) { if (e.dead || e.leaked || e.boss || !this.canHit(e)) continue; const d = dist(this.x, this.y, e.x, e.y); if (d <= gr && d > bd) { bd = d; best = e; } } return best; }   // Blitzcrank: quái XA nhất trong tầm kéo (bỏ boss)
+      if (ab.kind === "pull") {   // Blitzcrank: CHỈ kéo quái ĐÃ ĐI QUA tháp (gần đích hơn ô đích kéo) -> giật NGƯỢC lại, không rút ngắn đường
+        const gr = (ab.grabRange || 5) * TILE, dest = game.pullCellNear(this.col, this.row); if (!dest) return null;
+        const Dtower = game.distAt(dest.c, dest.r); let best = null, bd = 1e18;
+        for (const e of game.enemies) { if (e.dead || e.leaked || e.boss || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) > gr + e.radius) continue; const De = game.distAt(Math.floor(e.x / TILE), Math.floor(e.y / TILE)); if (De >= Dtower) continue; if (De < bd) { bd = De; best = e; } }   // đã qua tháp & gần đích nhất
+        return best;
+      }
       if (ab.kind === "knockback") { const kr = (ab.grabRange || 4) * TILE; let best = null, br = 1e18; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= kr + e.radius && e.remain < br) { br = e.remain; best = e; } } return best; }   // Poppy: quái gần đích nhất trong tầm
       if (ab.atSelf) { const r = (this.abVal(ab.radius) || 1) * TILE; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= r + e.radius) return e; } return null; }   // Garen/Alistar: nổ khi có quái trong vùng quanh mình
       if (ab.kind === "place_trap") { const e = this.findTarget(game.enemies); if (e) return e; const cell = game.pathCellInRange(this); return cell ? { x: (cell.c + .5) * TILE, y: (cell.r + .5) * TILE } : null; }   // Teemo/Caitlyn: có quái -> đặt ô quái; KHÔNG -> đặt CHỦ ĐỘNG lên ô đường đi trong tầm (không đợi quái)
@@ -539,17 +544,19 @@
         ctx.beginPath(); ctx.ellipse(x - bw * .8, bodyCy - bh * .55, bw * .4, bh * .32, .3, 0, 7); ctx.fill();
         ctx.beginPath(); ctx.ellipse(x + bw * .8, bodyCy - bh * .55, bw * .4, bh * .32, -.3, 0, 7); ctx.fill();
       }
-      // ĐẦU — quả cầu 3D (gradient da tỏa sáng trên-trái + specular)
+      // ĐẦU — quả cầu 3D (gradient DA tỏa sáng trên-trái + specular). Tướng thú/quái dùng da riêng.
+      const sk = SKIN[this.type] || "#e8c69f", creature = !!SKIN[this.type];
       const hg = ctx.createRadialGradient(x - headR * .35, headCy - headR * .4, headR * .12, x, headCy + headR * .1, headR * 1.25);
-      hg.addColorStop(0, "#f6ddbf"); hg.addColorStop(.6, "#e8c69f"); hg.addColorStop(1, "#c39c73");
+      hg.addColorStop(0, shade(sk, 24)); hg.addColorStop(.6, sk); hg.addColorStop(1, shade(sk, -30));
       ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(x, headCy, headR, 0, 7); ctx.fill();
       ctx.strokeStyle = "rgba(0,0,0,.26)"; ctx.lineWidth = 1; ctx.stroke();
       ctx.fillStyle = "rgba(255,255,255,.5)"; ctx.beginPath(); ctx.arc(x - headR * .38, headCy - headR * .42, headR * .16, 0, 7); ctx.fill();   // specular
-      // mũ trùm nửa trên (màu tướng, gradient)
-      const hoodG = ctx.createLinearGradient(0, headCy - headR, 0, headCy);
-      hoodG.addColorStop(0, shade(col, 26)); hoodG.addColorStop(1, shade(col, -10));
-      ctx.fillStyle = hoodG; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = c2; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.stroke();
+      if (!creature) {   // mũ trùm nửa trên (màu tướng) — chỉ tướng NGƯỜI; thú để lộ da + nét đặc trưng riêng
+        const hoodG = ctx.createLinearGradient(0, headCy - headR, 0, headCy);
+        hoodG.addColorStop(0, shade(col, 26)); hoodG.addColorStop(1, shade(col, -10));
+        ctx.fillStyle = hoodG; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = c2; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.stroke();
+      }
       // mắt to kiểu chibi + đốm sáng
       ctx.fillStyle = "#2b2b34"; ctx.beginPath(); ctx.arc(x - headR * .32, headCy + headR * .2, headR * .14, 0, 7); ctx.arc(x + headR * .32, headCy + headR * .2, headR * .14, 0, 7); ctx.fill();
       ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(x - headR * .28, headCy + headR * .15, headR * .05, 0, 7); ctx.arc(x + headR * .36, headCy + headR * .15, headR * .05, 0, 7); ctx.fill();
@@ -860,6 +867,8 @@
     lux: "staff", brand: "staff", cassiopeia: "staff", veigar: "staff",
     garen: "sword", renekton: "sword", darius: "axe", nasus: "axe", poppy: "hammer", blitzcrank: "fist", alistar: "fist",
   };
+  // CHIẾN DỊCH: màu DA đầu cho tướng THÚ/quái (thay da người) — tăng nhận diện
+  const SKIN = { cassiopeia: "#7ec87e", kogmaw: "#93c25a", renekton: "#cf9152", nasus: "#e0cb92", alistar: "#615c68" };
   function drawWeapon(ctx, kind, col, c2, melee) {
     const T = TILE, dark = "#3a2c18", steel = "#d6d8e0", steelE = "#8a8c98", wood = "#6b4a28";
     if (kind === "bow") {

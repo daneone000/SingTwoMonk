@@ -353,11 +353,11 @@
         { dmg: 92, rate: R(1.0), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.05), range: 1.5, splash: 0 },
         { dmg: 410, rate: R(1.1), range: 1.6, splash: 0 },
       ],
-      // [Q] Bàn Tay Hỏa Tiễn (Rocket Grab) — GIẬT quái ở XA về sát tháp + choáng + ST
+      // [Q] Bàn Tay Hỏa Tiễn (Rocket Grab) — chỉ GIẬT NGƯỢC quái ĐÃ ĐI QUA tháp về sát mình + choáng + ST
       ability: { key: "Q", name: "Bàn Tay Hỏa Tiễn", kind: "pull", grabRange: 5, stun: 0.65,
         cd: [20, 19, 18, 17, 16], dmg: [110, 160, 210, 260, 310], adMul: 1.2,
-        desc: "Phóng móc GIẬT quái ở xa (tối đa 5 ô) về sát mình, gây ST và choáng 0.65s — kéo quái ngược lại từ đầu." },
-      desc: "Người máy: Q giật quái ở xa về + choáng, đảo lộn đội hình. CHỈ đánh quái BỘ.",
+        desc: "Phóng móc GIẬT NGƯỢC quái đã ĐI QUA mình (trong 5 ô) về lại sát tháp, gây ST và choáng 0.65s — kéo dài đường đi của quái, KHÔNG rút ngắn." },
+      desc: "Người máy: Q giật quái đã vượt qua về lại phía sau + choáng. CHỈ đánh quái BỘ.",
     },
     nasus: {
       key: "nasus", name: "Nasus", title: "Người Gác Cát", glyph: "🐺", champion: true, melee: true,
