@@ -423,7 +423,8 @@
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
       if (!working && this.fused) this.drawFused(ctx, x, y);   // Dung Hợp: vầng sáng + vòng đôi 2 màu
       if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
-      this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
+      if (this.def.champion) this.drawChampion(ctx, x, y, isMax);   // CHIẾN DỊCH: vẽ TƯỚNG (dáng nhân vật + vũ khí xoay theo mục tiêu)
+      else this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
       if (isMax) maxBadge(ctx, x + TILE * .3, y + TILE * .3); else levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
       if (!working && this.gems && this.gems.length) {   // GEM: chấm màu ngũ hành ở CẠNH DƯỚI
@@ -459,10 +460,10 @@
       ctx.strokeStyle = ready ? col : "rgba(180,200,255,.85)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();   // cung tiến độ hồi chiêu
       if (ready) { const pl = .5 + .5 * Math.sin(g * 5); ctx.globalAlpha = .3 + .4 * pl; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, R + 3, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }   // hào quang sẵn sàng
       if (this.steroidTime > 0) { const pl = .5 + .5 * Math.sin(g * 7); ctx.globalAlpha = .4 + .4 * pl; ctx.strokeStyle = "#fff2a8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R - 4, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }   // aura cường hóa (Sivir/Kog)
-      const by = y - R;   // huy hiệu phím kỹ năng (Q/W/R…) ở TRÊN
-      ctx.fillStyle = ready ? col : "rgba(28,38,58,.9)"; ctx.beginPath(); ctx.arc(x, by, 7, 0, 7); ctx.fill();
+      const by = y - R - 5;   // huy hiệu phím kỹ năng (Q/W/R…) ở TRÊN — nâng cao để KHÔNG che mặt tướng
+      ctx.fillStyle = ready ? col : "rgba(28,38,58,.9)"; ctx.beginPath(); ctx.arc(x, by, 6.2, 0, 7); ctx.fill();
       ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = ready ? "#10161f" : "#cfe0ff"; ctx.font = "bold 9px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(ab.key, x, by + .5);
+      ctx.fillStyle = ready ? "#10161f" : "#cfe0ff"; ctx.font = "bold 8.5px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(ab.key, x, by + .5);
       ctx.restore();
     }
     // Vòng đồng gia cố (quay + nhấp nháy) quanh chân tháp — dấu hiệu tháp đã Gia Cố
@@ -487,6 +488,56 @@
       ctx.strokeStyle = this.def.color; ctx.lineDashOffset = t * 20; ctx.beginPath(); ctx.arc(x, y, R * .92, 0, 7); ctx.stroke();
       ctx.strokeStyle = this.fuseDef.color2 || this.fuseDef.color; ctx.lineDashOffset = -t * 20; ctx.beginPath(); ctx.arc(x, y, R * .74, 0, 7); ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // ============ CHIẾN DỊCH: vẽ TƯỚNG như nhân vật (thân/áo choàng + đầu mũ trùm + vũ khí xoay theo mục tiêu) ============
+    drawChampion(ctx, x, y, isMax) {
+      const d = this.def, col = d.color, c2 = d.color2 || shade(col, 40), a = this.angle, melee = !!d.melee;
+      ctx.save();
+      if (isMax) { ctx.translate(x, y); ctx.scale(1.14, 1.14); ctx.translate(-x, -y); }
+      const footY = y + TILE * .2, shoulderY = y - TILE * .2;
+      const headR = TILE * (melee ? .19 : .17), headCy = shoulderY - headR * 1.25;
+      const sw = TILE * (melee ? .24 : .21), bw = TILE * (melee ? .31 : .27);
+      // áo choàng bay (chỉ lv5) phía sau
+      if (isMax) {
+        ctx.fillStyle = shade(col, -34);
+        ctx.beginPath(); ctx.moveTo(x - sw * .8, shoulderY);
+        ctx.quadraticCurveTo(x - bw * 1.35, footY - 2, x - bw * .5, footY + 3);
+        ctx.lineTo(x + bw * .5, footY + 3);
+        ctx.quadraticCurveTo(x + bw * 1.35, footY - 2, x + sw * .8, shoulderY);
+        ctx.closePath(); ctx.fill();
+      }
+      // thân + áo choàng (gradient sáng trên -> tối dưới)
+      const bg = ctx.createLinearGradient(0, shoulderY, 0, footY);
+      bg.addColorStop(0, shade(col, 26)); bg.addColorStop(1, shade(col, -32));
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.moveTo(x - sw, shoulderY);
+      ctx.quadraticCurveTo(x - bw, y, x - bw * .82, footY);
+      ctx.lineTo(x + bw * .82, footY);
+      ctx.quadraticCurveTo(x + bw, y, x + sw, shoulderY);
+      ctx.quadraticCurveTo(x, shoulderY - headR * .5, x - sw, shoulderY);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 1.4; ctx.stroke();
+      // viền/thắt lưng màu phụ
+      ctx.strokeStyle = c2; ctx.lineWidth = 1.7; ctx.globalAlpha = .85;
+      ctx.beginPath(); ctx.moveTo(x - sw * .68, y - TILE * .02); ctx.lineTo(x + sw * .68, y - TILE * .02); ctx.stroke();
+      ctx.globalAlpha = 1;
+      // giáp vai (cận chiến hoặc lv5)
+      if (melee || isMax) {
+        ctx.fillStyle = shade(col, 38);
+        ctx.beginPath(); ctx.ellipse(x - sw, shoulderY, headR * .72, headR * .5, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x + sw, shoulderY, headR * .72, headR * .5, 0, 0, 7); ctx.fill();
+      }
+      // đầu (da) + mũ trùm nửa trên màu tướng
+      ctx.fillStyle = "#e9caa6"; ctx.beginPath(); ctx.arc(x, headCy, headR, 0, 7); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = shade(col, 12); ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = c2; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.stroke();
+      // mắt
+      ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(x - headR * .34, headCy + headR * .18, 1.15, 0, 7); ctx.arc(x + headR * .34, headCy + headR * .18, 1.15, 0, 7); ctx.fill();
+      // vũ khí (xoay theo mục tiêu) — cầm ở vai
+      ctx.save(); ctx.translate(x, shoulderY + 1); ctx.rotate(a); drawWeapon(ctx, WEAPON[this.type] || (melee ? "sword" : "bow"), col, c2, melee); ctx.restore();
       ctx.restore();
     }
     drawTurret(ctx, x, y, isMax) {
@@ -761,6 +812,50 @@
     ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(cx, cy - h / 2); ctx.lineTo(cx + hw, cy); ctx.lineTo(cx, cy + h / 2); ctx.lineTo(cx - hw, cy); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = hi; ctx.beginPath(); ctx.moveTo(cx, cy - h / 2); ctx.lineTo(cx - hw * .5, cy); ctx.lineTo(cx, cy + h / 2 * .2); ctx.lineTo(cx - hw * .15, cy - h * .1); ctx.closePath(); ctx.fill();
+  }
+  // ---- CHIẾN DỊCH: vũ khí tướng (vẽ trong hệ đã xoay theo mục tiêu; trục +x = hướng nhắm) ----
+  const WEAPON = {
+    ashe: "bow", varus: "bow", vayne: "bow", sivir: "boomerang", caitlyn: "gun", teemo: "dart", kogmaw: "dart",
+    lux: "staff", brand: "staff", cassiopeia: "staff", veigar: "staff",
+    garen: "sword", renekton: "sword", darius: "axe", nasus: "axe", poppy: "hammer", blitzcrank: "fist", alistar: "fist",
+  };
+  function drawWeapon(ctx, kind, col, c2, melee) {
+    const T = TILE, dark = "#3a2c18", steel = "#d6d8e0", steelE = "#8a8c98", wood = "#6b4a28";
+    if (kind === "bow") {
+      ctx.strokeStyle = wood; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(T * .1, -T * .2); ctx.quadraticCurveTo(T * .3, 0, T * .1, T * .2); ctx.stroke();
+      ctx.strokeStyle = "rgba(240,235,200,.9)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(T * .1, -T * .2); ctx.lineTo(T * .1, T * .2); ctx.stroke();
+      ctx.strokeStyle = "#efe6c0"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(T * .06, 0); ctx.lineTo(T * .42, 0); ctx.stroke();
+      ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(T * .44, 0); ctx.lineTo(T * .37, -3); ctx.lineTo(T * .37, 3); ctx.closePath(); ctx.fill();
+    } else if (kind === "gun") {
+      ctx.fillStyle = "#37373d"; roundRect(ctx, T * .04, -2.6, T * .4, 5.2, 1.5); ctx.fill();
+      ctx.fillStyle = wood; roundRect(ctx, -T * .06, -2, T * .13, 6, 1.5); ctx.fill();
+      ctx.fillStyle = c2; ctx.fillRect(T * .42, -1.6, 3.5, 3.2);
+    } else if (kind === "boomerang") {
+      ctx.fillStyle = c2; ctx.strokeStyle = shade(col, -25); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(T * .16, 0, T * .18, -1.35, 1.35); ctx.arc(T * .16, 0, T * .1, 1.35, -1.35, true); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (kind === "dart") {
+      ctx.fillStyle = wood; roundRect(ctx, 0, -1.6, T * .34, 3.2, 1.6); ctx.fill();
+      ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(T * .34, 0); ctx.lineTo(T * .28, -2.6); ctx.lineTo(T * .28, 2.6); ctx.closePath(); ctx.fill();
+    } else if (kind === "staff") {
+      ctx.strokeStyle = wood; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-T * .04, T * .04); ctx.lineTo(T * .26, -T * .02); ctx.stroke();
+      const g = ctx.createRadialGradient(T * .3, -T * .03, 1, T * .3, -T * .03, 6.5); g.addColorStop(0, "#fff"); g.addColorStop(.45, c2); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(T * .3, -T * .03, 6.5, 0, 7); ctx.fill();
+    } else if (kind === "sword") {
+      ctx.fillStyle = steel; ctx.strokeStyle = steelE; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(T * .08, -2.4); ctx.lineTo(T * .34, -1.1); ctx.lineTo(T * .4, 0); ctx.lineTo(T * .34, 1.1); ctx.lineTo(T * .08, 2.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = shade(col, -6); ctx.fillRect(T * .04, -4.5, 3, 9);
+      ctx.fillStyle = wood; ctx.fillRect(-T * .06, -1.6, T * .1, 3.2);
+    } else if (kind === "axe") {
+      ctx.strokeStyle = wood; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(-T * .05, 0); ctx.lineTo(T * .34, 0); ctx.stroke();
+      ctx.fillStyle = steel; ctx.strokeStyle = steelE; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(T * .22, -2.5); ctx.quadraticCurveTo(T * .44, -T * .15, T * .4, 0); ctx.quadraticCurveTo(T * .44, T * .15, T * .22, 2.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (kind === "hammer") {
+      ctx.strokeStyle = wood; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(-T * .05, 0); ctx.lineTo(T * .3, 0); ctx.stroke();
+      ctx.fillStyle = "#b4b6be"; ctx.strokeStyle = steelE; ctx.lineWidth = 1; roundRect(ctx, T * .26, -T * .12, T * .16, T * .24, 2); ctx.fill(); ctx.stroke();
+    } else if (kind === "fist") {
+      ctx.fillStyle = shade(col, 22); ctx.strokeStyle = shade(col, -25); ctx.lineWidth = 1;
+      roundRect(ctx, T * .12, -T * .11, T * .18, T * .22, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = shade(col, -12); for (let i = 0; i < 3; i++) { roundRect(ctx, T * .28, -T * .09 + i * T * .07, 3, T * .05, 1); ctx.fill(); }
+    }
   }
   // huy hiệu cấp (số vàng trên nền tối)
   // Dấu chọn: vòng sáng vàng nhấp nháy quanh chân + vòng tầm nét đứt (phân biệt rõ tháp đang chọn)
