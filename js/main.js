@@ -35,6 +35,9 @@
   for (const k of CFG.TOWER_ORDER) addTower(k, CFG.TOWERS[k], false);
   for (const k of CFG.TRAP_ORDER) addTower(k, CFG.TRAPS[k], true);
   for (const k of CFG.CHAMPION_ORDER) addTower(k, CFG.TOWERS[k], false);   // CHIẾN DỊCH × LMHT: nút tướng (ẩn/hiện theo chế độ)
+  // CHIẾN DỊCH: thử nạp ẢNH tướng ở img/champ/<key>.png (người dùng tự bỏ vào — ảnh mình có quyền). Không có -> tự dùng dáng chibi vẽ sẵn.
+  STM.champSprites = {};
+  for (const k of CFG.CHAMPION_ORDER) { const img = new Image(); img.onload = () => { STM.champSprites[k] = img; }; img.onerror = () => {}; img.src = "img/champ/" + k + ".png"; }
 
   /* ---------- PHÍM TẮT (người chơi cấu hình được, lưu localStorage) ---------- */
   //  • Tháp/bẫy: gán theo từng loại (KEYS)

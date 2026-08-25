@@ -428,8 +428,11 @@
       if (!working && (this.buffTime > 0 || this.auraDmg > 1)) { ctx.save(); ctx.globalAlpha = .5; ctx.strokeStyle = this.buffTime > 0 ? "#ffe082" : "#7bf4ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, TILE * .46, 0, 7); ctx.stroke(); ctx.restore(); }
       if (!working && this.fused) this.drawFused(ctx, x, y);   // Dung Hợp: vầng sáng + vòng đôi 2 màu
       if (!working && this.reinforce > 0) this.drawReinforce(ctx, x, y);   // Gia Cố: vòng đồng nhận biết
-      if (this.def.champion) this.drawChampion(ctx, x, y, isMax);   // CHIẾN DỊCH: vẽ TƯỚNG (dáng nhân vật + vũ khí xoay theo mục tiêu)
-      else this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
+      if (this.def.champion) {   // CHIẾN DỊCH: nếu có SPRITE ảnh (do người dùng bỏ vào img/champ/<key>.png) thì vẽ ảnh, KHÔNG thì vẽ dáng chibi
+        const spr = STM.champSprites && STM.champSprites[this.type];
+        if (spr && spr.complete && spr.naturalWidth > 0) this.drawChampSprite(ctx, spr, x, y, isMax);
+        else this.drawChampion(ctx, x, y, isMax);
+      } else this.drawTurret(ctx, x, y, isMax);   // cấp tối đa (lv 5): HÌNH DẠNG tiến hóa của cùng loại tháp
       if (isMax) maxBadge(ctx, x + TILE * .3, y + TILE * .3); else levelBadge(ctx, x + TILE * .3, y + TILE * .3, this.level);
       if (!working && this.reinforce > 0) reinforceBadge(ctx, x - TILE * .3, y - TILE * .32, Math.round(this.reinforce * 100));   // huy hiệu +%
       if (!working && this.gems && this.gems.length) {   // GEM: chấm màu ngũ hành ở CẠNH DƯỚI
@@ -494,6 +497,14 @@
       ctx.strokeStyle = this.fuseDef.color2 || this.fuseDef.color; ctx.lineDashOffset = -t * 20; ctx.beginPath(); ctx.arc(x, y, R * .74, 0, 7); ctx.stroke();
       ctx.setLineDash([]);
       ctx.restore();
+    }
+    // CHIẾN DỊCH: vẽ tướng bằng ẢNH sprite người dùng cung cấp (căn chân xuống đáy ô + bóng đổ)
+    drawChampSprite(ctx, img, x, y, isMax) {
+      ctx.save(); ctx.globalAlpha = .3; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(x, y + TILE * .33, TILE * .3, TILE * .11, 0, 0, 7); ctx.fill(); ctx.restore();
+      const s = TILE * (isMax ? 1.55 : 1.4);   // kích thước ảnh (lv5 to hơn); ảnh giữ tỉ lệ vuông
+      const r = img.naturalWidth / (img.naturalHeight || 1);   // giữ tỉ lệ gốc
+      const w = r >= 1 ? s : s * r, h = r >= 1 ? s / r : s;
+      ctx.drawImage(img, x - w / 2, y + TILE * .36 - h, w, h);   // đáy ảnh (chân) đặt gần đáy ô
     }
     // ======= CHIẾN DỊCH: vẽ TƯỚNG kiểu CHIBI + đổ khối GIẢ-3D (đầu cầu có specular, thân tròn gradient, viền sáng, bóng đổ) =======
     drawChampion(ctx, x, y, isMax) {
