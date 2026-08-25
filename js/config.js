@@ -323,10 +323,10 @@
         { dmg: 92, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.15), range: 1.5, splash: 0 },
         { dmg: 410, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [E] Phán Quyết (Judgment) — xoay kiếm gây ST vùng QUANH MÌNH (7 nhịp/3s gộp lại)
-      ability: { key: "E", name: "Phán Quyết", kind: "area_nuke", atSelf: true,
-        cd: [9, 8.25, 7.5, 6.75, 6], radius: 1.3, dmg: [28, 49, 70, 91, 112], adMul: 3.0,
-        desc: "Xoay kiếm gây ST cho MỌI quái quanh mình (+300% đòn đánh gộp)." },
+      // [E] Phán Quyết (Judgment) — XOAY KIẾM quanh mình trong nhiều giây, gây ST DUY TRÌ liên tục
+      ability: { key: "E", name: "Phán Quyết", kind: "spin", atSelf: true,
+        cd: [9, 8.25, 7.5, 6.75, 6], radius: 1.35, dur: 3, dps: [10, 17, 24, 31, 38], adMul: 0.9,
+        desc: "Xoay kiếm quanh mình trong 3s, LIÊN TỤC gây ST cho mọi quái BỘ trong vùng (mỗi giây: ST nền + 90% đòn đánh)." },
       desc: "Chiến binh xoáy kiếm: E gây ST vùng quanh mình. CHỈ đánh quái BỘ.",
     },
     darius: {

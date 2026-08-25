@@ -431,6 +431,7 @@
     else if (ab.kind === "steroid_pctdmg") stat += ` · <b>${ab.dur}s</b> · +<b>${(t.abVal(ab.pct) * 100).toFixed(0)}%</b> máu tối đa/đòn · +tầm <b>${t.abVal(ab.range)}</b>`;
     else if (ab.kind === "root_shot") stat += ` · trói <b>${t.abVal(ab.targets)}</b> mục tiêu <b>${t.abVal(ab.rootDur).toFixed(1)}s</b> · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
     else if (ab.kind === "area_nuke") stat += ` · nổ vùng <b>${t.abVal(ab.radius)}</b> ô${ab.atSelf ? " (quanh mình)" : ""} · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.burn ? " · đốt" : ""}${ab.stun ? ` · choáng ${t.abVal(ab.stun)}s` : ""}`;
+    else if (ab.kind === "spin") stat += ` · xoay kiếm vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b> ST/giây${ad} (DUY TRÌ)`;
     else if (ab.kind === "dot_field") stat += ` · vùng <b>${t.abVal(ab.radius)}</b> ô ×${ab.dur}s · <b>${t.abVal(ab.dps)}</b> ST/giây${ad}${ab.slowPct ? ` · chậm ${Math.round(t.abVal(ab.slowPct) * 100)}%` : ""}`;
     else if (ab.kind === "empower_next") stat += ` · +ST nền <b>${t.abVal(ab.dmg)}</b>${ad}${ab.crit ? " · CHÍ MẠNG ×2" : ""}${ab.stun ? ` · choáng ${t.abVal(ab.stun)}s` : ""}`;
     else if (ab.kind === "pierce_line") stat += ` · xuyên hàng · ST nền <b>${t.abVal(ab.dmg)}</b>${ad}`;
@@ -624,6 +625,7 @@
     else if (ab.kind === "steroid_pctdmg") eff = `${ab.dur}s: +tầm, mỗi đòn +${Math.round(ab.pct[0] * 100)}→${Math.round(ab.pct[4] * 100)}% máu tối đa (xé trâu/bay)`;
     else if (ab.kind === "root_shot") eff = `trói ${ab.targets} mục tiêu ${v(ab.rootDur)}s, ST ${v(ab.dmg)}`;
     else if (ab.kind === "area_nuke") eff = `nổ vùng ${ab.radius} ô${ab.atSelf ? " quanh mình" : ""}, ST ${v(ab.dmg)}${ab.burn ? " + thiêu đốt" : ""}${ab.stun ? ` + choáng ${v(ab.stun)}s` : ""}`;
+    else if (ab.kind === "spin") eff = `XOAY KIẾM quanh mình ${ab.radius} ô trong ${ab.dur}s, mỗi giây ${v(ab.dps)} ST${ab.adMul ? ` (+${Math.round(ab.adMul * 100)}% đòn đánh)` : ""}`;
     else if (ab.kind === "dot_field") eff = `vùng ${ab.radius} ô ×${ab.dur}s: ${v(ab.dps)} ST/giây${Array.isArray(ab.slowPct) ? ` + làm chậm ${Math.round(ab.slowPct[0] * 100)}→${Math.round(ab.slowPct[4] * 100)}%` : ""}`;
     else if (ab.kind === "pierce_line") eff = `xuyên cả hàng, ST ${v(ab.dmg)} (+${Math.round(ab.adMul * 100)}% đòn đánh)`;
     else if (ab.kind === "strike") eff = `đòn ${ab.true ? "CHUẨN " : ""}1 mục tiêu${ab.dmg ? ` ST ${v(ab.dmg)}` : ""}${ab.adMul ? ` (+${Math.round(ab.adMul * 100)}% đòn đánh)` : ""}${ab.pctMax ? ` +${Math.round(v(ab.pctMax) * 100)}% máu tối đa` : ""}${ab.stack ? ` · KẾT LIỄU +cộng dồn ST vĩnh viễn` : ""}${ab.execute ? " · máu thấp ×2" : ""}${ab.resetOnKill ? " · kết liễu → reset hồi chiêu" : ""}${ab.stun ? ` · choáng ${v(ab.stun)}s` : ""}`;

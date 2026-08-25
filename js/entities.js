@@ -337,6 +337,10 @@
         for (const tg of this.findTargets(game.enemies, this.abVal(ab.targets))) { const p = new Projectile(this, tg); p.dmg = dmg; p.rootDur = rd; game.projectiles.push(p); }
       } else if (ab.kind === "pierce_line") {
         this.castPierce(ab, game, t, abDmg(), col);   // Varus Xuyên Thâu: xuyên thẳng, trúng mọi quái trên đường
+      } else if (ab.kind === "spin") {
+        // Garen Phán Quyết: xoay kiếm DUY TRÌ quanh mình vài giây, gây ST liên tục cho quái trong vùng
+        const dps = (this.abVal(ab.dps) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
+        game.effects.push(new SpinBlade(this.x, this.y, this.abVal(ab.radius) * TILE, dps, ab.dur, col, this.fireTarget));
       } else if (ab.kind === "area_nuke") {
         this.castArea(ab, game, t, abDmg(), col);      // Brand Cột Lửa: nổ vùng quanh mục tiêu (+ đốt)
       } else if (ab.kind === "dot_field") {
@@ -795,6 +799,25 @@
     }
   }
   class SwirlFx { constructor(x, y) { this.x = x; this.y = y; this.t = 0; this.dur = .35; this.dead = false; } update(dt) { this.t += dt; if (this.t >= this.dur) this.dead = true; } draw(ctx) { const f = this.t / this.dur; ctx.globalAlpha = 1 - f; ctx.strokeStyle = "#9fa8ff"; ctx.lineWidth = 2.5; ctx.beginPath(); for (let a = 0; a < 12; a++) { const ang = a * .6 + f * 6, rr = a * 1.6 * (1 - f * .3); const px = this.x + Math.cos(ang) * rr, py = this.y + Math.sin(ang) * rr; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.globalAlpha = 1; } }
+  // TƯỚNG (Garen Phán Quyết): kiếm XOAY quanh 1 điểm trong `dur` giây, gây ST liên tục cho quái trong vùng
+  class SpinBlade {
+    constructor(x, y, r, dps, dur, col, tgt) { this.x = x; this.y = y; this.r = r; this.dps = dps; this.dur = dur; this.col = col; this.tgt = tgt || "ground"; this.t = 0; this.rot = 0; this.dead = false; }
+    _canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
+    update(dt, game) {
+      this.t += dt; this.rot += dt * 15; if (this.t >= this.dur) { this.dead = true; return; }
+      for (const e of game.enemies) if (!e.dead && !e.leaked && this._canHit(e) && dist(e.x, e.y, this.x, this.y) <= this.r + e.radius) { e.applyDamage(this.dps * dt, true); e._spellHit = true; }
+    }
+    draw(ctx) {
+      ctx.save(); ctx.translate(this.x, this.y);
+      ctx.globalAlpha = .18 + .1 * Math.sin(this.t * 22); ctx.strokeStyle = this.col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, this.r * .72, 0, 7); ctx.stroke();
+      ctx.rotate(this.rot); ctx.globalAlpha = .92;
+      for (const s of [0, Math.PI]) { ctx.save(); ctx.rotate(s);
+        ctx.fillStyle = "#dfe1ea"; ctx.strokeStyle = "#8a8c98"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(this.r * .2, -3.2); ctx.lineTo(this.r * .95, -1.6); ctx.lineTo(this.r * 1.05, 0); ctx.lineTo(this.r * .95, 1.6); ctx.lineTo(this.r * .2, 3.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore(); }
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
   class PoisonCloud { constructor(x, y, r, dps, dur, pctps, slowPct) { this.x = x; this.y = y; this.r = r; this.dps = dps; this.pctps = pctps || 0; this.dur = dur; this.slowPct = slowPct || 0; this.t = 0; this.dead = false; } update(dt, game) { this.t += dt; if (this.t >= this.dur) { this.dead = true; return; } for (const e of game.enemies) if (!e.dead && !e.leaked && dist(e.x, e.y, this.x, this.y) <= this.r + e.radius) { e.applyDamage((this.dps + this.pctps * e.maxHp) * dt, true); if (this.slowPct) e.slow(1 - this.slowPct, 0.5); e._spellHit = true; } } draw(ctx) { ctx.save(); ctx.globalAlpha = .3 * (1 - this.t / this.dur) + .15; ctx.fillStyle = "#8e24aa"; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, 7); ctx.fill(); ctx.restore(); } }
 
   function shade(hex, amt) { const n = parseInt(hex.slice(1), 16), cl = (v) => Math.max(0, Math.min(255, v)); return `rgb(${cl((n >> 16) + amt)},${cl(((n >> 8) & 255) + amt)},${cl((n & 255) + amt)})`; }
