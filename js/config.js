@@ -283,20 +283,35 @@
         desc: "Cứ hết hồi chiêu, đặt 1 Nấm Độc vào ô quái đi qua. Quái giẫm nấm → NỔ vùng: nhiễm độc (tổng 200→450 ST trong 4s) + làm chậm 30→50% (4s). Tối đa 3→5 nấm." },
       desc: "Trinh sát: đòn đánh gây độc; R rải Nấm Độc nổ vùng làm chậm + độc. Đánh cả BAY & BỘ.",
     },
-    ziggs: {
-      key: "ziggs", name: "Ziggs", title: "Chuyên Gia Hextech", glyph: "💣", champion: true,
-      color: "#d94f8a", color2: "#ff9ecb", target: "both", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 340, projColor: "#ff9ecb",
+    veigar: {
+      key: "veigar", name: "Veigar", title: "Ác Nhân Tí Hon", glyph: "🎩", champion: true,
+      color: "#7a4fb0", color2: "#c3a0ef", target: "both", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 640, projColor: "#c3a0ef",
       lv: [
-        { dmg: 16, rate: R(1.0), range: 2.6, splash: 0 }, { dmg: 34, rate: R(1.05), range: 2.8, splash: 0 },
-        { dmg: 72, rate: R(1.1), range: 3.0, splash: 0 }, { dmg: 150, rate: R(1.15), range: 3.2, splash: 0 },
-        { dmg: 330, rate: R(1.2), range: 3.4, splash: 0 },
+        { dmg: 14, rate: R(1.0), range: 2.8, splash: 0 }, { dmg: 30, rate: R(1.05), range: 3.0, splash: 0 },
+        { dmg: 64, rate: R(1.1), range: 3.1, splash: 0 }, { dmg: 135, rate: R(1.15), range: 3.2, splash: 0 },
+        { dmg: 300, rate: R(1.2), range: 3.3, splash: 0 },
       ],
-      // [Q] Quả Bom Nảy (Bouncing Bomb) — nổ vùng
-      ability: { key: "Q", name: "Quả Bom Nảy", kind: "area_nuke",
-        cd: [6, 5.5, 5, 4.5, 4], radius: 1.4, dmg: [80, 130, 180, 230, 280], adMul: 0.7,
-        desc: "Ném quả bom nảy nổ trong vùng, gây ST (+70% đòn đánh)." },
-      desc: "Pháp sư nổ: Q 'Quả Bom Nảy' nổ vùng, hồi chiêu ngắn. Đánh cả BAY & BỘ.",
+      // [Q] Đòn Đánh Hiểm Ác (Baleful Strike) — kết liễu → cộng dồn sức mạnh VĨNH VIỄN
+      ability: { key: "Q", name: "Đòn Đánh Hiểm Ác", kind: "strike",
+        cd: [6, 5.5, 5, 4.5, 4], dmg: [80, 120, 160, 200, 240], adMul: 0.6,
+        stack: { per: 4, kill: 2, killBig: 6 },
+        desc: "Bắn năng lượng hắc ám: ST nền + cộng dồn. KẾT LIỄU quái → +sức mạnh VĨNH VIỄN (thường +2, boss +6)." },
+      desc: "Ác nhân tí hon: Q kết liễu để cộng dồn sức mạnh vô hạn. Đánh cả BAY & BỘ.",
+    },
+    vayne: {
+      key: "vayne", name: "Vayne", title: "Thợ Săn Bóng Đêm", glyph: "🎯", champion: true,
+      color: "#8a4a6a", color2: "#e0a0b8", target: "both", block: true,
+      cost: 25, up: [35, 70, 140, 280], projSpeed: 800, projColor: "#e0a0b8",
+      lv: [
+        { dmg: 16, rate: R(1.2), range: 2.2, splash: 0 }, { dmg: 34, rate: R(1.3), range: 2.3, splash: 0 },
+        { dmg: 72, rate: R(1.4), range: 2.4, splash: 0 }, { dmg: 150, rate: R(1.5), range: 2.5, splash: 0 },
+        { dmg: 330, rate: R(1.6), range: 2.6, splash: 0 },
+      ],
+      // [W] Nỏ Bạc (Silver Bolts) — NỘI TẠI: mỗi đòn thứ 3 gây ST CHUẨN theo %máu tối đa
+      ability: { key: "W", name: "Nỏ Bạc", kind: "onhit_pct", n: 3, flat: [50, 65, 80, 95, 110], pctMax: [0.06, 0.07, 0.08, 0.09, 0.10],
+        desc: "Nội tại: cứ đòn đánh THỨ 3 gây thêm ST CHUẨN = max(cố định, 6→10% máu tối đa) — xé quái trâu." },
+      desc: "Thợ săn: mỗi đòn thứ 3 gây %máu tối đa (ST chuẩn). Đánh cả BAY & BỘ.",
     },
     // ================= TƯỚNG CẬN CHIẾN (chỉ đánh BỘ) =================
     garen: {
@@ -323,26 +338,26 @@
         { dmg: 100, rate: R(0.95), range: 1.4, splash: 0, poisonPct: 0.05 }, { dmg: 205, rate: R(1.0), range: 1.4, splash: 0, poisonPct: 0.06 },
         { dmg: 440, rate: R(1.05), range: 1.5, splash: 0, poisonPct: 0.07 },
       ],
-      // [R] Chém Đầu (Noxian Guillotine) — hành quyết, ST CHUẨN (bỏ giáp), ×2 nếu máu thấp
-      ability: { key: "R", name: "Chém Đầu", kind: "strike", true: true, execute: true, executeBelow: 0.3, executeMul: 2,
+      // [R] Chém Đầu (Noxian Guillotine) — hành quyết, ST CHUẨN, ×2 máu thấp; KẾT LIỄU → hồi chiêu về 0 (chém liên tục)
+      ability: { key: "R", name: "Chém Đầu", kind: "strike", true: true, execute: true, executeBelow: 0.3, executeMul: 2, resetOnKill: true,
         cd: [120, 120, 100, 100, 80], dmg: [125, 125, 250, 250, 375], adMul: 0.75,
-        desc: "Bổ rìu HÀNH QUYẾT: ST chuẩn (bỏ giáp); nếu mục tiêu dưới 30% máu → ×2 (chém đầu)." },
+        desc: "Bổ rìu HÀNH QUYẾT: ST chuẩn (bỏ giáp); dưới 30% máu → ×2. KẾT LIỄU mục tiêu → hồi chiêu về 0, chém liên tục." },
       desc: "Đao phủ: đòn đánh gây CHẢY MÁU; R hành quyết ST chuẩn. CHỈ đánh quái BỘ.",
     },
-    masteryi: {
-      key: "masteryi", name: "Master Yi", title: "Kiếm Sĩ Wuju", glyph: "🗡", champion: true, melee: true,
-      color: "#c99a3a", color2: "#f0d38a", target: "ground", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#f0d38a",
+    blitzcrank: {
+      key: "blitzcrank", name: "Blitzcrank", title: "Người Máy Hơi Nước", glyph: "🤖", champion: true, melee: true,
+      color: "#b8a83a", color2: "#efe08a", target: "ground", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#efe08a",
       lv: [
-        { dmg: 16, rate: R(1.4), range: 1.4, splash: 0 }, { dmg: 36, rate: R(1.5), range: 1.4, splash: 0 },
-        { dmg: 76, rate: R(1.6), range: 1.5, splash: 0 }, { dmg: 160, rate: R(1.7), range: 1.5, splash: 0 },
-        { dmg: 350, rate: R(1.8), range: 1.6, splash: 0 },
+        { dmg: 20, rate: R(0.9), range: 1.4, splash: 0 }, { dmg: 44, rate: R(0.95), range: 1.4, splash: 0 },
+        { dmg: 92, rate: R(1.0), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.05), range: 1.5, splash: 0 },
+        { dmg: 410, rate: R(1.1), range: 1.6, splash: 0 },
       ],
-      // [Q] Song Kiếm Vô Song (Alpha Strike) — đánh nhiều mục tiêu quanh
-      ability: { key: "Q", name: "Song Kiếm Vô Song", kind: "multishot",
-        cd: [20, 19.5, 19, 18.5, 18], shots: 4, dmg: [20, 40, 60, 80, 100], adMul: 0.7,
-        desc: "Lướt chém tối đa 4 mục tiêu quanh, mỗi đòn ST nền + 70% đòn đánh." },
-      desc: "Kiếm sĩ tốc độ: Q chém đa mục tiêu quanh. CHỈ đánh quái BỘ.",
+      // [Q] Móc Tên Lửa (Rocket Grab) — GIẬT quái ở XA về sát tháp + choáng + ST
+      ability: { key: "Q", name: "Móc Tên Lửa", kind: "pull", grabRange: 5, stun: 0.65,
+        cd: [20, 19, 18, 17, 16], dmg: [110, 160, 210, 260, 310], adMul: 1.2,
+        desc: "Phóng móc GIẬT quái ở xa (tối đa 5 ô) về sát mình, gây ST và choáng 0.65s — kéo quái ngược lại từ đầu." },
+      desc: "Người máy: Q giật quái ở xa về + choáng, đảo lộn đội hình. CHỈ đánh quái BỘ.",
     },
     nasus: {
       key: "nasus", name: "Nasus", title: "Người Gác Cát", glyph: "🐺", champion: true, melee: true,
@@ -353,41 +368,27 @@
         { dmg: 110, rate: R(0.9), range: 1.5, splash: 0 }, { dmg: 225, rate: R(0.95), range: 1.5, splash: 0 },
         { dmg: 480, rate: R(1.0), range: 1.6, splash: 0 },
       ],
-      // [E] Ngọn Lửa Tinh Thần (Spirit Fire) — vùng lửa gây ST theo thời gian
-      ability: { key: "E", name: "Ngọn Lửa Tinh Thần", kind: "dot_field",
-        cd: [12, 12, 12, 12, 12], radius: 1.6, dps: [10, 16, 22, 28, 34], adMul: 0.12, dur: 5,
-        desc: "Thả vùng lửa (5s): mỗi giây gây ST (nền + 12% đòn đánh) cho quái BỘ trong vùng." },
-      desc: "Người gác cát: E thả vùng lửa gây ST theo thời gian. CHỈ đánh quái BỘ.",
+      // [Q] Hút Sinh Lực (Siphoning Strike) — kết liễu → cộng dồn ST VĨNH VIỄN vô hạn
+      ability: { key: "Q", name: "Hút Sinh Lực", kind: "strike",
+        cd: [7.5, 6.5, 5.5, 4.5, 3.5], dmg: [40, 60, 80, 100, 120], adMul: 1.0,
+        stack: { per: 1, kill: 4, killBig: 10 },
+        desc: "Chém HÚT SINH LỰC: ST nền + đòn đánh + số cộng dồn. KẾT LIỄU quái → +cộng dồn VĨNH VIỄN (thường +4, boss +10)." },
+      desc: "Người gác cát: Q kết liễu để cộng dồn ST vô hạn. CHỈ đánh quái BỘ.",
     },
-    warwick: {
-      key: "warwick", name: "Warwick", title: "Cơn Thịnh Nộ Zaun", glyph: "🐾", champion: true, melee: true,
-      color: "#5a7a8a", color2: "#a9c9d6", target: "ground", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#a9c9d6",
+    poppy: {
+      key: "poppy", name: "Poppy", title: "Người Gác Búa", glyph: "🛡", champion: true, melee: true,
+      color: "#4a80a8", color2: "#a0cbe0", target: "ground", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#a0cbe0",
       lv: [
-        { dmg: 20, rate: R(1.0), range: 1.3, splash: 0 }, { dmg: 44, rate: R(1.05), range: 1.3, splash: 0 },
-        { dmg: 92, rate: R(1.1), range: 1.4, splash: 0 }, { dmg: 190, rate: R(1.15), range: 1.4, splash: 0 },
-        { dmg: 410, rate: R(1.2), range: 1.5, splash: 0 },
+        { dmg: 21, rate: R(1.0), range: 1.4, splash: 0 }, { dmg: 46, rate: R(1.05), range: 1.4, splash: 0 },
+        { dmg: 96, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 198, rate: R(1.15), range: 1.5, splash: 0 },
+        { dmg: 425, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [Q] Hàm Cắn Vô Tận (Jaws of the Beast) — cắn gây %máu TỐI ĐA
-      ability: { key: "Q", name: "Hàm Cắn Vô Tận", kind: "strike", true: true, pctMax: [0.06, 0.07, 0.08, 0.09, 0.10],
-        cd: [8, 7.5, 7, 6.5, 6], adMul: 1.2,
-        desc: "Cắn xé gây (+120% đòn đánh) và 6→10% MÁU TỐI ĐA (bỏ giáp) — xé quái trâu." },
-      desc: "Ác thú: Q cắn gây %máu tối đa, khắc quái trâu. CHỈ đánh quái BỘ.",
-    },
-    olaf: {
-      key: "olaf", name: "Olaf", title: "Chiến Binh Cuồng Nộ", glyph: "🪓", champion: true, melee: true,
-      color: "#4a8aa8", color2: "#a9d6ef", target: "ground", block: true,
-      cost: 25, up: [35, 70, 140, 280], projSpeed: 999, projColor: "#a9d6ef",
-      lv: [
-        { dmg: 22, rate: R(0.95), range: 1.3, splash: 0 }, { dmg: 48, rate: R(1.0), range: 1.3, splash: 0 },
-        { dmg: 100, rate: R(1.05), range: 1.4, splash: 0 }, { dmg: 205, rate: R(1.1), range: 1.4, splash: 0 },
-        { dmg: 440, rate: R(1.15), range: 1.5, splash: 0 },
-      ],
-      // [E] Chém Cuồng Bạo (Reckless Swing) — ST CHUẨN đơn mục tiêu
-      ability: { key: "E", name: "Chém Cuồng Bạo", kind: "strike", true: true,
-        cd: [11, 10, 9, 8, 7], dmg: [70, 115, 160, 205, 250], adMul: 0.5,
-        desc: "Vung rìu gây ST CHUẨN (bỏ giáp) cho 1 mục tiêu (+50% đòn đánh)." },
-      desc: "Cuồng chiến: E chém ST chuẩn bỏ giáp. CHỈ đánh quái BỘ.",
+      // [R] Uy Quyền Tối Cao (Keeper's Verdict) — đánh quái VĂNG về CỔNG SINH (đầu đường) + ST lớn
+      ability: { key: "R", name: "Uy Quyền Tối Cao", kind: "knockback", grabRange: 3.5,
+        cd: [140, 140, 120, 120, 100], dmg: [200, 200, 300, 300, 400], adMul: 0.9,
+        desc: "Vung búa đánh quái VĂNG NGƯỢC về cổng sinh (điểm xuất phát) + ST lớn — reset quãng đường của quái đó." },
+      desc: "Người gác búa: R hất quái về đầu đường, kéo dài thời gian. CHỈ đánh quái BỘ.",
     },
     renekton: {
       key: "renekton", name: "Renekton", title: "Sát Thủ Cát Dữ", glyph: "🐊", champion: true, melee: true,
@@ -404,54 +405,24 @@
         desc: "Nạp đòn: đòn đánh KẾ +ST nền (+150% đòn đánh) và CHOÁNG 0.75s." },
       desc: "Cá sấu: W nạp đòn choáng cực mạnh. CHỈ đánh quái BỘ.",
     },
-    jax: {
-      key: "jax", name: "Jax", title: "Đại Võ Sư", glyph: "🔨", champion: true, melee: true,
-      color: "#6a8a4a", color2: "#c3e0a0", target: "ground", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#c3e0a0",
+    alistar: {
+      key: "alistar", name: "Alistar", title: "Ngưu Ma Vương", glyph: "🐂", champion: true, melee: true,
+      color: "#6a5a8a", color2: "#c0b0e0", target: "ground", block: true,
+      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#c0b0e0",
       lv: [
-        { dmg: 20, rate: R(1.05), range: 1.4, splash: 0 }, { dmg: 44, rate: R(1.1), range: 1.4, splash: 0 },
-        { dmg: 92, rate: R(1.15), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.2), range: 1.5, splash: 0 },
-        { dmg: 410, rate: R(1.25), range: 1.6, splash: 0 },
+        { dmg: 20, rate: R(1.0), range: 1.4, splash: 0 }, { dmg: 44, rate: R(1.05), range: 1.4, splash: 0 },
+        { dmg: 92, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 190, rate: R(1.15), range: 1.5, splash: 0 },
+        { dmg: 410, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [E] Phản Đòn (Counter Strike) — nổ vùng QUANH MÌNH + CHOÁNG
-      ability: { key: "E", name: "Phản Đòn", kind: "area_nuke", atSelf: true, stun: 1.0,
-        cd: [17, 15, 13, 11, 9], radius: 1.5, dmg: [40, 70, 100, 130, 160], adMul: 0.7,
-        desc: "Choáng MỌI quái quanh mình 1s và gây ST (+70% đòn đánh)." },
-      desc: "Võ sư: E choáng + ST vùng quanh mình. CHỈ đánh quái BỘ.",
-    },
-    sett: {
-      key: "sett", name: "Sett", title: "Ông Trùm", glyph: "🥊", champion: true, melee: true,
-      color: "#c94a4a", color2: "#ef9a9a", target: "ground", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#ef9a9a",
-      lv: [
-        { dmg: 24, rate: R(0.9), range: 1.3, splash: 0 }, { dmg: 52, rate: R(0.95), range: 1.3, splash: 0 },
-        { dmg: 110, rate: R(1.0), range: 1.4, splash: 0 }, { dmg: 225, rate: R(1.05), range: 1.4, splash: 0 },
-        { dmg: 480, rate: R(1.1), range: 1.5, splash: 0 },
-      ],
-      // [W] Uy Thế (Haymaker) — cú đấm ST CHUẨN đơn mục tiêu
-      ability: { key: "W", name: "Uy Thế", kind: "strike", true: true,
-        cd: [18, 16.5, 15, 13.5, 12], dmg: [80, 100, 120, 140, 160], adMul: 0.5,
-        desc: "Đấm trời giáng gây ST CHUẨN (bỏ giáp) cho 1 mục tiêu (+50% đòn đánh)." },
-      desc: "Ông trùm: W cú đấm ST chuẩn cực nặng. CHỈ đánh quái BỘ.",
-    },
-    fiora: {
-      key: "fiora", name: "Fiora", title: "Đại Kiếm Sư", glyph: "🤺", champion: true, melee: true,
-      color: "#a84a6a", color2: "#ef9ab8", target: "ground", block: true,
-      cost: 30, up: [40, 80, 160, 320], projSpeed: 999, projColor: "#ef9ab8",
-      lv: [
-        { dmg: 18, rate: R(1.25), range: 1.3, splash: 0 }, { dmg: 40, rate: R(1.35), range: 1.3, splash: 0 },
-        { dmg: 86, rate: R(1.45), range: 1.4, splash: 0 }, { dmg: 180, rate: R(1.55), range: 1.4, splash: 0 },
-        { dmg: 400, rate: R(1.65), range: 1.5, splash: 0 },
-      ],
-      // [Q] Đâm Lao (Lunge) — đòn kế +ST lớn, hồi chiêu ngắn
-      ability: { key: "Q", name: "Đâm Lao", kind: "empower_next",
-        cd: [13, 11.25, 9.5, 7.75, 6], dmg: [70, 80, 90, 100, 110], adMul: 1.0,
-        desc: "Nạp đòn: đòn đánh KẾ +ST nền (+100% đòn đánh), hồi chiêu ngắn." },
-      desc: "Kiếm sư: Q nạp đòn đâm nhanh liên tục. CHỈ đánh quái BỘ.",
+      // [Q] Nghiền Nát (Pulverize) — hất tung & CHOÁNG mọi quái quanh mình
+      ability: { key: "Q", name: "Nghiền Nát", kind: "area_nuke", atSelf: true, stun: 1.0,
+        cd: [14, 13, 12, 11, 10], radius: 1.5, dmg: [60, 100, 140, 180, 220], adMul: 0.8,
+        desc: "Nện đất CHOÁNG mọi quái quanh mình 1s và gây ST (+80% đòn đánh)." },
+      desc: "Ngưu ma: Q choáng vùng quanh mình cực mạnh. CHỈ đánh quái BỘ.",
     },
   };
-  const RANGED_ORDER = ["ashe", "sivir", "caitlyn", "teemo", "varus", "kogmaw", "lux", "brand", "cassiopeia", "ziggs"];   // 10 tay dài
-  const MELEE_ORDER = ["garen", "darius", "masteryi", "nasus", "warwick", "olaf", "renekton", "jax", "sett", "fiora"];   // 10 cận chiến (chỉ đánh BỘ)
+  const RANGED_ORDER = ["ashe", "sivir", "caitlyn", "teemo", "varus", "kogmaw", "lux", "brand", "cassiopeia", "veigar", "vayne"];   // 11 tay dài
+  const MELEE_ORDER = ["garen", "darius", "blitzcrank", "nasus", "renekton", "alistar", "poppy"];   // 7 cận chiến (chỉ đánh BỘ)
   const CHAMPION_ORDER = [...RANGED_ORDER, ...MELEE_ORDER];
   Object.assign(TOWERS, CHAMPIONS);   // tướng dùng chung lookup với tháp -> Tower/statAt/upgradeCost/buyCost chạy nguyên vẹn
   function buildOrder(mode) { return mode === "campaign" ? CHAMPION_ORDER : TOWER_ORDER; }

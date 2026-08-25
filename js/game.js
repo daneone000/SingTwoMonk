@@ -389,6 +389,8 @@
     canPlaceTower(c, r) { return this.isLandFree(c, r) && !this.enemyOnCell(c, r) && !this.wouldBlockPath(c, r); }
     // CHIẾN DỊCH: gán hệ số nội tại (mastery) cho tướng khi xây
     _applyChampMul(t) { if (this.campaign && this.champMastery) t.champMul = 1 + (this.champMastery[t.type] || 0) * CFG.MASTERY_PER; }
+    // TƯỚNG (Blitzcrank): ô đi được sát tháp để giật quái về
+    pullCellNear(col, row) { for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const c = col + dc, r = row + dr; if (this.walkable(c, r)) return { c, r }; } return null; }
     // TƯỚNG (Caitlyn/Teemo): đặt 1 bẫy vào ô quái đi qua; cắt bớt bẫy CŨ nhất của cùng tướng khi vượt trần
     dropChampTrap(owner, col, row, spec, maxTraps) {
       if (!this.inBounds(col, row) || !this.walkable(col, row)) return;

@@ -230,7 +230,9 @@
       this.abilityCd = 0;                      // hồi chiêu còn lại (giây); 0 = sẵn sàng
       this.steroidTime = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): đòn đánh cường hóa trong X giây
       this.steroidBounces = 0; this.steroidBouncePct = 0; this.steroidPct = 0; this.steroidRange = 0;
-      this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0;   // đòn kế cường hóa: +ST / chí mạng / choáng (Renekton, Fiora)
+      this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0;   // đòn kế cường hóa: +ST / chí mạng / choáng (Renekton)
+      this.qStacks = 0;    // cộng dồn vô hạn khi kỹ năng KẾT LIỄU (Nasus, Veigar)
+      this._atk = 0;       // đếm đòn đánh (Vayne W: mỗi đòn thứ 3)
       this.champMul = 1;   // CHIẾN DỊCH: nội tại (mastery) tướng — +ST & tốc đánh vĩnh viễn
     }
     get ready() { return this.buildTimer <= 0; }
@@ -282,11 +284,14 @@
       if (this.buffTime > 0) this.buffTime -= dt;
       if (this.abilityCd > 0) this.abilityCd -= dt;   // TƯỚNG: hồi chiêu kỹ năng
       if (this.steroidTime > 0) this.steroidTime -= dt;   // TƯỚNG: cường hóa đòn đánh (Sivir/Kog'Maw) đếm ngược theo giây
-      const t = this.findTarget(game.enemies); if (!t) return;
-      this.angle = Math.atan2(t.y - this.y, t.x - this.x);
-      // TƯỚNG: tự thi triển kỹ năng khi hết hồi chiêu & có mục tiêu
       const ab = this.def.ability;
-      if (ab && this.abilityCd <= 0 && this.abilityReady(ab)) { this.castAbility(ab, game, t); this.abilityCd = this.abVal(ab.cd); }
+      // TƯỚNG: tự thi triển kỹ năng khi hết hồi chiêu — dùng TẦM KỸ NĂNG riêng (Blitzcrank/Poppy kéo/đánh từ xa; Garen/Alistar nổ quanh mình)
+      if (ab && ab.kind !== "onhit_pct" && this.abilityCd <= 0 && this.abilityReady(ab)) {
+        const at = this.abilityTarget(ab, game);
+        if (at) { this.angle = Math.atan2(at.y - this.y, at.x - this.x); this.abilityCd = this.abVal(ab.cd); this.castAbility(ab, game, at); }   // đặt cd TRƯỚC để castAbility có thể ghi đè (resetOnKill)
+      }
+      const t = this.findTarget(game.enemies); if (!t) return;   // đòn đánh thường (tầm đánh)
+      this.angle = Math.atan2(t.y - this.y, t.x - this.x);
       if (this.cooldown <= 0) {
         // Multishot: boon Tên (=cấp) và/hoặc L6 Tên (=cấp); có CẢ hai -> cấp + 3
         const bTen = this.boon === "ten", l6Ten = this.level >= 6 && this.type === "ten";
@@ -299,7 +304,8 @@
             if (this.steroidKind === "bounce") { p.bounces = this.steroidBounces; p.bounceDmg = this.steroidBouncePct * this.effDmg(); }   // Sivir Nảy Bật: đạn nảy tối đa N lần, mỗi lần gây % ST đòn đánh cố định
             else if (this.steroidKind === "pct") p.pctMaxDmg = this.steroidPct;   // Kog'Maw W: +% máu tối đa
           }
-          if (this.empowerDmg > 0 || this.empowerCrit || this.empowerStun) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; if (this.empowerStun) p.rootDur = this.empowerStun; this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; }   // đòn kế cường hóa (Renekton +choáng, Fiora +ST…)
+          if (this.empowerDmg > 0 || this.empowerCrit || this.empowerStun) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; if (this.empowerStun) p.rootDur = this.empowerStun; this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; }   // đòn kế cường hóa (Renekton +choáng…)
+          if (ab && ab.kind === "onhit_pct") { this._atk++; if (this._atk % ab.n === 0) { p.trueFlat = this.abVal(ab.flat) || 0; p.truePct = this.abVal(ab.pctMax) || 0; } }   // Vayne W Nỏ Bạc: mỗi đòn thứ N -> ST CHUẨN %máu tối đa
           game.projectiles.push(p);
         }
         this.cooldown = this.effRate() / (steroid ? this.steroidRateMul : 1);
@@ -309,6 +315,13 @@
     abVal(v) { return Array.isArray(v) ? v[Math.min(this.level, v.length) - 1] : v; }
     // TƯỚNG: có được phép thi triển kỹ năng lúc này không (chặn tái kích hoạt khi steroid còn hiệu lực)
     abilityReady(ab) { if (this.steroidTime > 0) return false; return true; }
+    // TƯỚNG: mục tiêu cho kỹ năng theo TẦM RIÊNG của kỹ năng (khác tầm đánh thường)
+    abilityTarget(ab, game) {
+      if (ab.kind === "pull") { const gr = (ab.grabRange || 5) * TILE; let best = null, bd = -1; for (const e of game.enemies) { if (e.dead || e.leaked || e.boss || !this.canHit(e)) continue; const d = dist(this.x, this.y, e.x, e.y); if (d <= gr && d > bd) { bd = d; best = e; } } return best; }   // Blitzcrank: quái XA nhất trong tầm kéo (bỏ boss)
+      if (ab.kind === "knockback") { const kr = (ab.grabRange || 4) * TILE; let best = null, br = 1e18; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= kr + e.radius && e.remain < br) { br = e.remain; best = e; } } return best; }   // Poppy: quái gần đích nhất trong tầm
+      if (ab.atSelf) { const r = (this.abVal(ab.radius) || 1) * TILE; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= r + e.radius) return e; } return null; }   // Garen/Alistar: nổ khi có quái trong vùng quanh mình
+      return this.findTarget(game.enemies);   // còn lại: theo tầm đánh thường
+    }
     // TƯỚNG: bộ điều phối kỹ năng theo ab.kind (chỉ số scale theo cấp qua abVal)
     castAbility(ab, game, t) {
       const col = this.def.color2 || this.def.color;
@@ -333,13 +346,32 @@
         // đòn đánh KẾ +ST nền (+adMul AD), tùy chọn chí mạng (Caitlyn cũ) / choáng (Renekton) / xuyên giáp (Fiora)
         this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit; this.empowerStun = ab.stun ? this.abVal(ab.stun) : 0;
       } else if (ab.kind === "strike") {
-        // Đòn chém đơn mục tiêu: true (bỏ giáp) / +%máu tối đa (Warwick) / hành quyết vs máu thấp (Darius) / choáng
+        // Đòn chém đơn mục tiêu: true (bỏ giáp) / +%máu tối đa / cộng dồn vô hạn (Nasus, Veigar) / hành quyết / choáng / reset khi kết liễu (Darius)
         let dmg = (this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
+        if (ab.stack) dmg += (this.qStacks || 0) * ab.stack.per;   // cộng dồn theo số lần kết liễu
         if (ab.pctMax) dmg += this.abVal(ab.pctMax) * t.maxHp;
         if (ab.execute && t.hp < t.maxHp * (ab.executeBelow || 0.3)) dmg *= (ab.executeMul || 2);   // Darius Chém Đầu: máu thấp -> ×2
         t.applyDamage(dmg, !!ab.true); t._spellHit = true;
         if (ab.stun) t.freeze(this.abVal(ab.stun));
+        if (t.dead) {   // KẾT LIỄU bằng kỹ năng
+          if (ab.stack) this.qStacks = (this.qStacks || 0) + (t.boss ? ab.stack.killBig : ab.stack.kill);   // cộng dồn vô hạn
+          if (ab.resetOnKill) this.abilityCd = 0;   // Darius: hồi chiêu về 0 -> chém liên tục khi còn kết liễu
+        }
         game.effects.push(new BlastFx(t.x, t.y, TILE * 0.5, col));
+      } else if (ab.kind === "pull") {
+        // Blitzcrank Móc Tên Lửa: giật quái XA về sát tháp + choáng + ST
+        const cell = game.pullCellNear(this.col, this.row);
+        if (cell) t.teleportTo((cell.c + .5) * TILE, (cell.r + .5) * TILE);
+        t.freeze(this.abVal(ab.stun) || 0.65);
+        t.applyDamage((this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg()); t._spellHit = true;
+        game.effects.push(new BeamFx(this.x, this.y, t.x, t.y, col));
+      } else if (ab.kind === "knockback") {
+        // Poppy Uy Quyền Tối Cao: đánh quái VĂNG về CỔNG SINH (điểm xuất phát) + ST lớn
+        const ent = game.map.entries && game.map.entries.length ? game.map.entries[0] : null;
+        t.applyDamage((this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg()); t._spellHit = true;
+        if (ent) t.teleportTo((ent.c + .5) * TILE, (ent.r + .5) * TILE);
+        t.freeze(0.4);
+        game.effects.push(new BeamFx(this.x, this.y, t.x, t.y, col));
       } else if (ab.kind === "place_trap") {
         // Caitlyn Bẫy Yordle / Teemo Nấm Độc: đặt 1 bẫy vào ô của mục tiêu (trong tầm), giới hạn số bẫy còn sống
         const c = Math.floor(t.x / TILE), r = Math.floor(t.y / TILE);
@@ -416,9 +448,11 @@
     }
     // TƯỚNG: vòng hồi chiêu kỹ năng (cung tiến độ), hào quang khi SẴN SÀNG, aura khi đang cường hóa, huy hiệu phím
     drawAbility(ctx, x, y) {
-      const ab = this.def.ability, R = TILE * .5;
-      const maxCd = this.abVal(ab.cd) || 1, cd = Math.max(0, this.abilityCd || 0), p = Math.max(0, Math.min(1, 1 - cd / maxCd));
-      const col = this.def.color2 || this.def.color, ready = cd <= 0.02, g = this.glowT || 0;
+      const ab = this.def.ability, R = TILE * .5, g = this.glowT || 0;
+      const col = this.def.color2 || this.def.color;
+      let p, ready;
+      if (ab.kind === "onhit_pct") { p = (this._atk % ab.n) / ab.n; ready = (this._atk % ab.n) === ab.n - 1; }   // Vayne: đòn tới là đòn thứ N
+      else { const maxCd = this.abVal(ab.cd) || 1, cd = Math.max(0, this.abilityCd || 0); p = Math.max(0, Math.min(1, 1 - cd / maxCd)); ready = cd <= 0.02; }
       ctx.save();
       ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.stroke();   // nền vòng
       ctx.strokeStyle = ready ? col : "rgba(180,200,255,.85)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.stroke();   // cung tiến độ hồi chiêu
@@ -620,6 +654,7 @@
       this.bounces = 0; this.bounceDmg = 0; this._hitSet = null;
       this.rootDur = 0;      // TƯỚNG (Lux Q): trói/choáng mục tiêu chính khi trúng
       this.pctMaxDmg = 0;    // TƯỚNG (Kog'Maw W): +% máu TỐI ĐA (phép, bỏ giáp)
+      this.trueFlat = 0; this.truePct = 0;   // TƯỚNG (Vayne W): ST CHUẨN = max(cố định, % máu tối đa)
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e, primary) {
@@ -628,6 +663,7 @@
       if (this.gemCrit > 0 && Math.random() < this.gemCrit) { dmg *= CFG.CRIT_MULT; e.critFx = 0.25; }   // GEM Kim: chí mạng (hoặc Caitlyn Đầu Ruồi ép chí mạng)
       e.applyDamage(dmg);
       if (this.pctMaxDmg > 0) { e.applyDamage(this.pctMaxDmg * e.maxHp, true); e._spellHit = true; }   // Kog'Maw W: +% máu TỐI ĐA (phép, bỏ giáp)
+      if (this.trueFlat > 0 || this.truePct > 0) { e.applyDamage(Math.max(this.trueFlat, this.truePct * e.maxHp), true); e._spellHit = true; }   // Vayne W: ST CHUẨN = max(cố định, %máu tối đa)
       if (primary && this.rootDur > 0) e.freeze(this.rootDur);   // Lux Q: trói mục tiêu chính
       if (this.gemSlow > 0) e.slow(1 - Math.min(0.9, this.gemSlow), 1.2);                 // GEM Thuỷ: làm chậm
       if (primary && this.gemStun > 0 && Math.random() < this.gemStun) e.freeze(CFG.FREEZE_DUR);   // GEM Thổ: choáng 1s — CHỈ mục tiêu chính (không loang)
