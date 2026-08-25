@@ -536,6 +536,8 @@
       ctx.strokeStyle = c2; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, headCy, headR + .5, Math.PI, 0); ctx.stroke();
       // mắt
       ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(x - headR * .34, headCy + headR * .18, 1.15, 0, 7); ctx.arc(x + headR * .34, headCy + headR * .18, 1.15, 0, 7); ctx.fill();
+      // NÉT ĐẶC TRƯNG từng tướng (mũ/sừng/đầu thú…) — hình gốc gợi nhớ tướng LMHT
+      drawChampFeature(ctx, this.type, x, headCy, headR, col, c2);
       // vũ khí (xoay theo mục tiêu) — cầm ở vai
       ctx.save(); ctx.translate(x, shoulderY + 1); ctx.rotate(a); drawWeapon(ctx, WEAPON[this.type] || (melee ? "sword" : "bow"), col, c2, melee); ctx.restore();
       ctx.restore();
@@ -856,6 +858,106 @@
       roundRect(ctx, T * .12, -T * .11, T * .18, T * .22, 3); ctx.fill(); ctx.stroke();
       ctx.fillStyle = shade(col, -12); for (let i = 0; i < 3; i++) { roundRect(ctx, T * .28, -T * .09 + i * T * .07, 3, T * .05, 1); ctx.fill(); }
     }
+  }
+  // ---- CHIẾN DỊCH: nét đặc trưng đầu/mũ từng tướng (hình gốc gợi nhớ, không sao chép asset) ----
+  function drawChampFeature(ctx, key, x, hy, hr, col, c2) {
+    const dark = shade(col, -24), lite = shade(col, 26), sk = "#e9caa6", ss = "rgba(0,0,0,.35)";
+    const spike = (cx, ty, w, h, fill) => { ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(cx - w, ty); ctx.lineTo(cx + w, ty); ctx.lineTo(cx, ty - h); ctx.closePath(); ctx.fill(); };
+    ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = ss;
+    switch (key) {
+      case "caitlyn": {   // mũ cảnh sát cao (top hat) + dải vàng
+        ctx.fillStyle = "#3d2450"; roundRect(ctx, x - hr * 1.25, hy - hr * .95, hr * 2.5, hr * .42, 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#5a366e"; roundRect(ctx, x - hr * .78, hy - hr * 2.25, hr * 1.56, hr * 1.4, 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c2; ctx.fillRect(x - hr * .78, hy - hr * 1.3, hr * 1.56, hr * .28); break;
+      }
+      case "veigar": {   // mũ phù thủy nhọn cong
+        ctx.fillStyle = dark; ctx.beginPath(); ctx.moveTo(x - hr * 1.05, hy - hr * .7); ctx.quadraticCurveTo(x - hr * .2, hy - hr * 1.4, x + hr * .95, hy - hr * 2.7); ctx.quadraticCurveTo(x + hr * .2, hy - hr * 1.7, x + hr * 1.0, hy - hr * .7); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(x + hr * .95, hy - hr * 2.7, hr * .22, 0, 7); ctx.fill();
+        ctx.fillStyle = shade(col, -34); roundRect(ctx, x - hr * 1.3, hy - hr * .8, hr * 2.6, hr * .34, 2); ctx.fill(); break;
+      }
+      case "teemo": {   // mũ trinh sát chóp + 2 tai to
+        ctx.fillStyle = lite; ctx.beginPath(); ctx.ellipse(x - hr * 1.1, hy - hr * .1, hr * .5, hr * .85, -.3, 0, 7); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.ellipse(x + hr * 1.1, hy - hr * .1, hr * .5, hr * .85, .3, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(x - hr * .95, hy - hr * .75); ctx.quadraticCurveTo(x, hy - hr * 2.35, x + hr * .95, hy - hr * .75); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#e23b3b"; ctx.beginPath(); ctx.arc(x, hy - hr * 2.15, hr * .28, 0, 7); ctx.fill(); break;
+      }
+      case "alistar": {   // 2 sừng bò cong
+        ctx.strokeStyle = "#efe7d4"; ctx.lineWidth = hr * .42; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x - hr * .65, hy - hr * .55); ctx.quadraticCurveTo(x - hr * 1.6, hy - hr * 1.15, x - hr * 1.25, hy - hr * 2.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + hr * .65, hy - hr * .55); ctx.quadraticCurveTo(x + hr * 1.6, hy - hr * 1.15, x + hr * 1.25, hy - hr * 2.1); ctx.stroke();
+        ctx.lineCap = "butt"; ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, hy + hr * .35, hr * .2, 0, 7); ctx.fill(); break;   // mũi bò
+      }
+      case "blitzcrank": {   // đầu robot: tấm kim loại + thanh mắt sáng + ăng-ten
+        ctx.fillStyle = "#c9a13a"; roundRect(ctx, x - hr * .95, hy - hr * 1.05, hr * 1.9, hr * 2.0, 3); ctx.fill(); ctx.strokeStyle = shade("#c9a13a", -35); ctx.stroke();
+        ctx.fillStyle = "#0c3550"; roundRect(ctx, x - hr * .62, hy - hr * .15, hr * 1.24, hr * .5, 2); ctx.fill();
+        ctx.fillStyle = "#7fe6ff"; ctx.beginPath(); ctx.arc(x, hy + hr * .1, hr * .19, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#8a8a8a"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, hy - hr * 1.05); ctx.lineTo(x, hy - hr * 1.7); ctx.stroke();
+        ctx.fillStyle = "#ff5252"; ctx.beginPath(); ctx.arc(x, hy - hr * 1.82, hr * .17, 0, 7); ctx.fill(); break;
+      }
+      case "poppy": {   // mũ giáp vòm + vành
+        ctx.fillStyle = "#cccdd6"; ctx.beginPath(); ctx.arc(x, hy - hr * .05, hr * 1.08, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.strokeStyle = "#8a8a95"; ctx.stroke();
+        ctx.fillStyle = c2; ctx.fillRect(x - hr * 1.05, hy - hr * .15, hr * 2.1, hr * .22);
+        ctx.fillStyle = "#e2e2ea"; roundRect(ctx, x - hr * .12, hy - hr * 1.5, hr * .24, hr * .5, 1); ctx.fill(); break;   // chóp
+      }
+      case "nasus": {   // đầu chó rừng: 2 tai nhọn cao + mõm
+        ctx.fillStyle = lite; ctx.beginPath(); ctx.moveTo(x - hr * .8, hy - hr * .4); ctx.lineTo(x - hr * 1.15, hy - hr * 2.2); ctx.lineTo(x - hr * .15, hy - hr * .9); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + hr * .8, hy - hr * .4); ctx.lineTo(x + hr * 1.15, hy - hr * 2.2); ctx.lineTo(x + hr * .15, hy - hr * .9); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = sk; roundRect(ctx, x - hr * .34, hy + hr * .45, hr * .68, hr * .7, 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#2b2b2b"; ctx.beginPath(); ctx.arc(x, hy + hr * 1.05, hr * .17, 0, 7); ctx.fill(); break;
+      }
+      case "renekton": {   // đầu cá sấu: mõm dài + răng + gờ đỉnh
+        ctx.fillStyle = lite; roundRect(ctx, x - hr * .52, hy + hr * .3, hr * 1.04, hr * 1.05, 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#fff"; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(x + i * hr * .34, hy + hr * 1.35); ctx.lineTo(x + i * hr * .34 - hr * .13, hy + hr * 1.05); ctx.lineTo(x + i * hr * .34 + hr * .13, hy + hr * 1.05); ctx.closePath(); ctx.fill(); }
+        spike(x, hy - hr * .85, hr * .34, hr * .7, shade(col, 18)); break;   // gờ đỉnh
+      }
+      case "darius": {   // hói + râu quai nón
+        ctx.fillStyle = "#2f2416"; ctx.beginPath(); ctx.arc(x, hy + hr * .45, hr * .92, .15, Math.PI - .15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#2f2416"; roundRect(ctx, x - hr * .12, hy + hr * .95, hr * .24, hr * .55, 2); ctx.fill(); break;
+      }
+      case "sivir": {   // tóc dài 2 bên + băng đô vàng
+        ctx.fillStyle = "#241610";
+        ctx.beginPath(); ctx.moveTo(x - hr * .95, hy - hr * .5); ctx.quadraticCurveTo(x - hr * 1.4, hy + hr * 1.4, x - hr * .55, hy + hr * 2.0); ctx.lineTo(x - hr * .28, hy + hr * .9); ctx.quadraticCurveTo(x - hr * .85, hy, x - hr * .95, hy - hr * .5); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + hr * .95, hy - hr * .5); ctx.quadraticCurveTo(x + hr * 1.4, hy + hr * 1.4, x + hr * .55, hy + hr * 2.0); ctx.lineTo(x + hr * .28, hy + hr * .9); ctx.quadraticCurveTo(x + hr * .85, hy, x + hr * .95, hy - hr * .5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = c2; roundRect(ctx, x - hr * 1.0, hy - hr * .95, hr * 2.0, hr * .3, 2); ctx.fill(); break;
+      }
+      case "ashe": {   // mũ trùm lông + vương miện băng
+        ctx.fillStyle = lite; ctx.beginPath(); ctx.arc(x, hy - hr * .05, hr * 1.15, Math.PI * 1.02, -0.02); ctx.closePath(); ctx.fill(); ctx.stroke();
+        for (let i = -1; i <= 1; i++) diamond(ctx, x + i * hr * .55, hy - hr * .75, hr * .18, hr * .5, "#eaffff", "#fff"); break;
+      }
+      case "vayne": {   // mũ rộng vành (thợ săn)
+        ctx.fillStyle = "#241826"; roundRect(ctx, x - hr * 1.45, hy - hr * .68, hr * 2.9, hr * .34, 3); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#33203a"; roundRect(ctx, x - hr * .72, hy - hr * 1.55, hr * 1.44, hr * .95, 2); ctx.fill(); ctx.stroke(); break;
+      }
+      case "varus": {   // mũ trùm + gai (nhiễm hắc)
+        ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(x, hy, hr * 1.1, Math.PI, 0); ctx.closePath(); ctx.fill();
+        spike(x - hr * .6, hy - hr * .95, hr * .16, hr * .55, c2); spike(x, hy - hr * 1.05, hr * .18, hr * .7, c2); spike(x + hr * .6, hy - hr * .95, hr * .16, hr * .55, c2); break;
+      }
+      case "lux": {   // đuôi tóc vàng + vương miện nhỏ
+        ctx.fillStyle = "#f0d878"; ctx.beginPath(); ctx.ellipse(x + hr * 1.05, hy + hr * .55, hr * .42, hr * 1.25, .3, 0, 7); ctx.fill(); ctx.stroke();
+        spike(x, hy - hr * .9, hr * .28, hr * .55, c2); break;
+      }
+      case "brand": {   // tóc lửa (ngọn lửa trên đầu)
+        for (const [ox, h, fill] of [[-hr * .55, hr * 1.2, "#ff6a1a"], [0, hr * 1.7, "#ff8a2a"], [hr * .55, hr * 1.2, "#ff6a1a"]]) { ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(x + ox - hr * .3, hy - hr * .6); ctx.quadraticCurveTo(x + ox - hr * .1, hy - hr * .6 - h * .6, x + ox, hy - hr * .6 - h); ctx.quadraticCurveTo(x + ox + hr * .1, hy - hr * .6 - h * .6, x + ox + hr * .3, hy - hr * .6); ctx.closePath(); ctx.fill(); }
+        ctx.fillStyle = "#ffd24a"; ctx.beginPath(); ctx.moveTo(x - hr * .12, hy - hr * .6); ctx.quadraticCurveTo(x, hy - hr * 1.5, x + hr * .12, hy - hr * .6); ctx.closePath(); ctx.fill(); break;
+      }
+      case "cassiopeia": {   // mang rắn (hood) sau đầu + nanh
+        ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(x, hy - hr * .2, hr * 1.7, hr * 1.05, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c2; ctx.beginPath(); ctx.ellipse(x, hy - hr * .35, hr * 1.0, hr * .6, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x - hr * .25, hy + hr * .6); ctx.lineTo(x - hr * .35, hy + hr * .95); ctx.lineTo(x - hr * .12, hy + hr * .65); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + hr * .25, hy + hr * .6); ctx.lineTo(x + hr * .35, hy + hr * .95); ctx.lineTo(x + hr * .12, hy + hr * .65); ctx.fill(); break;
+      }
+      case "kogmaw": {   // quái: 1 mắt to + miệng răng
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, hy - hr * .1, hr * .62, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#c1121f"; ctx.beginPath(); ctx.arc(x, hy - hr * .1, hr * .3, 0, 7); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, hy - hr * .1, hr * .13, 0, 7); ctx.fill();
+        ctx.fillStyle = "#5a141a"; ctx.beginPath(); ctx.arc(x, hy + hr * .7, hr * .6, .12, Math.PI - .12); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fff"; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(x + i * hr * .3, hy + hr * .72); ctx.lineTo(x + i * hr * .3 - hr * .1, hy + hr * .95); ctx.lineTo(x + i * hr * .3 + hr * .1, hy + hr * .95); ctx.closePath(); ctx.fill(); } break;
+      }
+      case "garen": {   // mũ giáp hiệp sĩ + chóp lông đỏ
+        ctx.fillStyle = "#b9b9c2"; ctx.beginPath(); ctx.arc(x, hy, hr * 1.06, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.strokeStyle = "#8a8a95"; ctx.stroke();
+        ctx.fillStyle = "#9a9aa4"; ctx.fillRect(x - hr * .14, hy - hr * .25, hr * .28, hr * 1.05);
+        ctx.fillStyle = "#c62828"; ctx.beginPath(); ctx.moveTo(x - hr * .32, hy - hr * 1.02); ctx.quadraticCurveTo(x, hy - hr * 2.05, x + hr * .32, hy - hr * 1.02); ctx.closePath(); ctx.fill(); break;
+      }
+    }
+    ctx.restore();
   }
   // huy hiệu cấp (số vàng trên nền tối)
   // Dấu chọn: vòng sáng vàng nhấp nháy quanh chân + vòng tầm nét đứt (phân biệt rõ tháp đang chọn)
