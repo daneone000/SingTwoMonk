@@ -391,6 +391,20 @@
     _applyChampMul(t) { if (this.campaign && this.champMastery) t.champMul = 1 + (this.champMastery[t.type] || 0) * CFG.MASTERY_PER; }
     // TƯỚNG (Blitzcrank): ô đi được sát tháp để giật quái về
     pullCellNear(col, row) { for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const c = col + dc, r = row + dr; if (this.walkable(c, r)) return { c, r }; } return null; }
+    // TƯỚNG (Teemo/Caitlyn): ô ĐƯỜNG ĐI trong tầm đánh để đặt bẫy CHỦ ĐỘNG (không cần quái); ưu tiên ô chưa có bẫy của mình, gần tháp nhất
+    pathCellInRange(t) {
+      const rng = t.range / TILE, R = Math.ceil(rng);
+      const owned = new Set((t._champTraps || []).filter((x) => !x.dead).map((x) => x.col + "," + x.row));
+      let best = null, bd = 1e18, fb = null, fd = 1e18;
+      for (let dr = -R; dr <= R; dr++) for (let dc = -R; dc <= R; dc++) {
+        const c = t.col + dc, r = t.row + dr, d = Math.hypot(dc, dr);
+        if (d > rng || !this.walkable(c, r) || this.distAt(c, r) >= INF) continue;   // phải là ô quái đi được (đến đích)
+        if (d < fd) { fd = d; fb = { c, r }; }
+        if (owned.has(c + "," + r)) continue;
+        if (d < bd) { bd = d; best = { c, r }; }
+      }
+      return best || fb;
+    }
     // TƯỚNG (Caitlyn/Teemo): đặt 1 bẫy vào ô quái đi qua; cắt bớt bẫy CŨ nhất của cùng tướng khi vượt trần
     dropChampTrap(owner, col, row, spec, maxTraps) {
       if (!this.inBounds(col, row) || !this.walkable(col, row)) return;

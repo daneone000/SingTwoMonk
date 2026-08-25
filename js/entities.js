@@ -320,6 +320,7 @@
       if (ab.kind === "pull") { const gr = (ab.grabRange || 5) * TILE; let best = null, bd = -1; for (const e of game.enemies) { if (e.dead || e.leaked || e.boss || !this.canHit(e)) continue; const d = dist(this.x, this.y, e.x, e.y); if (d <= gr && d > bd) { bd = d; best = e; } } return best; }   // Blitzcrank: quái XA nhất trong tầm kéo (bỏ boss)
       if (ab.kind === "knockback") { const kr = (ab.grabRange || 4) * TILE; let best = null, br = 1e18; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= kr + e.radius && e.remain < br) { br = e.remain; best = e; } } return best; }   // Poppy: quái gần đích nhất trong tầm
       if (ab.atSelf) { const r = (this.abVal(ab.radius) || 1) * TILE; for (const e of game.enemies) { if (e.dead || e.leaked || !this.canHit(e)) continue; if (dist(this.x, this.y, e.x, e.y) <= r + e.radius) return e; } return null; }   // Garen/Alistar: nổ khi có quái trong vùng quanh mình
+      if (ab.kind === "place_trap") { const e = this.findTarget(game.enemies); if (e) return e; const cell = game.pathCellInRange(this); return cell ? { x: (cell.c + .5) * TILE, y: (cell.r + .5) * TILE } : null; }   // Teemo/Caitlyn: có quái -> đặt ô quái; KHÔNG -> đặt CHỦ ĐỘNG lên ô đường đi trong tầm (không đợi quái)
       return this.findTarget(game.enemies);   // còn lại: theo tầm đánh thường
     }
     // TƯỚNG: bộ điều phối kỹ năng theo ab.kind (chỉ số scale theo cấp qua abVal)
