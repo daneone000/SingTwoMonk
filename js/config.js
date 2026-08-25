@@ -368,11 +368,11 @@
         { dmg: 110, rate: R(0.9), range: 1.5, splash: 0 }, { dmg: 225, rate: R(0.95), range: 1.5, splash: 0 },
         { dmg: 480, rate: R(1.0), range: 1.6, splash: 0 },
       ],
-      // [Q] Quyền Trượng Linh Hồn (Siphoning Strike) — kết liễu → cộng dồn ST VĨNH VIỄN vô hạn
-      ability: { key: "Q", name: "Quyền Trượng Linh Hồn", kind: "strike",
-        cd: [7.5, 6.5, 5.5, 4.5, 3.5], dmg: [40, 60, 80, 100, 120], adMul: 1.0,
+      // [Q] Quyền Trượng Linh Hồn (Siphoning Strike) — CƯỜNG HÓA đòn đánh kế; kết liễu bằng đòn này → cộng dồn ST VĨNH VIỄN
+      ability: { key: "Q", name: "Quyền Trượng Linh Hồn", kind: "empower_next", adMul: 0,
+        cd: [7.5, 6.5, 5.5, 4.5, 3.5], dmg: [40, 60, 80, 100, 120],
         stack: { per: 1, kill: 4, killBig: 10 },
-        desc: "Chém HÚT SINH LỰC: ST nền + đòn đánh + số cộng dồn. KẾT LIỄU quái → +cộng dồn VĨNH VIỄN (thường +4, boss +10)." },
+        desc: "Cường hóa đòn đánh KẾ: đòn đánh + ST nền + số cộng dồn. KẾT LIỄU bằng đòn này → +cộng dồn VĨNH VIỄN (thường +4, boss +10)." },
       desc: "Người gác cát: Q kết liễu để cộng dồn ST vô hạn. CHỈ đánh quái BỘ.",
     },
     poppy: {
@@ -384,11 +384,11 @@
         { dmg: 96, rate: R(1.1), range: 1.5, splash: 0 }, { dmg: 198, rate: R(1.15), range: 1.5, splash: 0 },
         { dmg: 425, rate: R(1.2), range: 1.6, splash: 0 },
       ],
-      // [R] Sứ Giả Phán Quyết (Keeper's Verdict) — đánh quái VĂNG về CỔNG SINH (đầu đường) + ST lớn
+      // [R] Sứ Giả Phán Quyết (Keeper's Verdict) — đánh quái VĂNG NGƯỢC 1 đoạn (xa dần theo cấp) + ST lớn
       ability: { key: "R", name: "Sứ Giả Phán Quyết", kind: "knockback", grabRange: 3.5,
-        cd: [140, 140, 120, 120, 100], dmg: [200, 200, 300, 300, 400], adMul: 0.9,
-        desc: "Vung búa đánh quái VĂNG NGƯỢC về cổng sinh (điểm xuất phát) + ST lớn — reset quãng đường của quái đó." },
-      desc: "Người gác búa: R hất quái về đầu đường, kéo dài thời gian. CHỈ đánh quái BỘ.",
+        cd: [140, 140, 120, 120, 100], dmg: [200, 200, 300, 300, 400], adMul: 0.9, pushTiles: [3, 4, 5, 6, 7],
+        desc: "Vung búa đánh quái VĂNG NGƯỢC về phía cổng sinh một đoạn (3→7 ô theo cấp) + ST lớn — kéo dài quãng đường quái đó." },
+      desc: "Người gác búa: R hất quái lùi 1 đoạn, kéo dài thời gian. CHỈ đánh quái BỘ.",
     },
     renekton: {
       key: "renekton", name: "Renekton", title: "Sát Thủ Cát Dữ", glyph: "🐊", champion: true, melee: true,

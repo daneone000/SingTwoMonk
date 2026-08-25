@@ -230,7 +230,7 @@
       this.abilityCd = 0;                      // hồi chiêu còn lại (giây); 0 = sẵn sàng
       this.steroidTime = 0; this.steroidRateMul = 1; this.steroidKind = null;   // "bounce" (Sivir) | "pct" (Kog'Maw): đòn đánh cường hóa trong X giây
       this.steroidBounces = 0; this.steroidBouncePct = 0; this.steroidPct = 0; this.steroidRange = 0;
-      this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0;   // đòn kế cường hóa: +ST / chí mạng / choáng (Renekton)
+      this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; this.empowerStack = null;   // đòn kế cường hóa: +ST / chí mạng / choáng (Renekton) / cộng dồn khi kết liễu (Nasus)
       this.qStacks = 0;    // cộng dồn vô hạn khi kỹ năng KẾT LIỄU (Nasus, Veigar)
       this._atk = 0;       // đếm đòn đánh (Vayne W: mỗi đòn thứ 3)
       this.champMul = 1;   // CHIẾN DỊCH: nội tại (mastery) tướng — +ST & tốc đánh vĩnh viễn
@@ -304,7 +304,7 @@
             if (this.steroidKind === "bounce") { p.bounces = this.steroidBounces; p.bounceDmg = this.steroidBouncePct * this.effDmg(); }   // Sivir Nảy Bật: đạn nảy tối đa N lần, mỗi lần gây % ST đòn đánh cố định
             else if (this.steroidKind === "pct") p.pctMaxDmg = this.steroidPct;   // Kog'Maw W: +% máu tối đa
           }
-          if (this.empowerDmg > 0 || this.empowerCrit || this.empowerStun) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; if (this.empowerStun) p.rootDur = this.empowerStun; this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; }   // đòn kế cường hóa (Renekton +choáng…)
+          if (this.empowerDmg > 0 || this.empowerCrit || this.empowerStun || this.empowerStack) { p.dmg += this.empowerDmg; if (this.empowerCrit) p.gemCrit = 1; if (this.empowerStun) p.rootDur = this.empowerStun; if (this.empowerStack) { p._stackOwner = this; p._stackKind = this.empowerStack; } this.empowerDmg = 0; this.empowerCrit = false; this.empowerStun = 0; this.empowerStack = null; }   // đòn kế cường hóa (Renekton +choáng / Nasus cộng dồn khi kết liễu)
           if (ab && ab.kind === "onhit_pct") { this._atk++; if (this._atk % ab.n === 0) { p.trueFlat = this.abVal(ab.flat) || 0; p.truePct = this.abVal(ab.pctMax) || 0; } }   // Vayne W Nỏ Bạc: mỗi đòn thứ N -> ST CHUẨN %máu tối đa
           game.projectiles.push(p);
         }
@@ -348,8 +348,8 @@
         const dps = (this.abVal(ab.dps) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
         game.effects.push(new PoisonCloud(t.x, t.y, this.abVal(ab.radius) * TILE, dps, ab.dur, 0, this.abVal(ab.slowPct) || 0));
       } else if (ab.kind === "empower_next") {
-        // đòn đánh KẾ +ST nền (+adMul AD), tùy chọn chí mạng (Caitlyn cũ) / choáng (Renekton) / xuyên giáp (Fiora)
-        this.empowerDmg = abDmg(); this.empowerCrit = !!ab.crit; this.empowerStun = ab.stun ? this.abVal(ab.stun) : 0;
+        // đòn đánh KẾ +ST nền (+adMul AD); tùy chọn chí mạng / choáng (Renekton) / cộng dồn khi kết liễu (Nasus)
+        this.empowerDmg = abDmg() + (ab.stack ? (this.qStacks || 0) * ab.stack.per : 0); this.empowerCrit = !!ab.crit; this.empowerStun = ab.stun ? this.abVal(ab.stun) : 0; this.empowerStack = ab.stack || null;
       } else if (ab.kind === "strike") {
         // Đòn chém đơn mục tiêu: true (bỏ giáp) / +%máu tối đa / cộng dồn vô hạn (Nasus, Veigar) / hành quyết / choáng / reset khi kết liễu (Darius)
         let dmg = (this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg();
@@ -371,10 +371,11 @@
         t.applyDamage((this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg()); t._spellHit = true;
         game.effects.push(new BeamFx(this.x, this.y, t.x, t.y, col));
       } else if (ab.kind === "knockback") {
-        // Poppy Uy Quyền Tối Cao: đánh quái VĂNG về CỔNG SINH (điểm xuất phát) + ST lớn
-        const ent = game.map.entries && game.map.entries.length ? game.map.entries[0] : null;
+        // Poppy Sứ Giả Phán Quyết: đánh quái VĂNG NGƯỢC 1 ĐOẠN (xa dần theo cấp) về phía cổng sinh + ST lớn
         t.applyDamage((this.abVal(ab.dmg) || 0) + (ab.adMul != null ? ab.adMul : 0) * this.effDmg()); t._spellHit = true;
-        if (ent) t.teleportTo((ent.c + .5) * TILE, (ent.r + .5) * TILE);
+        const ec = Math.floor(t.x / TILE), er = Math.floor(t.y / TILE);
+        const cell = game.randomBackCell(ec, er, this.abVal(ab.pushTiles) || 3);   // lùi tối đa N ô theo đường đi
+        if (cell) t.teleportTo((cell.c + .5) * TILE, (cell.r + .5) * TILE);
         t.freeze(0.4);
         game.effects.push(new BeamFx(this.x, this.y, t.x, t.y, col));
       } else if (ab.kind === "place_trap") {
@@ -713,6 +714,7 @@
       this.rootDur = 0;      // TƯỚNG (Lux Q): trói/choáng mục tiêu chính khi trúng
       this.pctMaxDmg = 0;    // TƯỚNG (Kog'Maw W): +% máu TỐI ĐA (phép, bỏ giáp)
       this.trueFlat = 0; this.truePct = 0;   // TƯỚNG (Vayne W): ST CHUẨN = max(cố định, % máu tối đa)
+      this._stackOwner = null; this._stackKind = null;   // TƯỚNG (Nasus Q): đòn cường hóa — kết liễu thì cộng dồn cho chủ
     }
     canHit(e) { return this.tgt === "both" || (this.tgt === "ground" && !e.fly) || (this.tgt === "air" && e.fly); }
     applyTo(e, primary) {
@@ -735,6 +737,8 @@
         if (fx === "slow") e.slow(1 - Math.min(0.95, (this.st.slowPct || 0) * this.effMul), 1.2);
         else if (fx === "poison") e.addPoison((this.st.poisonPct || 0) * this.effMul / 5, 5, 4, this.boon === "doc");  // độc: %máu HIỆN TẠI (hoặc TỐI ĐA nếu boon Độc), 5s
       }
+      // Nasus Q: đòn cường hóa KẾT LIỄU mục tiêu -> cộng dồn VĨNH VIỄN cho chủ (chỉ tính 1 lần, mục tiêu chính)
+      if (primary && this._stackOwner && this._stackKind && e.dead) { this._stackOwner.qStacks = (this._stackOwner.qStacks || 0) + (e.boss ? this._stackKind.killBig : this._stackKind.kill); this._stackOwner = null; }
     }
     update(dt, game) {
       if (this.target && !this.target.dead && !this.target.leaked) { this.tx = this.target.x; this.ty = this.target.y; }
