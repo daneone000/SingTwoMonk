@@ -659,7 +659,7 @@
       return `<div class="camp-champ${on ? "" : " locked"}"><div class="camp-champ-head"><span class="tw-ic" style="background:${c.color}">${c.glyph}</span><div><div class="camp-champ-nm">${c.name} <span class="camp-champ-tg">${tgt}</span></div><div class="camp-champ-ab">[${c.ability.key}] ${c.ability.name}</div></div></div><div class="camp-champ-sum">${champAbilitySummary(c)}</div><div class="camp-stars">${stars} <span class="ms-buff">+${Math.round(lv * CFG.MASTERY_PER * 100)}% ST/tốc</span></div>${upBtn}${lock}</div>`;
     };
     const grp = (label, order) => `<div class="camp-grp">${label}</div>` + order.map(champCard).join("");
-    $("campChamps").innerHTML = grp("🏹 Tay dài (10)", CFG.RANGED_ORDER) + grp("⚔ Cận chiến — chỉ đánh Bộ (10)", CFG.MELEE_ORDER);
+    $("campChamps").innerHTML = grp(`🏹 Tay dài (${CFG.RANGED_ORDER.length})`, CFG.RANGED_ORDER) + grp(`⚔ Cận chiến — chỉ đánh Bộ (${CFG.MELEE_ORDER.length})`, CFG.MELEE_ORDER);
     for (const b of $("campChamps").querySelectorAll(".camp-up")) b.onclick = () => { const k = b.dataset.champ; if (campaign.points > 0 && (campaign.mastery[k] | 0) < CFG.MASTERY_MAX) { campaign.mastery[k] = (campaign.mastery[k] | 0) + 1; campaign.points--; saveCampaign(); renderCampaign(); } };
   }
 
